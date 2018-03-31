@@ -47,9 +47,6 @@ func TestTransaction(t *testing.T) {
 		t.Error(err)
 	}
 
-	t.Logf("%x", res)
-	t.Error("ayy")
-
 	parsed := &protobufs.Transaction{}
 	err = proto.Unmarshal(res, parsed)
 	if err != nil {
