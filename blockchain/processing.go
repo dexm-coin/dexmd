@@ -138,10 +138,8 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 			return err
 		}
 
-		reciverBalance, err := bc.GetState(t.GetRecipient())
-		if err != nil {
-			return err
-		}
+		// Ignore error because if the wallet doesn't exist yet we don't care
+		reciverBalance, _ := bc.GetState(t.GetRecipient())
 
 		// No overflow checks because ValidateBlock already does that
 		senderBalance.Balance -= t.GetAmount() + t.GetGas()
@@ -153,7 +151,10 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 		bc.setState(t.GetRecipient(), &reciverBalance)
 	}
 
-	// Give fees and reward to miner
+	// Give fees and reward to miner TODO Decide block reward
+	minerState, _ := bc.GetState(block.GetMiner())
+
+	minerState.Balance = totalGas + minerState.GetBalance()
 
 	return nil
 }
