@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/dexm-coin/dexmd/wallet"
+	"github.com/libp2p/go-libp2p-peer"
 	"github.com/libp2p/go-libp2p-peerstore"
 	"github.com/libp2p/go-libp2p-swarm"
 	bhost "github.com/libp2p/go-libp2p/p2p/host/basic"
@@ -23,7 +24,17 @@ func InitNode(identity *wallet.Wallet) (*Node, error) {
 		return nil, err
 	}
 
-	net, err := swarm.NewNetwork(ctx, []ma.Multiaddr{listen}, "pid", ps, nil)
+	wal, err := identity.GetWallet()
+	if err != nil {
+		return nil, err
+	}
+
+	pid, err := peer.IDFromString(wal)
+	if err != nil {
+		return nil, err
+	}
+
+	net, err := swarm.NewNetwork(ctx, []ma.Multiaddr{listen}, pid, ps, nil)
 	if err != nil {
 		return nil, err
 	}
