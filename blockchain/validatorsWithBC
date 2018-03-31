@@ -1,0 +1,69 @@
+package blockchain
+
+import (
+	"errors"
+	"math/rand"
+)
+
+// ValidatorsBook is a structure that keeps record of every validator and its stake
+type ValidatorsBook struct {
+	valsArray []string
+}
+
+// AddValidator adds a new validator to the book
+func (v *ValidatorsBook) AddValidator(wallet string) error {
+	for _, val := range v.valsArray {
+		if val == wallet {
+			return errors.New("Validator already present")
+		}
+	}
+	v.valsArray = append(v.valsArray, wallet)
+	return nil
+}
+
+// RemoveValidator must be called in case a validator leaves its job
+func (v *ValidatorsBook) RemoveValidator(wallet string) error {
+	for i, val := range v.valsArray {
+		if val == wallet {
+			v.valsArray = append(v.valsArray[:i], v.valsArray[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("Validator " + wallet + " not found")
+}
+
+// GetTotalStake calculates the sum of the stakes of every validator
+func (v *ValidatorsBook) GetTotalStake(bc *Blockchain) (uint32, error) {
+	var totalStake uint32 = 0
+	for _, val := range v.valsArray {
+		stake, err := bc.GetWalletState(val)
+		if err != nil {
+			return 0, err
+		}
+		totalStake += stake.Balance
+	}
+	return totalStake, nil
+}
+
+// ChooseValidator returns a validator's wallet, chosen randomly
+// and proportionally to the stake
+func (v *ValidatorsBook) ChooseValidator(seed int64, bc *Blockchain) (luckyone string, err error) {
+	rand.Seed(seed)
+	totalStake, err := v.GetTotalStake(bc)
+	if err != nil {
+		return "", err
+	}
+	level := rand.Float64() * float64(totalStake)
+	var counter uint32 = 0
+	for _, val := range v.valsArray {
+		stake, err := bc.GetWalletState(val)
+		if err != nil {
+			return "", err
+		}
+		counter += stake.Balance
+		if float64(counter) >= level {
+			return val, nil
+		}
+	}
+	return "", errors.New("Validator could not be chosen")
+}

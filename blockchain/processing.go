@@ -11,7 +11,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
-// Blockchain is an nternal representation of a blockchain
+// Blockchain is an internal representation of a blockchain
 type Blockchain struct {
 	balancesDb *leveldb.DB
 }
