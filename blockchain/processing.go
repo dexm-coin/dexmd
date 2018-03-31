@@ -98,6 +98,28 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	return true, nil
 }
 
+// GetState fetches the state of a wallet in the current block
+func (bc *Blockchain) GetState(wallet string) (protobufs.AccountState, error) {
+	state := protobufs.AccountState{}
+
+	rawState, err := bc.balancesDb.Get([]byte(wallet), nil)
+	if err != nil {
+		return state, err
+	}
+
+	proto.Unmarshal(rawState, &state)
+	return state, nil
+}
+
+func (bc *Blockchain) setState(wallet string, newState *protobufs.AccountState) error {
+	stateBytes, err := proto.Marshal(newState)
+	if err != nil {
+		return err
+	}
+
+	return bc.balancesDb.Put([]byte(wallet), stateBytes, nil)
+}
+
 // ImportBlock imports a block into the blockchain and checks if it's valid
 // This should be called on blocks that are finalized by PoS
 func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
@@ -109,32 +131,29 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 	totalGas := uint32(0)
 
 	for _, t := range block.GetTransactions() {
-		senderBalance := protobufs.AccountState{}
-		reciverBalance := protobufs.AccountState{}
-
 		sender := wallet.BytesToAddress(t.GetSender())
 
-		// Get state of reciver and sender
-		rawSender, err := bc.balancesDb.Get([]byte(sender), nil)
+		senderBalance, err := bc.GetState(sender)
 		if err != nil {
 			return err
 		}
 
-		proto.Unmarshal(rawSender, &senderBalance)
-
-		rawReciver, err := bc.balancesDb.Get([]byte(t.GetRecipient()), nil)
+		reciverBalance, err := bc.GetState(t.GetRecipient())
 		if err != nil {
 			return err
 		}
-
-		proto.Unmarshal(rawReciver, &reciverBalance)
 
 		// No overflow checks because ValidateBlock already does that
 		senderBalance.Balance -= t.GetAmount() + t.GetGas()
 		reciverBalance.Balance += t.GetAmount()
 
 		totalGas += t.GetGas()
+
+		bc.setState(sender, &senderBalance)
+		bc.setState(t.GetRecipient(), &reciverBalance)
 	}
+
+	// Give fees and reward to miner
 
 	return nil
 }
