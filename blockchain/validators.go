@@ -41,6 +41,18 @@ func (v *ValidatorsBook) RemoveValidator(wallet string) error {
 	return errors.New("Validator " + wallet + " not found")
 }
 
+// SetStake is used to update the validator's stake when it changes
+func (v *ValidatorsBook) SetStake(wallet string, stake uint32) error {
+	for i, val := range v.valsArray {
+		if val.wallet == wallet {
+			v.totalstake += stake - val.stake
+			v.valsArray[i].stake = stake
+			return nil
+		}
+	}
+	return errors.New("Validator " + wallet + " not found")
+}
+
 // ChooseValidator returns a validator's wallet, chosen randomly
 // and proportionally to the stake
 func (v *ValidatorsBook) ChooseValidator(seed int64) (luckyone string, err error) {
