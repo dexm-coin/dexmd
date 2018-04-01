@@ -13,14 +13,15 @@ import (
 
 // Blockchain is an internal representation of a blockchain
 type Blockchain struct {
-	balancesDb *leveldb.DB
+	balancesDb   *leveldb.DB
+	currentBlock uint64
 }
 
 // NewBlockchain creates a database db
-func NewBlockchain(dbPath string) (*Blockchain, error) {
+func NewBlockchain(dbPath string, blocks uint64) (*Blockchain, error) {
 	db, err := leveldb.OpenFile(dbPath, nil)
 
-	return &Blockchain{db}, err
+	return &Blockchain{db, blocks}, err
 }
 
 // GetWalletState returns the state of a wallet in the current block
@@ -45,6 +46,11 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	// Genesis block is fine
 	if block.GetIndex() == 0 {
 		return true, nil
+	}
+
+	// Check that we haven't passed that block already
+	if block.GetIndex() < bc.currentBlock {
+		return false, errors.New("Block index is too small")
 	}
 
 	var err error
@@ -151,10 +157,7 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 		bc.setState(t.GetRecipient(), &reciverBalance)
 	}
 
-	// Give fees and reward to miner TODO Decide block reward
-	minerState, _ := bc.GetState(block.GetMiner())
-
-	minerState.Balance = totalGas + minerState.GetBalance()
+	bc.currentBlock++
 
 	return nil
 }
