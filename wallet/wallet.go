@@ -196,8 +196,8 @@ func base58Encoding(bin []byte) string {
 
 // NewTransaction generates a signed transaction for the given arguments without
 // broadcasting it to the newtwork
-func (w *Wallet) NewTransaction(recipient string, amount, gas uint32) ([]byte, error) {
-	if int(amount+gas) > w.Balance {
+func (w *Wallet) NewTransaction(recipient string, amount uint64, gas uint32) ([]byte, error) {
+	if int(amount+uint64(gas)) > w.Balance {
 		return nil, errors.New("Insufficient Balance")
 	}
 
@@ -206,7 +206,7 @@ func (w *Wallet) NewTransaction(recipient string, amount, gas uint32) ([]byte, e
 	}
 
 	w.Nonce++
-	w.Balance -= int(amount + gas)
+	w.Balance -= int(amount + uint64(gas))
 
 	x509Encoded, err := x509.MarshalPKIXPublicKey(&w.PrivKey.PublicKey)
 	if err != nil {
@@ -219,7 +219,7 @@ func (w *Wallet) NewTransaction(recipient string, amount, gas uint32) ([]byte, e
 		Nonce:     uint32(w.Nonce),
 		Amount:    amount,
 		Gas:       gas,
-		Timestamp: time.Now().Unix(),
+		Timestamp: uint64(time.Now().Unix()),
 	}
 
 	result, err := proto.Marshal(newT)
