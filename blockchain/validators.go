@@ -55,10 +55,12 @@ func (v *ValidatorsBook) SetStake(wallet string, stake uint32) error {
 
 // ChooseValidator returns a validator's wallet, chosen randomly
 // and proportionally to the stake
-func (v *ValidatorsBook) ChooseValidator(seed int64) (luckyone string, err error) {
+func (v *ValidatorsBook) ChooseValidator(seed int64) (string, error) {
 	rand.Seed(seed)
 	level := rand.Float64() * float64(v.totalstake)
-	var counter uint32 = 0
+
+	var counter uint32
+
 	for _, val := range v.valsArray {
 		counter += val.stake
 		if float64(counter) >= level {
