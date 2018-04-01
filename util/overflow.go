@@ -8,3 +8,10 @@ func AddU32O(a, b uint32) (uint32, bool) {
 func SubU32O(a, b uint32) (uint32, bool) {
 	return (a - b), !(a-b > a)
 }
+
+func AddU64O(a, b uint64) (uint64, bool) {
+	return (a + b), !(a+b < a)
+}
+func SubU64O(a, b uint64) (uint64, bool) {
+	return (a - b), !(a-b > a)
+}
