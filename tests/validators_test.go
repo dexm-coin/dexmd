@@ -60,7 +60,7 @@ func TestManageValidatorsBook(t *testing.T) {
 	}
 }
 
-func TestImporExportValidators(t *testing.T) {
+func TestImportExportValidators(t *testing.T) {
 	v1 := blockchain.NewValidatorsBook()
 	validators := []string{"a", "b", "c", "d", "e", "f"}
 	stakes := []uint64{1, 2, 3, 4, 5, 6}
