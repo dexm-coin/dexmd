@@ -74,7 +74,7 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 		}
 
 		// Check if balance is sufficient
-		requiredBal, ok := util.AddU32O(t.GetAmount(), t.GetGas())
+		requiredBal, ok := util.AddU64O(t.GetAmount(), uint64(t.GetGas()))
 		if requiredBal > balance.GetBalance() && ok {
 			return false, errors.New("Balance is insufficient in transaction " + strconv.Itoa(i))
 		}
@@ -89,7 +89,7 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 		// his cash from the next block
 		isTainted[sender] = true
 
-		newBal, ok := util.SubU32O(balance.Balance, requiredBal)
+		newBal, ok := util.SubU64O(balance.Balance, requiredBal)
 		if !ok {
 			return false, errors.New("Overflow in transaction " + strconv.Itoa(i))
 		}
@@ -135,7 +135,7 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 		reciverBalance, _ := bc.GetWalletState(t.GetRecipient())
 
 		// No overflow checks because ValidateBlock already does that
-		senderBalance.Balance -= t.GetAmount() + t.GetGas()
+		senderBalance.Balance -= t.GetAmount() + uint64(t.GetGas())
 		reciverBalance.Balance += t.GetAmount()
 
 		totalGas += t.GetGas()
