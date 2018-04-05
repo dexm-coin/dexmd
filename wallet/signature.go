@@ -6,7 +6,7 @@ import (
 	"math/big"
 )
 
-func isSignatureValid(x509pub, r, s, data []byte) (bool, error) {
+func SignatureValid(x509pub, r, s, data []byte) (bool, error) {
 	genericPubKey, err := x509.ParsePKIXPublicKey(x509pub)
 	if err != nil {
 		return false, err

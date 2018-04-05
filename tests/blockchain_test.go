@@ -10,7 +10,7 @@ import (
 )
 
 func TestBlockValidation(t *testing.T) {
-	b, err := blockchain.NewBlockchain("/tmp/blockchain")
+	b, err := blockchain.NewBlockchain("/tmp/blockchain", 0)
 	if err != nil {
 		t.Error(err)
 	}

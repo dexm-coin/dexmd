@@ -14,7 +14,7 @@ import (
 // Blockchain is an internal representation of a blockchain
 type Blockchain struct {
 	balancesDb   *leveldb.DB
-	currentBlock uint64
+	CurrentBlock uint64
 }
 
 // NewBlockchain creates a database db
@@ -49,14 +49,17 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	}
 
 	// Check that we haven't passed that block already
-	if block.GetIndex() < bc.currentBlock {
+	if block.GetIndex() < bc.CurrentBlock {
 		return false, errors.New("Block index is too small")
 	}
 
-	var err error
-
 	for i, t := range block.GetTransactions() {
 		sender := wallet.BytesToAddress(t.GetSender())
+
+		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), []byte{})
+		if !valid {
+			return false, err
+		}
 
 		balance := protobufs.AccountState{}
 
@@ -144,7 +147,7 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 		bc.setState(t.GetRecipient(), &reciverBalance)
 	}
 
-	bc.currentBlock++
+	bc.CurrentBlock++
 
 	return nil
 }
