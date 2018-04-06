@@ -107,12 +107,17 @@ func (w *Wallet) ExportWallet(filePath string) error {
 
 // GetWallet returns the address of a wallet
 func (w *Wallet) GetWallet() (string, error) {
-	x509Encoded, err := x509.MarshalPKIXPublicKey(&w.PrivKey.PublicKey)
+	x509Encoded, err := w.GetPubKey()
 	if err != nil {
 		return "", err
 	}
 
 	return BytesToAddress(x509Encoded), nil
+}
+
+// GetPubKey returns a x509 encoded public key for the wallet
+func (w *Wallet) GetPubKey() ([]byte, error) {
+	return x509.MarshalPKIXPublicKey(&w.PrivKey.PublicKey)
 }
 
 // BytesToAddress converts the bytes of the PublicKey into a wallet address

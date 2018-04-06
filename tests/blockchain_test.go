@@ -20,6 +20,9 @@ func TestBlockValidation(t *testing.T) {
 	w2, _ := wallet.GenerateWallet()
 
 	recipient, _ := w2.GetWallet()
+
+	// This will get your transaction rejected by the network on the real chain
+	w1.Balance = 1337
 	transaction, _ := w1.NewTransaction(recipient, 1000, 50)
 
 	parsed := &protobufs.Transaction{}
@@ -29,7 +32,7 @@ func TestBlockValidation(t *testing.T) {
 	}
 
 	genesis := protobufs.Block{
-		Index:        1,
+		Index:        0,
 		Timestamp:    0,
 		PrevHash:     []byte{0},
 		Miner:        recipient,

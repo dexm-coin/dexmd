@@ -20,7 +20,7 @@ func TestManageValidatorsBook(t *testing.T) {
 	if stake != 130 {
 		t.Error("stake is " + strconv.Itoa(int(stake)) + " while it should have been 130")
 	}
-	stake, err = v.GetStake("stallman")
+	_, err = v.GetStake("stallman")
 	if err == nil {
 		t.Error("Found a non existent validator")
 	}
@@ -36,13 +36,13 @@ func TestManageValidatorsBook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	stake, err = v.GetStake("stevejons")
+	_, err = v.GetStake("stevejons")
 	if err == nil {
 		t.Error("Validator wasn't removed correctly")
 	}
 
 	// Test the update of the stake
-	stake, err = v.GetStake("timcrook")
+	stake, _ = v.GetStake("timcrook")
 	if stake != 1337 {
 		t.Error("Stake wasn't stored correctly")
 	}
@@ -54,7 +54,7 @@ func TestManageValidatorsBook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	stake, err = v.GetStake("timcrook")
+	stake, _ = v.GetStake("timcrook")
 	if stake != 1340 {
 		t.Error("Stake wasn't updated correctly")
 	}
