@@ -29,6 +29,10 @@ func TestWalletGeneration(t *testing.T) {
 		t.Error(err)
 	}
 
+	if !wallet.IsWalletValid(addr2) {
+		t.Error("Generated wallet is invalid")
+	}
+
 	if addr1 == addr2 {
 		t.Error("Wallet collision")
 	}
@@ -42,7 +46,7 @@ func TestTransaction(t *testing.T) {
 
 	// Don't do this, it will get rejected by the network
 	w.Balance = 1337
-	res, err := w.NewTransaction("DexmProofOfBurn", 10, 10)
+	res, err := w.NewTransaction("DexmPoS", 10, 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -99,7 +103,7 @@ func TestAddress(t *testing.T) {
 		t.Error(err)
 	}
 
-	if r != "DexmkB1dk7aq2rYz93KaQxscm8FK75A95d2a59a" {
-		t.Error("Wallet format changed")
+	if r != "DexmkB1dk7aq2rYz93KaQxscm8FK75Ale2330033" {
+		t.Error("Wallet format changed", r)
 	}
 }

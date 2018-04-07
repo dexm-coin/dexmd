@@ -41,6 +41,7 @@ func handleMessage(pb *protobufs.Request) []byte {
 		toMarshal.Pubkey = pub
 		toMarshal.R = r.Bytes()
 		toMarshal.S = s.Bytes()
+		toMarshal.Data = currentTime
 
 		encoded, err := proto.Marshal(toMarshal)
 		if err != nil {

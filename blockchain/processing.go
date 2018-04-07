@@ -126,6 +126,10 @@ func (bc *Blockchain) setState(wallet string, newState *protobufs.AccountState) 
 func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 	sender := wallet.BytesToAddress(t.GetSender())
 
+	if !wallet.IsWalletValid(t.GetRecipient()) {
+		return errors.New("Invalid recipient")
+	}
+
 	valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), []byte{})
 	if !valid {
 		return err

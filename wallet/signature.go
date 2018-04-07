@@ -6,6 +6,7 @@ import (
 	"math/big"
 )
 
+// SignatureValid checks if a signature is valid for a x509 encoded ecdsa pubkey
 func SignatureValid(x509pub, r, s, data []byte) (bool, error) {
 	genericPubKey, err := x509.ParsePKIXPublicKey(x509pub)
 	if err != nil {

@@ -43,7 +43,11 @@ func StartServer(port string) (*ConnectionStore, error) {
 
 	go store.run()
 
-	http.ListenAndServe(port, nil)
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		registerWs(store, w, r)
+	})
+
+	go http.ListenAndServe(port, nil)
 
 	return store, nil
 }
@@ -66,7 +70,6 @@ func (cs *ConnectionStore) run() {
 		// Network wide broadcast. For now this uses a very simple and broken
 		// algorithm but it could be optimized using ASNs as an overlay network
 		case message := <-cs.broadcast:
-
 			for k := range cs.clients {
 				k.send <- message
 			}

@@ -120,6 +120,26 @@ func (w *Wallet) GetPubKey() ([]byte, error) {
 	return x509.MarshalPKIXPublicKey(&w.PrivKey.PublicKey)
 }
 
+// IsWalletValid checks if a wallet is valid by checking the checksum
+func IsWalletValid(wallet string) bool {
+	if wallet == "DexmVoid" || wallet == "DexmPoS" {
+		return true
+	}
+
+	parts := strings.Split(wallet, "l")
+	if len(parts) != 2 {
+		return false
+	}
+
+	// len("Dexm") + 1
+	if len(parts[0]) < 5 {
+		return false
+	}
+
+	sum := crc32.ChecksumIEEE([]byte(parts[0][4:]))
+	return fmt.Sprintf("%x", sum) == parts[1]
+}
+
 // BytesToAddress converts the bytes of the PublicKey into a wallet address
 func BytesToAddress(data []byte) string {
 	hash := blake2b.Sum256(data)
@@ -127,9 +147,10 @@ func BytesToAddress(data []byte) string {
 	h := ripemd160.New()
 	h.Write(hash[:])
 
-	sum := crc32.ChecksumIEEE(hash[:])
+	mainWal := base58Encoding(h.Sum(nil))
+	sum := crc32.ChecksumIEEE([]byte(mainWal))
 
-	wal := fmt.Sprintf("Dexm%s%x", base58Encoding(h.Sum(nil)), sum)
+	wal := fmt.Sprintf("Dexm%sl%x", mainWal, sum)
 
 	return wal
 }
@@ -202,6 +223,10 @@ func base58Encoding(bin []byte) string {
 // NewTransaction generates a signed transaction for the given arguments without
 // broadcasting it to the newtwork
 func (w *Wallet) NewTransaction(recipient string, amount uint64, gas uint32) ([]byte, error) {
+	if !IsWalletValid(recipient) {
+		return nil, errors.New("Invalid recipient")
+	}
+
 	if int(amount+uint64(gas)) > w.Balance {
 		return nil, errors.New("Insufficient Balance")
 	}
