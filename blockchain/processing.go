@@ -14,6 +14,7 @@ import (
 // Blockchain is an internal representation of a blockchain
 type Blockchain struct {
 	balancesDb   *leveldb.DB
+	mempool      *mempool
 	CurrentBlock uint64
 }
 
@@ -21,7 +22,10 @@ type Blockchain struct {
 func NewBlockchain(dbPath string, blocks uint64) (*Blockchain, error) {
 	db, err := leveldb.OpenFile(dbPath, nil)
 
-	return &Blockchain{db, blocks}, err
+	// 1MB blocks
+	mp := newMempool(1000000, 100)
+
+	return &Blockchain{db, mp, blocks}, err
 }
 
 // GetWalletState returns the state of a wallet in the current block
@@ -114,6 +118,38 @@ func (bc *Blockchain) setState(wallet string, newState *protobufs.AccountState) 
 	}
 
 	return bc.balancesDb.Put([]byte(wallet), stateBytes, nil)
+}
+
+// ValidateTransaction validates a transaction with the current state.
+// Different from ValidateBlock because that has to verify for double spends
+// inside the same block.
+func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
+	sender := wallet.BytesToAddress(t.GetSender())
+
+	valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), []byte{})
+	if !valid {
+		return err
+	}
+
+	balance := protobufs.AccountState{}
+	balance, err = bc.GetWalletState(sender)
+	if err != nil {
+		return err
+	}
+
+	// Check if balance is sufficient
+	requiredBal, ok := util.AddU64O(t.GetAmount(), uint64(t.GetGas()))
+	if requiredBal > balance.GetBalance() && ok {
+		return errors.New("Balance is insufficient in transaction")
+	}
+
+	// Check if nonce is correct
+	newNonce, ok := util.AddU32O(balance.GetNonce(), 1)
+	if t.GetNonce() != newNonce || !ok {
+		return errors.New("Invalid nonce in transaction")
+	}
+
+	return nil
 }
 
 // ImportBlock imports a block into the blockchain and checks if it's valid

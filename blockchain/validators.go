@@ -121,6 +121,7 @@ func (v *ValidatorsBook) SetStake(wallet string, addStake uint64) error {
 	return errors.New("Validator " + wallet + " not found")
 }
 
+// GetStake returns the stake for a given wallet.
 func (v *ValidatorsBook) GetStake(wallet string) (stake uint64, err error) {
 	for _, val := range v.valsArray {
 		if val.wallet == wallet {
@@ -136,7 +137,7 @@ func (v *ValidatorsBook) ChooseValidator(seed int64) (luckyone string, err error
 	sort.Sort(v)
 	rand.Seed(seed)
 	level := rand.Float64() * float64(v.totalstake)
-	var counter uint64 = 0
+	var counter uint64
 	for _, val := range v.valsArray {
 		counter += val.stake
 		if float64(counter) >= level {
@@ -161,9 +162,7 @@ func (v *ValidatorsBook) Less(i, j int) bool {
 	return v.valsArray[i].stake > v.valsArray[j].stake
 }
 
-// *****************************************************************
-// DEBUG: From now on: debug functions
-// Debug function, prints the internal state
+// Repr is a debug function, prints the internal state
 func (v *ValidatorsBook) Repr() {
 	for _, val := range v.valsArray {
 		fmt.Printf("%s - %d\n", val.wallet, val.stake)
@@ -172,11 +171,11 @@ func (v *ValidatorsBook) Repr() {
 }
 
 // IsEqualTo checks every entry of the book to determine if they are equal
-func (v1 *ValidatorsBook) IsEqualTo(v2 *ValidatorsBook) bool {
-	if v1.Len() != v2.Len() {
+func (v *ValidatorsBook) IsEqualTo(v2 *ValidatorsBook) bool {
+	if v.Len() != v2.Len() {
 		return false
 	}
-	for _, val := range v1.valsArray {
+	for _, val := range v.valsArray {
 		v2stake, err := v2.GetStake(val.wallet)
 		if err != nil {
 			return false
@@ -188,7 +187,7 @@ func (v1 *ValidatorsBook) IsEqualTo(v2 *ValidatorsBook) bool {
 	return true
 }
 
-// Like AddValidator but without checking if already present.
+// AddValidatorFast is a version of AddValidator that doesn't check if the validator exists
 // Is way faster and used for testing purposes only.
 func (v *ValidatorsBook) AddValidatorFast(wallet string, stake uint64) {
 	newVal := Validator{wallet, stake}
