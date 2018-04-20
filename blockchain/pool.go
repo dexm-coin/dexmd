@@ -35,11 +35,11 @@ func (bc *Blockchain) AddMempoolTransaction(rawTx []byte) error {
 
 	priority := float64(pb.GetGas()) / float64(len(rawTx))
 
-	if priority > bc.mempool.maxGasPerByte {
+	if priority > bc.Mempool.maxGasPerByte {
 		return errors.New("Too much gas")
 	}
 
-	bc.mempool.queue.Insert(pb, priority)
+	bc.Mempool.queue.Insert(pb, priority)
 	return nil
 }
 
@@ -61,8 +61,8 @@ func (bc *Blockchain) GenerateBlock(miner string) ([]byte, error) {
 	currentLen := len(blockHeader)
 
 	// Check that the len is smaller than the max
-	for currentLen < bc.mempool.maxBlockBytes {
-		tx, err := bc.mempool.queue.Pop()
+	for currentLen < bc.Mempool.maxBlockBytes {
+		tx, err := bc.Mempool.queue.Pop()
 
 		// The mempool is empty, that's all the transactions we can include
 		if err != nil {

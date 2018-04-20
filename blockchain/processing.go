@@ -14,18 +14,27 @@ import (
 // Blockchain is an internal representation of a blockchain
 type Blockchain struct {
 	balancesDb   *leveldb.DB
-	mempool      *mempool
+	blockDb      *leveldb.DB
+	Mempool      *mempool
+	Validators   *ValidatorsBook
 	CurrentBlock uint64
 }
 
 // NewBlockchain creates a database db
 func NewBlockchain(dbPath string, blocks uint64) (*Blockchain, error) {
 	db, err := leveldb.OpenFile(dbPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	dbb, err := leveldb.OpenFile(dbPath+".blocks", nil)
 
 	// 1MB blocks
 	mp := newMempool(1000000, 100)
 
-	return &Blockchain{db, mp, blocks}, err
+	vd := NewValidatorsBook()
+
+	return &Blockchain{db, dbb, mp, &vd, blocks}, err
 }
 
 // GetWalletState returns the state of a wallet in the current block
@@ -41,6 +50,25 @@ func (bc *Blockchain) GetWalletState(wallet string) (protobufs.AccountState, err
 	return state, nil
 }
 
+// SaveBlock saves an unvalidated block into the blockchain to be used with Casper
+func (bc *Blockchain) SaveBlock(block *protobufs.Block) error {
+	oldBlocks, err := bc.blockDb.Get([]byte(string(block.GetIndex())), nil)
+
+	blocks := &protobufs.Index{}
+
+	if err == nil {
+		proto.Unmarshal(oldBlocks, blocks)
+	}
+
+	blocks.Blocks = append(blocks.Blocks, block)
+	res, err := proto.Marshal(blocks)
+	if err != nil {
+		return err
+	}
+
+	return bc.blockDb.Put([]byte(string(block.GetIndex())), res, nil)
+}
+
 // ValidateBlock checks the validity of a block. It uses the current
 // blockchain state so the passed block might become valid in the future.
 func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
@@ -50,11 +78,6 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	// Genesis block is fine
 	if block.GetIndex() == 0 {
 		return true, nil
-	}
-
-	// Check that we haven't passed that block already
-	if block.GetIndex() < bc.CurrentBlock {
-		return false, errors.New("Block index is too small")
 	}
 
 	for i, t := range block.GetTransactions() {
@@ -164,6 +187,10 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 		return err
 	}
 
+	// This means the blockchain forked.
+	if block.GetIndex() < bc.CurrentBlock {
+	}
+
 	totalGas := uint32(0)
 
 	for _, t := range block.GetTransactions() {
@@ -172,6 +199,10 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 		senderBalance, err := bc.GetWalletState(sender)
 		if err != nil {
 			return err
+		}
+
+		if t.GetRecipient() == "DexmPoS" {
+			bc.Validators.AddValidator(sender, t.GetAmount())
 		}
 
 		// Ignore error because if the wallet doesn't exist yet we don't care

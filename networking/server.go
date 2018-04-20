@@ -2,6 +2,7 @@ package networking
 
 import (
 	"net/http"
+	"time"
 
 	protobufs "github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
@@ -50,6 +51,34 @@ func StartServer(port string) (*ConnectionStore, error) {
 	go http.ListenAndServe(port, nil)
 
 	return store, nil
+}
+
+// Connect connects to a server and adds it to the connectionStore
+func (cs *ConnectionStore) Connect(ip string) error {
+	dial := websocket.Dialer{
+		Proxy:            http.ProxyFromEnvironment,
+		HandshakeTimeout: 5 * time.Second,
+	}
+
+	conn, _, err := dial.Dial(ip, nil)
+	if err != nil {
+		return err
+	}
+
+	c := client{
+		conn:      conn,
+		identity:  []byte{},
+		send:      make(chan []byte, 256),
+		readOther: make(chan []byte, 256),
+		store:     cs,
+	}
+
+	cs.register <- &c
+
+	go c.read()
+	go c.write()
+
+	return nil
 }
 
 // run is the event handler to update the ConnectionStore
@@ -101,6 +130,7 @@ func (c *client) read() {
 
 		// TODO Verify validity of message inside broadcast
 		case protobufs.Envelope_BROADCAST:
+			go handleBroadcast(msg)
 			c.store.broadcast <- msg
 
 		// If the ContentType is a request then try to parse it as such and handle it
