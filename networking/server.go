@@ -4,9 +4,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/dexm-coin/dexmd/blockchain"
+	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 type client struct {
@@ -34,7 +37,7 @@ var upgrader = websocket.Upgrader{
 }
 
 // StartServer creates a new ConnectionStore, which handles network peers
-func StartServer(port string) (*ConnectionStore, error) {
+func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*ConnectionStore, error) {
 	store := &ConnectionStore{
 		clients:    make(map[*client]bool),
 		broadcast:  make(chan []byte),
@@ -42,13 +45,36 @@ func StartServer(port string) (*ConnectionStore, error) {
 		unregister: make(chan *client),
 	}
 
+	bc = bch
+	identity = idn
+
+	// Hub that handles registration and unregistrations of clients
 	go store.run()
+	log.Info("Starting server on port ", port)
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		log.Info("New connection")
 		registerWs(store, w, r)
 	})
 
+	// Server that allows peers to connect
 	go http.ListenAndServe(port, nil)
+
+	// Loop that picks the validator for the next block and waits for a block
+	// signed by him
+	go func() {
+		for {
+			wal, _ := identity.GetWallet()
+			block, err := bc.GenerateBlock(wal)
+			if err != nil {
+				log.Error(err)
+			}
+
+			log.Printf("New block: %x", block)
+
+			time.Sleep(5 * time.Second)
+		}
+	}()
 
 	return store, nil
 }
@@ -112,25 +138,34 @@ func (c *client) read() {
 
 	// Unregister if the node dies
 	defer func() {
+		log.Info("Client died")
 		c.store.unregister <- c
 		c.conn.Close()
 	}()
 
 	for {
-		_, msg, _ := c.conn.ReadMessage() // TODO Handle go away messages
-
-		pb := protobufs.Envelope{}
-		err := proto.Unmarshal(msg, &pb)
-
+		msgType, msg, err := c.conn.ReadMessage() // TODO Handle go away messages
 		if err != nil {
+			return
+		}
+
+		if msgType != websocket.BinaryMessage {
 			continue
 		}
 
+		pb := protobufs.Envelope{}
+		err = proto.Unmarshal(msg, &pb)
+
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		log.Printf("Recived message(%d): %x", pb.GetType(), msg)
+
 		switch pb.GetType() {
 
-		// TODO Verify validity of message inside broadcast
 		case protobufs.Envelope_BROADCAST:
-			go handleBroadcast(msg)
+			go handleBroadcast(pb.GetData())
 			c.store.broadcast <- msg
 
 		// If the ContentType is a request then try to parse it as such and handle it

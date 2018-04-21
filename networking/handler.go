@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	bc       blockchain.Blockchain
-	identity wallet.Wallet
+	bc       *blockchain.Blockchain
+	identity *wallet.Wallet
 )
 
 func handleMessage(pb *protobufs.Request) []byte {
