@@ -8,6 +8,7 @@ import (
 	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -67,6 +68,11 @@ func (bc *Blockchain) SaveBlock(block *protobufs.Block) error {
 	}
 
 	return bc.blockDb.Put([]byte(string(block.GetIndex())), res, nil)
+}
+
+// GetBlocks returns the array of blocks at an index
+func (bc *Blockchain) GetBlocks(index uint64) ([]byte, error) {
+	return bc.blockDb.Get([]byte(string(index)), nil)
 }
 
 // ValidateBlock checks the validity of a block. It uses the current
@@ -182,10 +188,10 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 // ImportBlock imports a block into the blockchain and checks if it's valid
 // This should be called on blocks that are finalized by PoS
 func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
-	res, err := bc.ValidateBlock(block)
+	/*res, err := bc.ValidateBlock(block)
 	if !res {
 		return err
-	}
+	}*/
 
 	// This means the blockchain forked.
 	if block.GetIndex() < bc.CurrentBlock {
@@ -196,8 +202,12 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 	for _, t := range block.GetTransactions() {
 		sender := wallet.BytesToAddress(t.GetSender())
 
+		log.Info("Sender:", sender)
+		log.Info("Recipient:", t.GetRecipient())
+		log.Info("Amnt:", t.GetAmount())
+
 		senderBalance, err := bc.GetWalletState(sender)
-		if err != nil {
+		if err != nil && block.GetIndex() != 0 {
 			return err
 		}
 
@@ -212,13 +222,16 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 		senderBalance.Balance -= t.GetAmount() + uint64(t.GetGas())
 		reciverBalance.Balance += t.GetAmount()
 
+		log.Info("Sender balance:", senderBalance.Balance)
+		log.Info("Reciver balance:", reciverBalance.Balance)
+
 		totalGas += t.GetGas()
 
 		bc.setState(sender, &senderBalance)
 		bc.setState(t.GetRecipient(), &reciverBalance)
 	}
 
-	bc.CurrentBlock++
+	//bc.CurrentBlock++
 
 	return nil
 }

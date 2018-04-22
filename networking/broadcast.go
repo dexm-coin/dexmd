@@ -24,13 +24,15 @@ func handleBroadcast(data []byte) error {
 	// Save a block proposed by a validator TODO Verify turn and identity
 	case protobufs.Broadcast_BLOCK_PROPOSAL:
 		log.Printf("New Block: %x", broadcastEnvelope.GetData())
+
 		block := &bcp.Block{}
 		err := proto.Unmarshal(broadcastEnvelope.GetData(), block)
 		if err != nil {
 			return err
 		}
 
-		return bc.SaveBlock(block)
+		log.Error(bc.SaveBlock(block))
+		log.Error(bc.ImportBlock(block))
 	}
 
 	return nil

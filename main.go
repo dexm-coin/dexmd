@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"regexp"
@@ -11,6 +14,7 @@ import (
 	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/networking"
 	"github.com/dexm-coin/dexmd/wallet"
+	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/dexm-coin/protobufs/build/network"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/websocket"
@@ -49,13 +53,52 @@ func main() {
 				port, _ := strconv.Atoi(c.Args().Get(0))
 
 				bch, _ := blockchain.NewBlockchain(fmt.Sprintf("simulation/Blockchain_%d", port), 0)
-				idn, _ := wallet.GenerateWallet()
+				idn, err := wallet.ImportWallet(c.Args().Get(1))
+				if err != nil {
+					log.Fatal(err)
+				}
 
-				networking.StartServer(fmt.Sprintf(":%d", port), bch, idn)
+				// Import the genesis block
+				raw, err := ioutil.ReadFile("genesis.json")
+				if err != nil {
+					log.Fatal(err)
+				}
 
-				/*for i := 8000; i < port; i++ {
-					book.Connect(fmt.Sprintf("http://localhost:%d", i))
-				}*/
+				hexTransactions := []string{}
+				json.Unmarshal(raw, &hexTransactions)
+
+				var transactions []*protobufs.Transaction
+
+				for _, t := range hexTransactions {
+					tx := &protobufs.Transaction{}
+					txBytes, err := hex.DecodeString(t)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					err = proto.Unmarshal(txBytes, tx)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					transactions = append(transactions, tx)
+				}
+
+				block := protobufs.Block{
+					Index:        0,
+					Timestamp:    uint64(time.Now().Unix()),
+					PrevHash:     []byte{},
+					Transactions: transactions,
+				}
+
+				bch.SaveBlock(&block)
+				bch.ImportBlock(&block)
+
+				book, _ := networking.StartServer(fmt.Sprintf(":%d", port), bch, idn)
+
+				if port != 8000 {
+					book.Connect("ws://localhost:8000/ws")
+				}
 
 				time.Sleep(10 * time.Hour)
 
@@ -111,7 +154,7 @@ func main() {
 					return err
 				}
 
-				log.Printf("Enveloped Transaction: %x", data)
+				log.Printf("Raw Transaction: %x", transaction)
 
 				dial := websocket.Dialer{
 					Proxy:            http.ProxyFromEnvironment,

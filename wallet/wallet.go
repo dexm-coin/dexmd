@@ -18,6 +18,7 @@ import (
 
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
+	"github.com/gopherjs/gopherjs/js"
 	"github.com/minio/blake2b-simd"
 	"golang.org/x/crypto/ripemd160"
 )
@@ -51,6 +52,12 @@ func GenerateWallet() (*Wallet, error) {
 	}, nil
 }
 
+// JSWallet returns a gopherjs wrapper to the wallet
+func JSWallet() *js.Object {
+	wal, _ := GenerateWallet()
+	return js.MakeWrapper(wal)
+}
+
 // ImportWallet opens the file passed to it and tries to parse it as a private key
 // and convert it into a Wallet struct
 func ImportWallet(filePath string) (*Wallet, error) {
@@ -78,16 +85,26 @@ func ImportWallet(filePath string) (*Wallet, error) {
 
 // ExportWallet saves the internal Wallet structure to a file
 func (w *Wallet) ExportWallet(filePath string) error {
+	result, err := w.GetEncodedWallet()
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(filePath, result, 400)
+}
+
+// GetEncodedWallet returns a JSON encoded wallet
+func (w *Wallet) GetEncodedWallet() ([]byte, error) {
 	// convert priv key to x509
 	x509Encoded, err := x509.MarshalECPrivateKey(w.PrivKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "WALLET PRIVATE KEY", Bytes: x509Encoded})
 
 	add, err := w.GetWallet()
 	if err != nil {
-		return err
+		return nil, err
 
 	}
 	walletfile := file{
@@ -97,12 +114,7 @@ func (w *Wallet) ExportWallet(filePath string) error {
 		Balance:       w.Balance,
 	}
 
-	result, err := json.Marshal(walletfile)
-	if err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(filePath, result, 400)
+	return json.Marshal(walletfile)
 }
 
 // GetWallet returns the address of a wallet
@@ -220,19 +232,15 @@ func base58Encoding(bin []byte) string {
 	return string(b58)
 }
 
-// NewTransaction generates a signed transaction for the given arguments without
-// broadcasting it to the newtwork
-func (w *Wallet) NewTransaction(recipient string, amount uint64, gas uint32) ([]byte, error) {
+// RawTransaction returns a struct with a transaction. Used in GopherJS to avoid
+// protobuf which uses the unsupported unsafe
+func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32) (*protobufs.Transaction, error) {
 	if !IsWalletValid(recipient) {
 		return nil, errors.New("Invalid recipient")
 	}
 
 	if int(amount+uint64(gas)) > w.Balance {
 		return nil, errors.New("Insufficient Balance")
-	}
-
-	if !strings.HasPrefix(recipient, "Dexm") && len(recipient) > 30 {
-		return nil, errors.New("Invalid Recipient")
 	}
 
 	w.Nonce++
@@ -264,6 +272,17 @@ func (w *Wallet) NewTransaction(recipient string, amount uint64, gas uint32) ([]
 
 	newT.R = r.Bytes()
 	newT.S = s.Bytes()
+
+	return newT, nil
+}
+
+// NewTransaction generates a signed transaction for the given arguments without
+// broadcasting it to the newtwork
+func (w *Wallet) NewTransaction(recipient string, amount uint64, gas uint32) ([]byte, error) {
+	newT, err := w.RawTransaction(recipient, amount, gas)
+	if err != nil {
+		return nil, err
+	}
 
 	return proto.Marshal(newT)
 }

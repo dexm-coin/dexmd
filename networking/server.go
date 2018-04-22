@@ -6,10 +6,12 @@ import (
 
 	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
+	"github.com/dexm-coin/protobufs/build/network"
 	protobufs "github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/blake2b"
 )
 
 type client struct {
@@ -60,17 +62,82 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 	// Server that allows peers to connect
 	go http.ListenAndServe(port, nil)
 
-	// Loop that picks the validator for the next block and waits for a block
-	// signed by him
+	// Loop that picks the validator and generates blocks. TODO Pick better seed
 	go func() {
+		// A new block is generated every time the unix timestamp % 5 == 0
+		time.Sleep(time.Duration(time.Now().Unix()%5) * time.Second)
+
 		for {
+			bch.CurrentBlock++
+
 			wal, _ := identity.GetWallet()
-			block, err := bc.GenerateBlock(wal)
+			validator, err := bch.Validators.ChooseValidator(int64(bc.CurrentBlock))
 			if err != nil {
-				log.Error(err)
+				return
 			}
 
-			log.Printf("New block: %x", block)
+			log.Info("Waiting from ", validator)
+
+			if validator == wal {
+				block, err := bc.GenerateBlock(wal)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+
+				bch.SaveBlock(block)
+				bch.ImportBlock(block)
+
+				log.Printf("New block generated: %x", block)
+
+				blockBytes, _ := proto.Marshal(block)
+
+				pub, err := identity.GetPubKey()
+				if err != nil {
+					log.Error(err)
+					return
+				}
+
+				bhash := blake2b.Sum256(blockBytes)
+				hash := bhash[:]
+
+				r, s, err := identity.Sign(hash)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+
+				signature := &network.Identity{
+					Pubkey: pub,
+					R:      r.Bytes(),
+					S:      s.Bytes(),
+					Data:   hash,
+				}
+
+				broadcast := &network.Broadcast{
+					Data:     blockBytes,
+					Type:     network.Broadcast_BLOCK_PROPOSAL,
+					Identity: signature,
+				}
+
+				broadcastBytes, err := proto.Marshal(broadcast)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+
+				env := &network.Envelope{}
+				env.Data = broadcastBytes
+				env.Type = network.Envelope_BROADCAST
+
+				data, err := proto.Marshal(env)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+
+				store.broadcast <- data
+			}
 
 			time.Sleep(5 * time.Second)
 		}
@@ -166,7 +233,9 @@ func (c *client) read() {
 
 		case protobufs.Envelope_BROADCAST:
 			go handleBroadcast(pb.GetData())
-			c.store.broadcast <- msg
+
+			// TODO Make a nice broadcast algo
+			// c.store.broadcast <- msg
 
 		// If the ContentType is a request then try to parse it as such and handle it
 		case protobufs.Envelope_REQUEST:
@@ -204,7 +273,7 @@ func (c *client) write() {
 	for {
 		toWrite := <-c.send
 
-		c.conn.WriteMessage(0, toWrite)
+		c.conn.WriteMessage(websocket.BinaryMessage, toWrite)
 	}
 }
 

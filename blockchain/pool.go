@@ -7,6 +7,7 @@ import (
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 	pq "github.com/jupp0r/go-priority-queue"
+	"golang.org/x/crypto/blake2b"
 )
 
 type mempool struct {
@@ -44,11 +45,39 @@ func (bc *Blockchain) AddMempoolTransaction(rawTx []byte) error {
 }
 
 // GenerateBlock generates a valid unsigned block with transactions from the mempool
-func (bc *Blockchain) GenerateBlock(miner string) ([]byte, error) {
+func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
+	hash := []byte{}
+
+	if bc.CurrentBlock != 0 {
+		var currBlocks []byte
+		var err error
+
+		// There may be holes in the blockchain. Keep going till you find a block
+		for i := bc.CurrentBlock - 1; err != nil; i-- {
+			currBlocks, err = bc.GetBlocks(bc.CurrentBlock - 1)
+		}
+
+		index := &protobufs.Index{}
+		proto.Unmarshal(currBlocks, index)
+
+		if len(index.GetBlocks()) != 0 {
+			selectedBlock := index.GetBlocks()[0]
+
+			blockBytes, err := proto.Marshal(selectedBlock)
+			if err != nil {
+				return nil, err
+			}
+
+			bhash := blake2b.Sum256(blockBytes)
+			hash = bhash[:]
+		}
+	}
+
 	block := protobufs.Block{
 		Index:     bc.CurrentBlock + 1,
 		Timestamp: uint64(time.Now().Unix()),
 		Miner:     miner,
+		PrevHash:  hash,
 	}
 
 	blockHeader, err := proto.Marshal(&block)
@@ -82,5 +111,5 @@ func (bc *Blockchain) GenerateBlock(miner string) ([]byte, error) {
 
 	block.Transactions = transactions
 
-	return proto.Marshal(&block)
+	return &block, nil
 }
