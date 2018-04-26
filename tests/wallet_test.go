@@ -107,7 +107,7 @@ func TestAddress(t *testing.T) {
 		t.Error("Corrupted wallet is valid")
 	}
 
-	if r != "DexmkB1dk7aq2rYz93KaQxscm8FK75Ale2330033" {
+	if r != "Dexm33QctNiKudtzSNoxXztqUXMYpUxql5313d274" {
 		t.Error("Wallet format changed", r)
 	}
 }

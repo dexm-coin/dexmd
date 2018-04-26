@@ -1,6 +1,7 @@
 package networking
 
 import (
+	"crypto/sha256"
 	"net/http"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/blake2b"
 )
 
 type client struct {
@@ -98,7 +98,7 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 					return
 				}
 
-				bhash := blake2b.Sum256(blockBytes)
+				bhash := sha256.Sum256(blockBytes)
 				hash := bhash[:]
 
 				r, s, err := identity.Sign(hash)
@@ -211,7 +211,7 @@ func (c *client) read() {
 	}()
 
 	for {
-		msgType, msg, err := c.conn.ReadMessage() // TODO Handle go away messages
+		msgType, msg, err := c.conn.ReadMessage()
 		if err != nil {
 			return
 		}
