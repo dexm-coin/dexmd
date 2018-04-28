@@ -12,6 +12,7 @@ import (
 	"hash/crc32"
 	"io/ioutil"
 	"math/big"
+	"sync"
 	"time"
 
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gopherjs/gopherjs/js"
 	"github.com/minio/blake2b-simd"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -285,4 +287,27 @@ func (w *Wallet) NewTransaction(recipient string, amount uint64, gas uint32) ([]
 	}
 
 	return proto.Marshal(newT)
+}
+
+// GenerateVanityWallet create a wallet that start with "Dexm" + your_word
+func GenerateVanityWallet(vanity string, userWallet string, vainityFound *bool, wg *sync.WaitGroup) error {
+	for {
+
+		if *vainityFound == true {
+			wg.Done()
+			return nil
+		}
+
+		wal, _ := GenerateWallet()
+		wallString, _ := wal.GetWallet()
+
+		if wallString[:4+len(vanity)] == "Dexm"+vanity {
+			log.Info("Found wallet: ", wallString)
+			wal.ExportWallet(userWallet)
+
+			*vainityFound = true
+			wg.Done()
+			return nil
+		}
+	}
 }

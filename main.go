@@ -7,8 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"regexp"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/dexm-coin/dexmd/blockchain"
@@ -184,23 +184,19 @@ func main() {
 			Aliases: []string{"mvw", "mv"},
 			Action: func(c *cli.Context) error {
 				log.Info("Dexm uses Base58 encoding, only chars allowed are 123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
-				regex, err := regexp.Compile(c.Args().Get(1))
 
-				if err != nil {
-					log.Error(err)
-					return err
+				vaninity := c.Args().Get(1)
+				userWallet := c.Args().Get(0)
+				vainityFound := false
+				var wg sync.WaitGroup
+
+				for i := 0; i < 4; i++ {
+					wg.Add(1)
+					go wallet.GenerateVanityWallet(vaninity, userWallet, &vainityFound, &wg)
 				}
+				wg.Wait()
 
-				for {
-					wal, _ := wallet.GenerateWallet()
-					wallString, _ := wal.GetWallet()
-
-					if regex.MatchString(wallString) {
-						log.Info("Found wallet: ", wallString)
-						wal.ExportWallet(c.Args().Get(0))
-						return nil
-					}
-				}
+				return nil
 			},
 		},
 	}
