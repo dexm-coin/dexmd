@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -20,8 +21,6 @@ import (
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 	"github.com/gopherjs/gopherjs/js"
-	"github.com/minio/blake2b-simd"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -156,7 +155,7 @@ func IsWalletValid(wallet string) bool {
 
 // BytesToAddress converts the bytes of the PublicKey into a wallet address
 func BytesToAddress(data []byte) string {
-	hash := blake2b.Sum256(data)
+	hash := sha256.Sum256(data)
 
 	h := ripemd160.New()
 	h.Write(hash[:])
@@ -172,7 +171,7 @@ func BytesToAddress(data []byte) string {
 // StrippedBytesToAddr converts the bytes of the PublicKey into a wallet address
 // without the Dexm header and the checksum
 func StrippedBytesToAddr(data []byte) []byte {
-	hash := blake2b.Sum256(data)
+	hash := sha256.Sum256(data)
 
 	h := ripemd160.New()
 	h.Write(hash[:])
@@ -302,7 +301,7 @@ func GenerateVanityWallet(vanity string, userWallet string, vainityFound *bool, 
 		wallString, _ := wal.GetWallet()
 
 		if wallString[:4+len(vanity)] == "Dexm"+vanity {
-			log.Info("Found wallet: ", wallString)
+			// log.Info("Found wallet: ", wallString)
 			wal.ExportWallet(userWallet)
 
 			*vainityFound = true

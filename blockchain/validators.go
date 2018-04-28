@@ -137,6 +137,7 @@ func (v *ValidatorsBook) ChooseValidator(seed int64) (luckyone string, err error
 	sort.Sort(v)
 	rand.Seed(seed)
 	level := rand.Float64() * float64(v.totalstake)
+	level += 0.0000000001 // a validator without stake can't pareticpate
 	var counter uint64
 	for _, val := range v.valsArray {
 		counter += val.stake

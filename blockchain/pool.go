@@ -1,13 +1,13 @@
 package blockchain
 
 import (
+	"crypto/sha256"
 	"errors"
 	"time"
 
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 	pq "github.com/jupp0r/go-priority-queue"
-	"golang.org/x/crypto/blake2b"
 )
 
 type mempool struct {
@@ -68,7 +68,7 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 				return nil, err
 			}
 
-			bhash := blake2b.Sum256(blockBytes)
+			bhash := sha256.Sum256(blockBytes)
 			hash = bhash[:]
 		}
 	}

@@ -1,6 +1,7 @@
 package networking
 
 import (
+	"crypto/sha256"
 	"net/http"
 	"time"
 
@@ -11,12 +12,10 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/blake2b"
 )
 
 type client struct {
 	conn      *websocket.Conn
-	identity  []byte
 	send      chan []byte
 	readOther chan []byte
 	store     *ConnectionStore
@@ -98,7 +97,7 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 					return
 				}
 
-				bhash := blake2b.Sum256(blockBytes)
+				bhash := sha256.Sum256(blockBytes)
 				hash := bhash[:]
 
 				r, s, err := identity.Sign(hash)
@@ -107,7 +106,7 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 					return
 				}
 
-				signature := &network.Identity{
+				signature := &network.Signature{
 					Pubkey: pub,
 					R:      r.Bytes(),
 					S:      s.Bytes(),
@@ -160,7 +159,6 @@ func (cs *ConnectionStore) Connect(ip string) error {
 
 	c := client{
 		conn:      conn,
-		identity:  []byte{},
 		send:      make(chan []byte, 256),
 		readOther: make(chan []byte, 256),
 		store:     cs,
@@ -211,7 +209,7 @@ func (c *client) read() {
 	}()
 
 	for {
-		msgType, msg, err := c.conn.ReadMessage() // TODO Handle go away messages
+		msgType, msg, err := c.conn.ReadMessage()
 		if err != nil {
 			return
 		}
@@ -248,7 +246,7 @@ func (c *client) read() {
 			// Free up the goroutine to recive multi part messages
 			go func() {
 				env := protobufs.Envelope{}
-				rawMsg := handleMessage(&request)
+				rawMsg := c.store.handleMessage(&request)
 
 				env.Type = protobufs.Envelope_OTHER
 				env.Data = rawMsg
@@ -285,7 +283,6 @@ func registerWs(cs *ConnectionStore, w http.ResponseWriter, r *http.Request) {
 
 	c := client{
 		conn:      conn,
-		identity:  []byte{},
 		send:      make(chan []byte, 256),
 		readOther: make(chan []byte, 256),
 		store:     cs,

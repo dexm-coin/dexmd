@@ -51,6 +51,9 @@ func main() {
 			Aliases: []string{"sn", "rn"},
 			Action: func(c *cli.Context) error {
 				port, _ := strconv.Atoi(c.Args().Get(0))
+				if port == 8000 {
+					log.Fatal("Invalid port")
+				}
 
 				bch, _ := blockchain.NewBlockchain(fmt.Sprintf("simulation/Blockchain_%d", port), 0)
 				idn, err := wallet.ImportWallet(c.Args().Get(1))
@@ -96,9 +99,7 @@ func main() {
 
 				book, _ := networking.StartServer(fmt.Sprintf(":%d", port), bch, idn)
 
-				if port != 8000 {
-					book.Connect("ws://localhost:8000/ws")
-				}
+				book.Connect("ws://localhost:8000/ws")
 
 				time.Sleep(10 * time.Hour)
 
@@ -185,14 +186,19 @@ func main() {
 			Action: func(c *cli.Context) error {
 				log.Info("Dexm uses Base58 encoding, only chars allowed are 123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
 
-				vaninity := c.Args().Get(1)
+				vanity := c.Args().Get(1)
 				userWallet := c.Args().Get(0)
+
+				if c.Args().Get(0) == "" {
+					log.Fatal("Invalid filename")
+				}
+
 				vainityFound := false
 				var wg sync.WaitGroup
 
 				for i := 0; i < 4; i++ {
 					wg.Add(1)
-					go wallet.GenerateVanityWallet(vaninity, userWallet, &vainityFound, &wg)
+					go wallet.GenerateVanityWallet(vanity, userWallet, &vainityFound, &wg)
 				}
 				wg.Wait()
 
