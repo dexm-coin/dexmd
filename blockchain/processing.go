@@ -188,10 +188,10 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 // ImportBlock imports a block into the blockchain and checks if it's valid
 // This should be called on blocks that are finalized by PoS
 func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
-	/*res, err := bc.ValidateBlock(block)
+	res, err := bc.ValidateBlock(block)
 	if !res {
 		return err
-	}*/
+	}
 
 	// This means the blockchain forked.
 	if block.GetIndex() < bc.CurrentBlock {
