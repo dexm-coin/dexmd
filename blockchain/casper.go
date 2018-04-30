@@ -13,13 +13,14 @@ import (
 
 // Create a vote based on casper Vote struct
 // CasperVote:
-// - Source -> hash of the source checkpoint
+// - Source -> hash of the source block
 // - Target -> hash of any descendent of s
 // - SourceHeight -> height of s
 // - TargetHeight -> height of t
 // - R, S -> signature of <s, t, h(s), h(t)> with validator private key
 func createVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) blockchain.CasperVote {
-	data := []byte(sVote + tVote + fmt.Sprintf("%v", hsVote) + fmt.Sprintf("%v", hsVote))
+	pub, _ := w.GetPubKey()
+	data := []byte(sVote + tVote + fmt.Sprintf("%v", hsVote) + fmt.Sprintf("%v", hsVote) + string(pub))
 	bhash := sha256.Sum256(data)
 	hash := bhash[:]
 	rSign, sSign, _ := w.Sign(hash)
@@ -30,27 +31,39 @@ func createVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) bl
 		TargetHeight: htVote,
 		R:            rSign.Bytes(),
 		S:            sSign.Bytes(),
+		PublicKey:    pub,
 	}
 }
 
-// Every checkpoint there should be an agreement of
-// 2/3 of the validators
-func checkpointAgreement() {
+// Every checkpoint there should be an agreement of 2/3 of the validators
+func checkpointAgreement(b *Blockchain, votes *[]blockchain.CasperVote) bool {
+	mapVote := make(map[string]bool)
+	var newVotes []blockchain.CasperVote
+	for _, vote := range *votes {
+		pubKey := string(vote.PublicKey)
+		// It will check only if there are duplicates vote
+		if _, ok := mapVote[pubKey]; ok {
+			fmt.Println("ban", pubKey)
+			continue
+		}
+		mapVote[pubKey] = true
+		newVotes = append(newVotes, vote)
+	}
 
+	if len(newVotes) > 2*len(b.Validators.valsArray)/3 {
+		b.CurrentCheckpoint += 100
+		return true
+	}
+	return false
 }
 
-// A checkpoint c is called justified if it is the root,
-// or if there exists a supermajority link c to any of its
-// direct children c' in the checkpoint tree, where c' is justified
-func isJustified() {
-
-}
-
-// A checkpoint c is called finalized if it is justified
-// and there is a supermajority link from c to any of its
-// direct children in the checkpoint tree
-func isFinalized() {
-
+// A block is justified if is the root or if it's between 2 checkpoint
+func isJustified(b *Blockchain, block *protobufs.Block) bool {
+	index := block.GetIndex()
+	if index > b.CurrentCheckpoint && index%100 != 0 {
+		return false
+	}
+	return true
 }
 
 // IsVoteValid check if s is an ancestor of t in the chain
