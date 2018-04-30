@@ -85,3 +85,24 @@ func IsVoteValid(b *Blockchain, source *protobufs.Block, target *protobufs.Block
 	}
 	return false
 }
+
+func getCanonialBlockchain(blockchains *[]Blockchain) Blockchain {
+	max := -1
+	var CanonicalBlockchain Blockchain
+	for _, b := range *blockchains {
+		var err error
+		i := b.CurrentBlock - 1
+		for ; err != nil; i-- {
+			_, err = b.GetBlocks(i)
+		}
+		// 1/3 of the validators violete a slashing condition
+		if max == int(i) {
+			log.Error("Validators violation")
+		}
+		if max < int(i) {
+			CanonicalBlockchain = b
+			max = int(i)
+		}
+	}
+	return CanonicalBlockchain
+}
