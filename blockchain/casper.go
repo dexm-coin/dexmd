@@ -18,7 +18,7 @@ import (
 // - SourceHeight -> height of s
 // - TargetHeight -> height of t
 // - R, S -> signature of <s, t, h(s), h(t)> with validator private key
-func createVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) blockchain.CasperVote {
+func CreateVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) blockchain.CasperVote {
 	pub, _ := w.GetPubKey()
 	data := []byte(sVote + tVote + fmt.Sprintf("%v", hsVote) + fmt.Sprintf("%v", hsVote) + string(pub))
 	bhash := sha256.Sum256(data)
@@ -36,7 +36,7 @@ func createVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) bl
 }
 
 // Every checkpoint there should be an agreement of 2/3 of the validators
-func checkpointAgreement(b *Blockchain, votes *[]blockchain.CasperVote) bool {
+func CheckpointAgreement(b *Blockchain, votes *[]blockchain.CasperVote) bool {
 	mapVote := make(map[string]bool)
 	var newVotes []blockchain.CasperVote
 	for _, vote := range *votes {
@@ -58,7 +58,7 @@ func checkpointAgreement(b *Blockchain, votes *[]blockchain.CasperVote) bool {
 }
 
 // A block is justified if is the root or if it's between 2 checkpoint
-func isJustified(b *Blockchain, block *protobufs.Block) bool {
+func IsJustified(b *Blockchain, block *protobufs.Block) bool {
 	index := block.GetIndex()
 	if index > b.CurrentCheckpoint && index%100 != 0 {
 		return false
@@ -86,7 +86,8 @@ func IsVoteValid(b *Blockchain, source *protobufs.Block, target *protobufs.Block
 	return false
 }
 
-func getCanonialBlockchain(blockchains *[]Blockchain) Blockchain {
+// GetCanonialBlockchain return the longest blockchain that is the canonical one
+func GetCanonialBlockchain(blockchains *[]Blockchain) Blockchain {
 	max := -1
 	var CanonicalBlockchain Blockchain
 	for _, b := range *blockchains {
