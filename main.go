@@ -97,11 +97,7 @@ func main() {
 				bch.SaveBlock(&block)
 				bch.ImportBlock(&block)
 
-				book, _ := networking.StartServer(fmt.Sprintf(":%d", port), bch, idn)
-
-				book.Connect("ws://localhost:8000/ws")
-
-				time.Sleep(10 * time.Hour)
+				networking.StartServer(fmt.Sprintf(":%d", port), bch, idn)
 
 				return nil
 			},

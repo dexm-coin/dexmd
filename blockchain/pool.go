@@ -54,7 +54,7 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 
 		// There may be holes in the blockchain. Keep going till you find a block
 		for i := bc.CurrentBlock - 1; err != nil; i-- {
-			currBlocks, err = bc.GetBlocks(bc.CurrentBlock - 1)
+			currBlocks, err = bc.GetBlocks(i)
 		}
 
 		index := &protobufs.Index{}

@@ -61,8 +61,10 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 	// Server that allows peers to connect
 	go http.ListenAndServe(port, nil)
 
+	store.Connect("ws://localhost:8000/ws")
+
 	// Loop that picks the validator and generates blocks. TODO Pick better seed
-	go func() {
+	func() {
 		// A new block is generated every time the unix timestamp % 5 == 0
 		time.Sleep(time.Duration(time.Now().Unix()%5) * time.Second)
 
