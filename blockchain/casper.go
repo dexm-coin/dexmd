@@ -3,6 +3,7 @@ package blockchain
 import (
 	"crypto/sha256"
 	"fmt"
+	"reflect"
 
 	"github.com/dexm-coin/dexmd/wallet"
 	"github.com/dexm-coin/protobufs/build/blockchain"
@@ -72,38 +73,29 @@ func IsVoteValid(b *Blockchain, source *protobufs.Block, target *protobufs.Block
 		log.Error("No validators")
 		return false
 	}
+
+	prevHash := target.PrevHash
 	for i := target.Index - 1; i > 0; i-- {
 		byteBlock, _ := b.blockDb.Get([]byte(string(i)), nil)
 		blocks := &blockchain.Index{}
 		proto.Unmarshal(byteBlock, blocks)
 
 		for _, block := range blocks.GetBlocks() {
-			if block == source {
+			byteBlock := []byte(fmt.Sprintf("%v", block))
+			bhash := sha256.Sum256(byteBlock)
+			currentHash := bhash[:]
+			equal := reflect.DeepEqual(prevHash, currentHash)
+			if block == source && equal {
 				return true
+			}
+			if equal {
+				prevHash = block.PrevHash
 			}
 		}
 	}
 	return false
 }
 
-// GetCanonialBlockchain return the longest blockchain that is the canonical one
-func GetCanonialBlockchain(blockchains *[]Blockchain) Blockchain {
-	max := -1
-	var CanonicalBlockchain Blockchain
-	for _, b := range *blockchains {
-		var err error
-		i := b.CurrentBlock - 1
-		for ; err != nil; i-- {
-			_, err = b.GetBlocks(i)
-		}
-		// 1/3 of the validators violete a slashing condition
-		if max == int(i) {
-			log.Error("Validators violation")
-		}
-		if max < int(i) {
-			CanonicalBlockchain = b
-			max = int(i)
-		}
-	}
-	return CanonicalBlockchain
+// GetCanonialBlockchain return the longest chain that is the canonical one
+func GetCanonialBlockchain() {
 }
