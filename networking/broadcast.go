@@ -7,7 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func handleBroadcast(data []byte) error {
+func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 	broadcastEnvelope := &protobufs.Broadcast{}
 	err := proto.Unmarshal(data, broadcastEnvelope)
 	if err != nil {
@@ -19,7 +19,7 @@ func handleBroadcast(data []byte) error {
 	switch broadcastEnvelope.GetType() {
 	// Register a new transaction to the mempool
 	case protobufs.Broadcast_TRANSACTION:
-		bc.AddMempoolTransaction(broadcastEnvelope.GetData())
+		cs.bc.AddMempoolTransaction(broadcastEnvelope.GetData())
 
 	// Save a block proposed by a validator TODO Verify turn and identity
 	case protobufs.Broadcast_BLOCK_PROPOSAL:
@@ -31,8 +31,8 @@ func handleBroadcast(data []byte) error {
 			return err
 		}
 
-		log.Error(bc.SaveBlock(block))
-		log.Error(bc.ImportBlock(block))
+		log.Error(cs.bc.SaveBlock(block))
+		log.Error(cs.bc.ImportBlock(block))
 	}
 
 	return nil

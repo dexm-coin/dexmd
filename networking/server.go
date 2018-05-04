@@ -30,6 +30,10 @@ type ConnectionStore struct {
 	register chan *client
 
 	unregister chan *client
+
+	bc *blockchain.Blockchain
+
+	identity *wallet.Wallet
 }
 
 var upgrader = websocket.Upgrader{
@@ -44,10 +48,9 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 		broadcast:  make(chan []byte),
 		register:   make(chan *client),
 		unregister: make(chan *client),
+		bc:         bch,
+		identity:   idn,
 	}
-
-	bc = bch
-	identity = idn
 
 	// Hub that handles registration and unregistrations of clients
 	go store.run()
@@ -71,8 +74,8 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 		for {
 			bch.CurrentBlock++
 
-			wal, _ := identity.GetWallet()
-			validator, err := bch.Validators.ChooseValidator(int64(bc.CurrentBlock))
+			wal, _ := store.identity.GetWallet()
+			validator, err := bch.Validators.ChooseValidator(int64(store.bc.CurrentBlock))
 			if err != nil {
 				return
 			}
@@ -80,7 +83,7 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 			log.Info("Waiting from ", validator)
 
 			if validator == wal {
-				block, err := bc.GenerateBlock(wal)
+				block, err := store.bc.GenerateBlock(wal)
 				if err != nil {
 					log.Error(err)
 					return
@@ -93,7 +96,7 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 
 				blockBytes, _ := proto.Marshal(block)
 
-				pub, err := identity.GetPubKey()
+				pub, err := store.identity.GetPubKey()
 				if err != nil {
 					log.Error(err)
 					return
@@ -102,7 +105,7 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 				bhash := sha256.Sum256(blockBytes)
 				hash := bhash[:]
 
-				r, s, err := identity.Sign(hash)
+				r, s, err := store.identity.Sign(hash)
 				if err != nil {
 					log.Error(err)
 					return
@@ -232,7 +235,7 @@ func (c *client) read() {
 		switch pb.GetType() {
 
 		case protobufs.Envelope_BROADCAST:
-			go handleBroadcast(pb.GetData())
+			go c.store.handleBroadcast(pb.GetData())
 
 			// TODO Make a nice broadcast algo
 			// c.store.broadcast <- msg

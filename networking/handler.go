@@ -3,23 +3,17 @@ package networking
 import (
 	"strconv"
 
-	"github.com/dexm-coin/dexmd/blockchain"
-	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/network"
 	"github.com/gogo/protobuf/proto"
-)
-
-var (
-	bc       *blockchain.Blockchain
-	identity *wallet.Wallet
 )
 
 func (cs *ConnectionStore) handleMessage(pb *protobufs.Request) []byte {
 	switch pb.GetType() {
 	// GET_BLOCKCHAIN_LEN returns the current block index
 	case protobufs.Request_GET_BLOCKCHAIN_LEN:
-		return []byte(strconv.FormatUint(bc.CurrentBlock, 10))
+		return []byte(strconv.FormatUint(cs.bc.CurrentBlock, 10))
 
+	// GET_PEERS returns the peers the node is currently connected to
 	case protobufs.Request_GET_PEERS:
 		peers := []string{}
 
@@ -37,6 +31,15 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request) []byte {
 		}
 
 		return b
+
+	// GET_BLOCK returns a block at the passed index
+	case protobufs.Request_GET_BLOCK:
+		block, err := cs.bc.GetBlocks(pb.GetIndex())
+		if err != nil {
+			return []byte("Error")
+		}
+
+		return block
 
 	}
 
