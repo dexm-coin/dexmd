@@ -14,11 +14,12 @@ import (
 
 // Blockchain is an internal representation of a blockchain
 type Blockchain struct {
-	balancesDb   *leveldb.DB
-	blockDb      *leveldb.DB
-	Mempool      *mempool
-	Validators   *ValidatorsBook
-	CurrentBlock uint64
+	balancesDb        *leveldb.DB
+	blockDb           *leveldb.DB
+	Mempool           *mempool
+	Validators        *ValidatorsBook
+	CurrentBlock      uint64
+	CurrentCheckpoint uint64
 }
 
 // NewBlockchain creates a database db
@@ -38,7 +39,7 @@ func NewBlockchain(dbPath string, blocks uint64) (*Blockchain, error) {
 
 	vd := NewValidatorsBook()
 
-	return &Blockchain{db, dbb, mp, &vd, blocks}, err
+	return &Blockchain{db, dbb, mp, &vd, blocks, 0}, err
 }
 
 // GetWalletState returns the state of a wallet in the current block
