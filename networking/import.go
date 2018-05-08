@@ -5,17 +5,20 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 )
 
 // Maximum amount of blocks downloaded by one node at once
 const (
-	MAX_BLOCK_PEER = 200
+	MaxBlockPeer = 200
 )
 
 // UpdateChain asks all connected nodes for their chain lenght, if any of them
 // has a chain longer than the current one it will import
+// TODO Drop client if err != nil
 func (cs *ConnectionStore) UpdateChain() error {
 
 	// Keep going till you have fully synced the chain
@@ -28,24 +31,14 @@ func (cs *ConnectionStore) UpdateChain() error {
 				Type: network.Request_GET_BLOCKCHAIN_LEN,
 			}
 
-			d, err := proto.Marshal(req)
+			d, err := makeReqEnvelope(req)
 			if err != nil {
-				return err
-			}
-
-			env := &network.Envelope{
-				Type: network.Envelope_REQUEST,
-				Data: d,
-			}
-
-			d, err = proto.Marshal(env)
-			if err != nil {
-				return err
+				continue
 			}
 
 			k.send <- d
 
-			blockchainLen, err := k.GetResponse(500 * time.Millisecond)
+			blockchainLen, err := k.GetResponse(300 * time.Millisecond)
 			if err != nil {
 				continue
 			}
@@ -56,13 +49,47 @@ func (cs *ConnectionStore) UpdateChain() error {
 			}
 
 			// We can import blocks from this node, start downloading and check them
-
 			cb := cs.bc.CurrentBlock
+
 			if flen > cb {
 
 				// Limit the imported blocks per peer to MAX_BLOCKS_PEER
-				for i := cb; cb < min(cb+MAX_BLOCK_PEER, flen); i++ {
-					didImport = true
+				for i := cb; cb < min(cb+MaxBlockPeer, flen); i++ {
+					req = &network.Request{
+						Type:  network.Request_GET_BLOCK,
+						Index: i,
+					}
+
+					d, err = makeReqEnvelope(req)
+					if err != nil {
+						break
+					}
+
+					k.send <- d
+
+					block, err := k.GetResponse(300 * time.Millisecond)
+					if err != nil {
+						break
+					}
+
+					index := &blockchain.Index{}
+					err = proto.Unmarshal(block, index)
+					if err != nil {
+						break
+					}
+
+					for _, b := range index.GetBlocks() {
+						res, err := cs.bc.ValidateBlock(b)
+						if res {
+							cs.bc.ImportBlock(b)
+							didImport = true
+						} else {
+							log.Error(err)
+							break
+						}
+
+					}
+
 				}
 			}
 		}
@@ -80,6 +107,25 @@ func (c *client) GetResponse(timeout time.Duration) ([]byte, error) {
 	case <-time.After(timeout):
 		return nil, errors.New("Response timed out")
 	}
+}
+
+func makeReqEnvelope(req *network.Request) ([]byte, error) {
+	d, err := proto.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	env := &network.Envelope{
+		Type: network.Envelope_REQUEST,
+		Data: d,
+	}
+
+	d, err = proto.Marshal(env)
+	if err != nil {
+		return nil, err
+	}
+
+	return d, nil
 }
 
 func min(a, b uint64) uint64 {
