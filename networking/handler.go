@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	protobufs "github.com/dexm-coin/protobufs/build/network"
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 )
 
 func (cs *ConnectionStore) handleMessage(pb *protobufs.Request) []byte {
