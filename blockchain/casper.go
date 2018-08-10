@@ -10,22 +10,23 @@ import (
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
-// Create a vote based on casper Vote struct
+// CreateVote : Create a vote based on casper Vote struct
 // CasperVote:
 // - Source -> hash of the source block
 // - Target -> hash of any descendent of s
 // - SourceHeight -> height of s
 // - TargetHeight -> height of t
 // - R, S -> signature of <s, t, h(s), h(t)> with validator private key
-func CreateVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) blockchain.CasperVote {
+func CreateVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) protobufs.CasperVote {
 	pub, _ := w.GetPubKey()
 	data := []byte(sVote + tVote + fmt.Sprintf("%v", hsVote) + fmt.Sprintf("%v", hsVote) + string(pub))
 	bhash := sha256.Sum256(data)
 	hash := bhash[:]
 	rSign, sSign, _ := w.Sign(hash)
-	return blockchain.CasperVote{
+	return protobufs.CasperVote{
 		Source:       []byte(sVote),
 		Target:       []byte(tVote),
 		SourceHeight: hsVote,
@@ -36,29 +37,33 @@ func CreateVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) bl
 	}
 }
 
-// Every checkpoint there should be an agreement of 2/3 of the validators
-func CheckpointAgreement(b *Blockchain, votes *[]blockchain.CasperVote) bool {
-	mapVote := make(map[string]bool)
-	var newVotes []blockchain.CasperVote
+// CheckpointAgreement : Every checkpoint there should be an agreement of 2/3 of the validators
+func CheckpointAgreement(b *Blockchain, votes *[]protobufs.CasperVote) bool {
+	mapVote := make(map[string][]uint64)
 	for _, vote := range *votes {
 		pubKey := string(vote.PublicKey)
-		// It will check only if there are duplicates vote
-		if _, ok := mapVote[pubKey]; ok {
-			fmt.Println("ban", pubKey)
-			continue
+		currHeigth := uint64(vote.GetTargetHeight())
+		// check if there are multiple votes of the same person
+		// in all the heigths votes
+		for _, heigths := range mapVote[pubKey] {
+			if heigths == currHeigth {
+				fmt.Println("slash for ", pubKey)
+				// delete the user from the vote counting
+				delete(mapVote, pubKey)
+				continue
+			}
 		}
-		mapVote[pubKey] = true
-		newVotes = append(newVotes, vote)
+		mapVote[pubKey] = append(mapVote[pubKey], currHeigth)
 	}
 
-	if len(newVotes) > 2*len(b.Validators.valsArray)/3 {
+	if len(mapVote) > 2*len(b.Validators.valsArray)/3 {
 		b.CurrentCheckpoint += 100
 		return true
 	}
 	return false
 }
 
-// A block is justified if is the root or if it's between 2 checkpoint
+// IsJustified : A block is justified if is the root or if it's between 2 checkpoint
 func IsJustified(b *Blockchain, block *protobufs.Block) bool {
 	index := block.GetIndex()
 	if index > b.CurrentCheckpoint && index%100 != 0 {
@@ -96,6 +101,42 @@ func IsVoteValid(b *Blockchain, source *protobufs.Block, target *protobufs.Block
 	return false
 }
 
+// TODO
 // GetCanonialBlockchain return the longest chain that is the canonical one
+// I should save feald in protobuf blockchain and use checkpoint agreement to know which is the canonical chain
 func GetCanonialBlockchain() {
+}
+
+// CheckUserVotes check that a validator must not vote within the span of its other votes
+// h(s1) < h(s2) < h(t2) < h(t1)
+func CheckUserVotes(vote1, vote2 *protobufs.CasperVote) bool {
+	// TODO
+	// do some check with the signature of the votes that can be false
+	if vote1.GetSourceHeight() < vote2.GetSourceHeight() &&
+		vote2.GetSourceHeight() < vote2.GetTargetHeight() &&
+		vote2.GetTargetHeight() < vote1.GetTargetHeight() {
+		return false
+	}
+	return true
+}
+
+// DbCasperVotes contains the leveldb of the casper votes
+// TODO use sharding
+type DbCasperVotes struct {
+	VotesDb *leveldb.DB
+}
+
+// NewCasperDb creates a database db for casper votes
+func NewCasperDb(dbPath string) (*DbCasperVotes, error) {
+	db, err := leveldb.OpenFile(dbPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &DbCasperVotes{db}, err
+}
+
+// SaveCasperVote saves a casper vote inside the DbCasperVotes db
+func (cv *DbCasperVotes) SaveCasperVote(vote *protobufs.CasperVote) error {
+	// save the CasperVote struct as an array of byte from a string
+	return cv.VotesDb.Put([]byte(fmt.Sprintf("%v", vote)), nil, nil)
 }
