@@ -40,6 +40,7 @@ func CreateVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) pr
 // CheckpointAgreement : Every checkpoint there should be an agreement of 2/3 of the validators
 func CheckpointAgreement(b *Blockchain, votes *[]protobufs.CasperVote) bool {
 	mapVote := make(map[string][]uint64)
+	var userToRemove []string
 	for _, vote := range *votes {
 		pubKey := string(vote.PublicKey)
 		currHeigth := uint64(vote.GetTargetHeight())
@@ -47,13 +48,17 @@ func CheckpointAgreement(b *Blockchain, votes *[]protobufs.CasperVote) bool {
 		// in all the heigths votes
 		for _, heigths := range mapVote[pubKey] {
 			if heigths == currHeigth {
-				fmt.Println("slash for ", pubKey)
-				// delete the user from the vote counting
-				delete(mapVote, pubKey)
+				userToRemove = append(userToRemove, pubKey)
 				continue
 			}
 		}
 		mapVote[pubKey] = append(mapVote[pubKey], currHeigth)
+	}
+
+	// delete the userS from the vote counting
+	for _, user := range userToRemove {
+		fmt.Println("slash for ", user)
+		delete(mapVote, user)
 	}
 
 	if len(mapVote) > 2*len(b.Validators.valsArray)/3 {
@@ -107,9 +112,9 @@ func IsVoteValid(b *Blockchain, source *protobufs.Block, target *protobufs.Block
 func GetCanonialBlockchain() {
 }
 
-// CheckUserVotes check that a validator must not vote within the span of its other votes
+// CheckUserVote check that a validator must not vote within the span of its other votes
 // h(s1) < h(s2) < h(t2) < h(t1)
-func CheckUserVotes(vote1, vote2 *protobufs.CasperVote) bool {
+func CheckUserVote(vote1, vote2 *protobufs.CasperVote) bool {
 	// TODO
 	// do some check with the signature of the votes that can be false
 	if vote1.GetSourceHeight() < vote2.GetSourceHeight() &&
@@ -124,6 +129,7 @@ func CheckUserVotes(vote1, vote2 *protobufs.CasperVote) bool {
 // TODO use sharding
 type DbCasperVotes struct {
 	VotesDb *leveldb.DB
+	Index   int
 }
 
 // NewCasperDb creates a database db for casper votes
@@ -132,11 +138,29 @@ func NewCasperDb(dbPath string) (*DbCasperVotes, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DbCasperVotes{db}, err
+	return &DbCasperVotes{db, 0}, err
 }
 
 // SaveCasperVote saves a casper vote inside the DbCasperVotes db
 func (cv *DbCasperVotes) SaveCasperVote(vote *protobufs.CasperVote) error {
+	cv.Index++
+	res, err := proto.Marshal(vote)
+	if err != nil {
+		return err
+	}
 	// save the CasperVote struct as an array of byte from a string
-	return cv.VotesDb.Put([]byte(fmt.Sprintf("%v", vote)), nil, nil)
+	return cv.VotesDb.Put([]byte(string(cv.Index)), res, nil)
+}
+
+// GetCasperVote get a casper vote inside the DbCasperVotes db
+func (cv *DbCasperVotes) GetCasperVote(index int) (protobufs.CasperVote, error) {
+	oldVote, err := cv.VotesDb.Get([]byte(string(index)), nil)
+
+	vote := protobufs.CasperVote{}
+	if err == nil {
+		proto.Unmarshal(oldVote, &vote)
+	}
+
+	// return cv.VotesDb.Get([]byte(string(index)), nil)
+	return vote, err
 }

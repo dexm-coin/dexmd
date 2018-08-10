@@ -26,9 +26,13 @@ func TestCheckpointAgreement(t *testing.T) {
 		t.Error("Generated wallet is invalid")
 	}
 
-	vote1 := blockchain.CreateVote("casperVote1Source", "casperVote1Target", 0, 2, w1)
+	vote1 := blockchain.CreateVote("casperVote1Source", "casperVote1Target", 0, 3, w1)
 	vote2 := blockchain.CreateVote("casperVote2Source", "casperVote2Target", 0, 3, w1)
-	vote3 := blockchain.CreateVote("casperVote3Source", "casperVote3Target", 0, 1, w1)
+	vote3 := blockchain.CreateVote("casperVote3Source", "casperVote3Target", 0, 4, w1)
 	votes := []protobufs.CasperVote{vote1, vote2, vote3}
 	blockchain.CheckpointAgreement(b, &votes)
+
+	dbCasper, err := blockchain.NewCasperDb("votes/")
+	dbCasper.SaveCasperVote(&vote3)
+	dbCasper.GetCasperVote(dbCasper.Index)
 }
