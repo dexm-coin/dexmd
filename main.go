@@ -131,9 +131,11 @@ func main() {
 				senderWallet.ExportWallet(walletPath)
 				log.Info("Generated Transaction")
 
-				broadcast := &network.Broadcast{}
-				broadcast.Type = network.Broadcast_TRANSACTION
-				broadcast.Data = transaction
+				broadcast := &network.Broadcast{
+					Type: network.Broadcast_TRANSACTION,
+					Data: transaction,
+					TTL:  64,
+				}
 
 				bdata, err := proto.Marshal(broadcast)
 				if err != nil {

@@ -122,6 +122,7 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 					Data:     blockBytes,
 					Type:     network.Broadcast_BLOCK_PROPOSAL,
 					Identity: signature,
+					TTL:      64,
 				}
 
 				broadcastBytes, err := proto.Marshal(broadcast)
@@ -195,11 +196,36 @@ func (cs *ConnectionStore) run() {
 		// Network wide broadcast. For now this uses a very simple and broken
 		// algorithm but it could be optimized using ASNs as an overlay network
 		case message := <-cs.broadcast:
+
 			for k := range cs.clients {
-				k.send <- message
+				env := &network.Envelope{}
+				broadcast := &network.Broadcast{}
+				proto.Unmarshal(message, env)
+				proto.Unmarshal(env.Data, broadcast)
+
+				broadcast.TTL--
+				if broadcast.TTL < 1 {
+					continue
+				}
+				broadcastBytes, err := proto.Marshal(broadcast)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+
+				newEnv := &network.Envelope{
+					Type: env.Type,
+					Data: broadcastBytes,
+				}
+				data, err := proto.Marshal(newEnv)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+
+				k.send <- data
 			}
 		}
-
 	}
 }
 
