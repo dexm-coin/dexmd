@@ -1,7 +1,6 @@
 package networking
 
 import (
-	"crypto/sha256"
 	"net/http"
 	"time"
 
@@ -14,12 +13,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type client struct {
-	conn      *websocket.Conn
-	send      chan []byte
-	readOther chan []byte
-	store     *ConnectionStore
-}
+const (
+	maxRelays = 20
+)
 
 // ConnectionStore handles peer messaging
 type ConnectionStore struct {
@@ -34,6 +30,15 @@ type ConnectionStore struct {
 	bc *blockchain.Blockchain
 
 	identity *wallet.Wallet
+
+	network string
+}
+
+type client struct {
+	conn      *websocket.Conn
+	send      chan []byte
+	readOther chan []byte
+	store     *ConnectionStore
 }
 
 var upgrader = websocket.Upgrader{
@@ -42,7 +47,7 @@ var upgrader = websocket.Upgrader{
 }
 
 // StartServer creates a new ConnectionStore, which handles network peers
-func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*ConnectionStore, error) {
+func StartServer(port, network string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*ConnectionStore, error) {
 	store := &ConnectionStore{
 		clients:    make(map[*client]bool),
 		broadcast:  make(chan []byte),
@@ -50,6 +55,7 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 		unregister: make(chan *client),
 		bc:         bch,
 		identity:   idn,
+		network:    network,
 	}
 
 	// Hub that handles registration and unregistrations of clients
@@ -58,95 +64,26 @@ func StartServer(port string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		log.Info("New connection")
-		registerWs(store, w, r)
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+
+		c := client{
+			conn:      conn,
+			send:      make(chan []byte, 256),
+			readOther: make(chan []byte, 256),
+			store:     store,
+		}
+
+		store.register <- &c
+
+		go c.read()
+		go c.write()
 	})
 
 	// Server that allows peers to connect
 	go http.ListenAndServe(port, nil)
-
-	store.Connect("ws://localhost:8000/ws")
-
-	// Loop that picks the validator and generates blocks. TODO Pick better seed
-	func() {
-		// A new block is generated every time the unix timestamp % 5 == 0
-		time.Sleep(time.Duration(time.Now().Unix()%5) * time.Second)
-
-		for {
-			bch.CurrentBlock++
-
-			wal, _ := store.identity.GetWallet()
-			validator, err := bch.Validators.ChooseValidator(int64(store.bc.CurrentBlock))
-			if err != nil {
-				return
-			}
-
-			log.Info("Waiting from ", validator)
-
-			if validator == wal {
-				block, err := store.bc.GenerateBlock(wal)
-				if err != nil {
-					log.Error(err)
-					return
-				}
-
-				bch.SaveBlock(block)
-				bch.ImportBlock(block)
-
-				log.Printf("New block generated: %x", block)
-
-				blockBytes, _ := proto.Marshal(block)
-
-				pub, err := store.identity.GetPubKey()
-				if err != nil {
-					log.Error(err)
-					return
-				}
-
-				bhash := sha256.Sum256(blockBytes)
-				hash := bhash[:]
-
-				r, s, err := store.identity.Sign(hash)
-				if err != nil {
-					log.Error(err)
-					return
-				}
-
-				signature := &network.Signature{
-					Pubkey: pub,
-					R:      r.Bytes(),
-					S:      s.Bytes(),
-					Data:   hash,
-				}
-
-				broadcast := &network.Broadcast{
-					Data:     blockBytes,
-					Type:     network.Broadcast_BLOCK_PROPOSAL,
-					Identity: signature,
-					TTL:      64,
-				}
-
-				broadcastBytes, err := proto.Marshal(broadcast)
-				if err != nil {
-					log.Error(err)
-					return
-				}
-
-				env := &network.Envelope{}
-				env.Data = broadcastBytes
-				env.Type = network.Envelope_BROADCAST
-
-				data, err := proto.Marshal(env)
-				if err != nil {
-					log.Error(err)
-					return
-				}
-
-				store.broadcast <- data
-			}
-
-			time.Sleep(5 * time.Second)
-		}
-	}()
 
 	return store, nil
 }
@@ -196,34 +133,42 @@ func (cs *ConnectionStore) run() {
 		// Network wide broadcast. For now this uses a very simple and broken
 		// algorithm but it could be optimized using ASNs as an overlay network
 		case message := <-cs.broadcast:
+			sentBroadcasts := 0
+
+			env := &network.Envelope{}
+			broadcast := &network.Broadcast{}
+			proto.Unmarshal(message, env)
+			proto.Unmarshal(env.Data, broadcast)
+
+			broadcast.TTL--
+			if broadcast.TTL < 1 || broadcast.TTL > 32 {
+				return
+			}
+
+			broadcastBytes, err := proto.Marshal(broadcast)
+			if err != nil {
+				return
+			}
+
+			newEnv := &network.Envelope{
+				Type: env.Type,
+				Data: broadcastBytes,
+			}
+
+			data, err := proto.Marshal(newEnv)
+			if err != nil {
+				log.Error(err)
+				return
+			}
 
 			for k := range cs.clients {
-				env := &network.Envelope{}
-				broadcast := &network.Broadcast{}
-				proto.Unmarshal(message, env)
-				proto.Unmarshal(env.Data, broadcast)
-
-				broadcast.TTL--
-				if broadcast.TTL < 1 {
-					continue
-				}
-				broadcastBytes, err := proto.Marshal(broadcast)
-				if err != nil {
-					log.Error(err)
-					continue
-				}
-
-				newEnv := &network.Envelope{
-					Type: env.Type,
-					Data: broadcastBytes,
-				}
-				data, err := proto.Marshal(newEnv)
-				if err != nil {
-					log.Error(err)
-					return
+				// Limit messages that one node sends
+				if sentBroadcasts > maxRelays {
+					break
 				}
 
 				k.send <- data
+				sentBroadcasts++
 			}
 		}
 	}
@@ -262,9 +207,7 @@ func (c *client) read() {
 
 		case protobufs.Envelope_BROADCAST:
 			go c.store.handleBroadcast(pb.GetData())
-
-			// TODO Make a nice broadcast algo
-			// c.store.broadcast <- msg
+			c.store.broadcast <- msg
 
 		// If the ContentType is a request then try to parse it as such and handle it
 		case protobufs.Envelope_REQUEST:
@@ -304,23 +247,4 @@ func (c *client) write() {
 
 		c.conn.WriteMessage(websocket.BinaryMessage, toWrite)
 	}
-}
-
-func registerWs(cs *ConnectionStore, w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		return
-	}
-
-	c := client{
-		conn:      conn,
-		send:      make(chan []byte, 256),
-		readOther: make(chan []byte, 256),
-		store:     cs,
-	}
-
-	cs.register <- &c
-
-	go c.read()
-	go c.write()
 }

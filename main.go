@@ -1,23 +1,11 @@
 package main
 
 import (
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"strconv"
 	"sync"
-	"time"
 
-	"github.com/dexm-coin/dexmd/blockchain"
-	"github.com/dexm-coin/dexmd/networking"
 	"github.com/dexm-coin/dexmd/wallet"
-	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
-	"github.com/dexm-coin/protobufs/build/network"
-	"github.com/golang/protobuf/proto"
-	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -50,55 +38,6 @@ func main() {
 			Usage:   "sn",
 			Aliases: []string{"sn", "rn"},
 			Action: func(c *cli.Context) error {
-				port, _ := strconv.Atoi(c.Args().Get(0))
-				if port == 8000 {
-					log.Fatal("Invalid port")
-				}
-
-				bch, _ := blockchain.NewBlockchain(fmt.Sprintf("simulation/Blockchain_%d", port), 0)
-				idn, err := wallet.ImportWallet(c.Args().Get(1))
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				// Import the genesis block
-				raw, err := ioutil.ReadFile("genesis.json")
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				hexTransactions := []string{}
-				json.Unmarshal(raw, &hexTransactions)
-
-				var transactions []*protobufs.Transaction
-
-				for _, t := range hexTransactions {
-					tx := &protobufs.Transaction{}
-					txBytes, err := hex.DecodeString(t)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					err = proto.Unmarshal(txBytes, tx)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					transactions = append(transactions, tx)
-				}
-
-				block := protobufs.Block{
-					Index:        0,
-					Timestamp:    uint64(time.Now().Unix()),
-					PrevHash:     []byte{},
-					Transactions: transactions,
-				}
-
-				bch.SaveBlock(&block)
-				bch.ImportBlock(&block)
-
-				networking.StartServer(fmt.Sprintf(":%d", port), bch, idn)
-
 				return nil
 			},
 		},
@@ -127,53 +66,9 @@ func main() {
 					log.Error(err)
 					return nil
 				}
+				_ = transaction
 				//the nonce and amount have changed, let's save them
 				senderWallet.ExportWallet(walletPath)
-				log.Info("Generated Transaction")
-
-				broadcast := &network.Broadcast{
-					Type: network.Broadcast_TRANSACTION,
-					Data: transaction,
-					TTL:  64,
-				}
-
-				bdata, err := proto.Marshal(broadcast)
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-
-				env := &network.Envelope{}
-				env.Data = bdata
-				env.Type = network.Envelope_BROADCAST
-
-				data, err := proto.Marshal(env)
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-
-				log.Printf("Raw Transaction: %x", transaction)
-
-				dial := websocket.Dialer{
-					Proxy:            http.ProxyFromEnvironment,
-					HandshakeTimeout: 5 * time.Second,
-				}
-
-				conn, _, err := dial.Dial("ws://localhost:8000/ws", nil)
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-
-				err = conn.WriteMessage(websocket.BinaryMessage, data)
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-
-				conn.Close()
-
 				return nil
 			},
 		},
@@ -186,6 +81,12 @@ func main() {
 
 				vanity := c.Args().Get(1)
 				userWallet := c.Args().Get(0)
+				cores, err := strconv.Atoi(c.Args().Get(2))
+
+				if err != nil {
+					log.Error(err)
+					return nil
+				}
 
 				if c.Args().Get(0) == "" {
 					log.Fatal("Invalid filename")
@@ -194,7 +95,7 @@ func main() {
 				vainityFound := false
 				var wg sync.WaitGroup
 
-				for i := 0; i < 4; i++ {
+				for i := 0; i < cores; i++ {
 					wg.Add(1)
 					go wallet.GenerateVanityWallet(vanity, userWallet, &vainityFound, &wg)
 				}
