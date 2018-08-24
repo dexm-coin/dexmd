@@ -66,8 +66,13 @@ func ImportWallet(filePath string) (*Wallet, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return jsonKeyToStruct(walletfilejson)
+}
+
+func jsonKeyToStruct(walletJSON []byte) (*Wallet, error) {
 	var walletfile file
-	err = json.Unmarshal(walletfilejson, &walletfile)
+	err := json.Unmarshal(walletJSON, &walletfile)
 	if err != nil {
 		return nil, err
 	}
