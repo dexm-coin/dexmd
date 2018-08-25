@@ -3,6 +3,8 @@ package networking
 import (
 	"crypto/sha256"
 	"fmt"
+	"math"
+	"math/rand"
 	"net/http"
 	"reflect"
 	"time"
@@ -175,19 +177,21 @@ func (cs *ConnectionStore) run() {
 				log.Error(err)
 				return
 			}
-
 			newEnv := &network.Envelope{
 				Type: env.Type,
 				Data: broadcastBytes,
 			}
-
 			data, err := proto.Marshal(newEnv)
 			if err != nil {
 				log.Error(err)
 				return
 			}
 
+			y := math.Exp(float64(1 / len(cs.clients)))
 			for k := range cs.clients {
+				if rand.Float64() > y {
+					continue
+				}
 				k.send <- data
 			}
 		}
