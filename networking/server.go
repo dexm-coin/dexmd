@@ -1,7 +1,10 @@
 package networking
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/dexm-coin/dexmd/blockchain"
@@ -14,7 +17,7 @@ import (
 )
 
 const (
-	maxRelays = 20
+	maxMessagesSave = 100
 )
 
 // ConnectionStore handles peer messaging
@@ -115,6 +118,9 @@ func (cs *ConnectionStore) Connect(ip string) error {
 	return nil
 }
 
+// save the 100's hash of newest messages (without the ttl) arrived
+var hashMessages = make([][]byte, 0)
+
 // run is the event handler to update the ConnectionStore
 func (cs *ConnectionStore) run() {
 	for {
@@ -133,8 +139,6 @@ func (cs *ConnectionStore) run() {
 		// Network wide broadcast. For now this uses a very simple and broken
 		// algorithm but it could be optimized using ASNs as an overlay network
 		case message := <-cs.broadcast:
-			sentBroadcasts := 0
-
 			env := &network.Envelope{}
 			broadcast := &network.Broadcast{}
 			proto.Unmarshal(message, env)
@@ -142,11 +146,33 @@ func (cs *ConnectionStore) run() {
 
 			broadcast.TTL--
 			if broadcast.TTL < 1 || broadcast.TTL > 32 {
-				return
+				continue
+			}
+
+			// set TTL to 0, calculate the hash of the message, check if already exist
+			copyBroadcast := broadcast
+			copyBroadcast.TTL = 0
+			bhash := sha256.Sum256([]byte(fmt.Sprintf("%v", copyBroadcast)))
+			hash := bhash[:]
+			alreadyReceived := false
+			for _, h := range hashMessages {
+				equal := reflect.DeepEqual(h, hash)
+				if equal {
+					alreadyReceived = true
+					break
+				}
+			}
+			if alreadyReceived {
+				continue
+			}
+			hashMessages = append(hashMessages, hash)
+			if len(hashMessages) > maxMessagesSave {
+				hashMessages = hashMessages[1:]
 			}
 
 			broadcastBytes, err := proto.Marshal(broadcast)
 			if err != nil {
+				log.Error(err)
 				return
 			}
 
@@ -162,13 +188,7 @@ func (cs *ConnectionStore) run() {
 			}
 
 			for k := range cs.clients {
-				// Limit messages that one node sends
-				if sentBroadcasts > maxRelays {
-					break
-				}
-
 				k.send <- data
-				sentBroadcasts++
 			}
 		}
 	}
