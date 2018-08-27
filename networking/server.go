@@ -100,7 +100,7 @@ func (cs *ConnectionStore) Connect(ip string) error {
 		HandshakeTimeout: 5 * time.Second,
 	}
 
-	conn, _, err := dial.Dial(ip, nil)
+	conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", ip), nil)
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func (c *client) read() {
 		// If the ContentType is a request then try to parse it as such and handle it
 		case protobufs.Envelope_REQUEST:
 			request := protobufs.Request{}
-			err := proto.Unmarshal(msg, &request)
+			err := proto.Unmarshal(pb.GetData(), &request)
 			if err != nil {
 				continue
 			}
