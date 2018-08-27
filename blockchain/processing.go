@@ -3,6 +3,7 @@ package blockchain
 import (
 	"errors"
 	"strconv"
+	"time"
 
 	"github.com/dexm-coin/dexmd/util"
 	"github.com/dexm-coin/dexmd/wallet"
@@ -14,10 +15,12 @@ import (
 
 // Blockchain is an internal representation of a blockchain
 type Blockchain struct {
-	balancesDb        *leveldb.DB
-	blockDb           *leveldb.DB
-	Mempool           *mempool
-	Validators        *ValidatorsBook
+	balancesDb *leveldb.DB
+	blockDb    *leveldb.DB
+	Mempool    *mempool
+	Validators *ValidatorsBook
+
+	GenesisTimestamp  uint64
 	CurrentBlock      uint64
 	CurrentCheckpoint uint64
 }
@@ -37,9 +40,19 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 	// 1MB blocks
 	mp := newMempool(1000000, 100)
 
-	vd := NewValidatorsBook()
+	vd, err := ImportValidatorsBook(dbPath + ".validators")
+	if err != nil {
+		return nil, err
+	}
 
-	return &Blockchain{db, dbb, mp, &vd, index, 0}, err
+	return &Blockchain{
+		balancesDb:        db,
+		blockDb:           dbb,
+		Mempool:           mp,
+		Validators:        vd,
+		CurrentBlock:      index,
+		CurrentCheckpoint: 0,
+	}, err
 }
 
 // GetWalletState returns the state of a wallet in the current block
@@ -58,6 +71,10 @@ func (bc *Blockchain) GetWalletState(wallet string) (protobufs.AccountState, err
 // SaveBlock saves an unvalidated block into the blockchain to be used with Casper
 func (bc *Blockchain) SaveBlock(block *protobufs.Block) error {
 	oldBlocks, err := bc.blockDb.Get([]byte(string(block.GetIndex())), nil)
+
+	if block.GetIndex() == 0 {
+		bc.GenesisTimestamp = block.GetTimestamp()
+	}
 
 	blocks := &protobufs.Index{}
 
@@ -81,6 +98,7 @@ func (bc *Blockchain) GetBlocks(index uint64) ([]byte, error) {
 
 // ValidateBlock checks the validity of a block. It uses the current
 // blockchain state so the passed block might become valid in the future.
+// TODO Check validator
 func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	var isTainted map[string]bool
 	var taintedState map[string]protobufs.AccountState
@@ -174,6 +192,10 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 		return err
 	}
 
+	if balance.Nonce != t.Nonce {
+		return errors.New("Invalid nonce")
+	}
+
 	// Check if balance is sufficient
 	requiredBal, ok := util.AddU64O(t.GetAmount(), uint64(t.GetGas()))
 	if requiredBal > balance.GetBalance() && ok {
@@ -190,15 +212,18 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 }
 
 // ImportBlock imports a block into the blockchain and checks if it's valid
-// This should be called on blocks that are finalized by PoS
+// This should be called on blocks that are finalized by PoS TODO Nonce for replays
 func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 	res, err := bc.ValidateBlock(block)
 	if !res {
 		return err
 	}
 
-	// This means the blockchain forked.
-	if block.GetIndex() < bc.CurrentBlock {
+	// The genesis block is a title of a The Times article, We still need to
+	// add a validator because otherwise no blocks will be generated
+	if block.GetIndex() == 0 {
+		// bc.Validators.AddValidator()
+		return nil
 	}
 
 	totalGas := uint32(0)
@@ -226,6 +251,9 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 		senderBalance.Balance -= t.GetAmount() + uint64(t.GetGas())
 		reciverBalance.Balance += t.GetAmount()
 
+		// Avoid replaying transactions
+		senderBalance.Nonce++
+
 		log.Info("Sender balance:", senderBalance.Balance)
 		log.Info("Reciver balance:", reciverBalance.Balance)
 
@@ -238,4 +266,9 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 	//bc.CurrentBlock++
 
 	return nil
+}
+
+// GetNetworkIndex returns the current block index of the network
+func (bc *Blockchain) GetNetworkIndex() int64 {
+	return (time.Now().Unix() - int64(bc.GenesisTimestamp)) / 5
 }
