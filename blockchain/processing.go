@@ -23,8 +23,8 @@ type Blockchain struct {
 }
 
 // NewBlockchain creates a database db
-func NewBlockchain(dbPath string, blocks uint64) (*Blockchain, error) {
-	db, err := leveldb.OpenFile(dbPath, nil)
+func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
+	db, err := leveldb.OpenFile(dbPath+".balances", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func NewBlockchain(dbPath string, blocks uint64) (*Blockchain, error) {
 
 	vd := NewValidatorsBook()
 
-	return &Blockchain{db, dbb, mp, &vd, blocks, 0}, err
+	return &Blockchain{db, dbb, mp, &vd, index, 0}, err
 }
 
 // GetWalletState returns the state of a wallet in the current block

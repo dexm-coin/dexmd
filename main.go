@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
 	"strconv"
 	"sync"
 
@@ -59,8 +60,14 @@ func main() {
 					log.Fatal(err)
 				}
 
-				// Create the user folder
-				os.Mkdir("~/.dexm", os.ModePerm)
+				// Find the home folder of the current user
+				user, err := user.Current()
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				// Create the dexm folder in case it's not there
+				os.MkdirAll(user.HomeDir+"/.dexm", os.ModePerm)
 
 				// Create the blockchain database
 				b, err := blockchain.NewBlockchain("~/.dexm/chaindata", 0)
