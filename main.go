@@ -94,7 +94,8 @@ func main() {
 				// This is only supposed to be one for nodes that are
 				// pointed to by *.dexm.space. Off by default
 				if PUBLIC_PEERSERVER {
-					cs.StartPeerServer()
+					log.Info("Staring public peerserver")
+					go cs.StartPeerServer()
 				}
 
 				cs.FindPeers()
@@ -102,7 +103,6 @@ func main() {
 
 				select {}
 
-				return nil
 			},
 		},
 

@@ -3,6 +3,8 @@ package networking
 import (
 	"encoding/json"
 	"net/http"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var currentStore *ConnectionStore
@@ -28,5 +30,5 @@ func (cs *ConnectionStore) StartPeerServer() {
 
 	currentStore = cs
 
-	http.ListenAndServe(":80", nil)
+	log.Fatal(http.ListenAndServe(":80", nil))
 }
