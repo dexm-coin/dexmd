@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	PORT = 3141
+	PORT              = 3141
+	PUBLIC_PEERSERVER = false
 )
 
 func main() {
@@ -88,6 +89,12 @@ func main() {
 
 				if err != nil {
 					log.Fatal(err)
+				}
+
+				// This is only supposed to be one for nodes that are
+				// pointed to by *.dexm.space. Off by default
+				if PUBLIC_PEERSERVER {
+					cs.StartPeerServer()
 				}
 
 				cs.FindPeers()
