@@ -3,6 +3,7 @@ package networking
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -13,7 +14,10 @@ func getPeers(w http.ResponseWriter, r *http.Request) {
 	peers := []string{}
 
 	for k := range currentStore.clients {
-		peers = append(peers, k.conn.RemoteAddr().String())
+		fullIP := k.conn.RemoteAddr().String()
+
+		ip := strings.Split(fullIP, ":")[0]
+		peers = append(peers, ip)
 
 		if len(peers) > 100 {
 			break
