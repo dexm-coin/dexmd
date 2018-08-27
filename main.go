@@ -1,13 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"sync"
 
+	"github.com/dexm-coin/dexmd/networking"
+
+	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+)
+
+const (
+	PORT = 3141
 )
 
 func main() {
@@ -35,9 +43,49 @@ func main() {
 
 		{
 			Name:    "startnode",
-			Usage:   "sn",
+			Usage:   "sn [wallet] [network]",
 			Aliases: []string{"sn", "rn"},
 			Action: func(c *cli.Context) error {
+				walletPath := c.Args().Get(0)
+				network := c.Args().Get(1)
+
+				if network == "" {
+					network = "hackney"
+				}
+
+				// Import an identity to encrypt data and sign for validator msg
+				w, err := wallet.ImportWallet(walletPath)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				// Create the user folder
+				os.Mkdir("~/.dexm", os.ModePerm)
+
+				// Create the blockchain database
+				b, err := blockchain.NewBlockchain("~/.dexm/chaindata", 0)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				// Open the port on the router, ignore errors
+				networking.TraverseNat(PORT, "Dexm Blockchain Node")
+
+				// Open a client on the default port
+				cs, err := networking.StartServer(
+					fmt.Sprintf(":%d", PORT),
+					network,
+					b,
+					w,
+				)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				cs.FindPeers()
+				cs.UpdateChain()
+
 				return nil
 			},
 		},

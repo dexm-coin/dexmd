@@ -9,9 +9,9 @@ import (
 	"github.com/NebulousLabs/go-upnp"
 )
 
-// InitializeNatTraversal opens the port passed as an arguemnt and returns
+// TraverseNat opens the port passed as an arguemnt and returns
 // ip:port in a string. Required manaually closing port
-func InitializeNatTraversal(port uint16, desc string) (string, error) {
+func TraverseNat(port uint16, desc string) (string, error) {
 	// Connect to router
 	d, err := upnp.Discover()
 	if err != nil {
