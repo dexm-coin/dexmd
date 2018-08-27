@@ -11,6 +11,7 @@ import (
 
 	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -71,7 +72,7 @@ func main() {
 				os.MkdirAll(user.HomeDir+"/.dexm", os.ModePerm)
 
 				// Create the blockchain database
-				b, err := blockchain.NewBlockchain("~/.dexm/chaindata", 0)
+				b, err := blockchain.NewBlockchain(user.HomeDir+"/.dexm", 0)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -99,7 +100,13 @@ func main() {
 				}
 
 				cs.FindPeers()
+
+				// Update chain before 
+				log.Info("Staring chain import")
+
 				cs.UpdateChain()
+
+				log.Info("Done importing")
 
 				select {}
 

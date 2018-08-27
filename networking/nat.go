@@ -34,7 +34,7 @@ func TraverseNat(port uint16, desc string) (string, error) {
 
 // FindPeers tries to find all peers for the selected network
 func (cs *ConnectionStore) FindPeers() error {
-	peerURL := fmt.Sprintf("http://%s.dexm.space/peers", cs.network)
+	peerURL := fmt.Sprintf("https://%s.dexm.space/peers", cs.network)
 
 	resp, err := http.Get(peerURL)
 	if err != nil {
@@ -50,6 +50,10 @@ func (cs *ConnectionStore) FindPeers() error {
 	err = json.Unmarshal(data, &ips)
 	if err != nil {
 		return err
+	}
+
+	if len(ips) == 0 {
+		ips = append(ips, "35.231.132.159:3141")
 	}
 
 	for _, i := range ips {
