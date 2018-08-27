@@ -100,6 +100,8 @@ func main() {
 				cs.FindPeers()
 				cs.UpdateChain()
 
+				select {}
+
 				return nil
 			},
 		},
@@ -111,6 +113,7 @@ func main() {
 			Action: func(c *cli.Context) error {
 				walletPath := c.Args().Get(0)
 				recipient := c.Args().Get(1)
+
 				amount, err := strconv.ParseUint(c.Args().Get(2), 10, 64)
 
 				if err != nil {
