@@ -188,7 +188,7 @@ func (cs *ConnectionStore) run() {
 				return
 			}
 
-			y := math.Exp(float64(1/len(cs.clients))) - 0.5
+			y := math.Exp(float64(20/len(cs.clients))) - 0.5
 			for k := range cs.clients {
 				if rand.Float64() > y {
 					continue
