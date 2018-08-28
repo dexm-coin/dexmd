@@ -38,24 +38,35 @@ func CreateVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) pr
 }
 
 // CheckpointAgreement : Every checkpoint there should be an agreement of 2/3 of the validators
-func CheckpointAgreement(b *Blockchain, votes *[]protobufs.CasperVote) bool {
+func CheckpointAgreement(b *Blockchain, votes *[]protobufs.CasperVote, source *protobufs.Block, target *protobufs.Block) bool {
+	if !IsVoteValid(b, source, target) {
+		log.Error("Source and target and not valid")
+		return false
+	}
+
 	mapVote := make(map[string][]uint64)
 	var userToRemove []string
 	for _, vote := range *votes {
+		if vote.GetSourceHeight() != source.GetIndex() {
+			continue
+		}
 		pubKey := string(vote.PublicKey)
-		currHeigth := uint64(vote.GetTargetHeight())
+		currTargetHeight := vote.GetTargetHeight()
+		if currTargetHeight != target.GetIndex() {
+			continue
+		}
 		// check if there are multiple votes of the same person
 		// in all the heigths votes
 		for _, heigths := range mapVote[pubKey] {
-			if heigths == currHeigth {
+			if heigths == currTargetHeight {
 				userToRemove = append(userToRemove, pubKey)
 				continue
 			}
 		}
-		mapVote[pubKey] = append(mapVote[pubKey], currHeigth)
+		mapVote[pubKey] = append(mapVote[pubKey], currTargetHeight)
 	}
 
-	// delete the userS from the vote counting
+	// delete the users from the vote counting
 	for _, user := range userToRemove {
 		fmt.Println("slash for ", user)
 		delete(mapVote, user)
@@ -91,6 +102,11 @@ func IsVoteValid(b *Blockchain, source *protobufs.Block, target *protobufs.Block
 		proto.Unmarshal(byteBlock, blocks)
 
 		for _, block := range blocks.GetBlocks() {
+			// check untill the fist checkpoint
+			if IsJustified(b, block) {
+				break
+			}
+
 			byteBlock := []byte(fmt.Sprintf("%v", block))
 			bhash := sha256.Sum256(byteBlock)
 			currentHash := bhash[:]
@@ -115,8 +131,7 @@ func GetCanonialBlockchain() {
 // CheckUserVote check that a validator must not vote within the span of its other votes
 // h(s1) < h(s2) < h(t2) < h(t1)
 func CheckUserVote(vote1, vote2 *protobufs.CasperVote) bool {
-	// TODO
-	// do some check with the signature of the votes that can be false
+	// TODO : do some check with the signature of the votes that can be false
 	if vote1.GetSourceHeight() < vote2.GetSourceHeight() &&
 		vote2.GetSourceHeight() < vote2.GetTargetHeight() &&
 		vote2.GetTargetHeight() < vote1.GetTargetHeight() {
