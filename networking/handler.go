@@ -2,12 +2,13 @@ package networking
 
 import (
 	"strconv"
+	"time"
 
 	protobufs "github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
 )
 
-func (cs *ConnectionStore) handleMessage(pb *protobufs.Request) []byte {
+func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client) []byte {
 	switch pb.GetType() {
 	// GET_BLOCKCHAIN_LEN returns the current block index
 	case protobufs.Request_GET_BLOCKCHAIN_LEN:
@@ -40,6 +41,25 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request) []byte {
 		}
 
 		return block
+
+	// GET_WALLET_STATUS returns the current balance and nonce of a wallet
+	case protobufs.Request_GET_WALLET_STATUS:
+		walletAddr, err := c.GetResponse(100 * time.Millisecond)
+		if err != nil {
+			return []byte{}
+		}
+
+		state, err := cs.bc.GetWalletState(string(walletAddr))
+		if err != nil {
+			return []byte("Error")
+		}
+
+		data, _ := proto.Marshal(&state)
+		return data
+
+	// GET_VERSION returns the version of the node
+	case protobufs.Request_GET_VERSION:
+		return []byte("0.0 Hackney")
 
 	}
 

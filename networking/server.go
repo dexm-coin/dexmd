@@ -245,7 +245,7 @@ func (c *client) read() {
 			// Free up the goroutine to recive multi part messages
 			go func() {
 				env := protobufs.Envelope{}
-				rawMsg := c.store.handleMessage(&request)
+				rawMsg := c.store.handleMessage(&request, c)
 
 				env.Type = protobufs.Envelope_OTHER
 				env.Data = rawMsg

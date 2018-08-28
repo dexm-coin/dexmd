@@ -20,13 +20,9 @@ const (
 // has a chain longer than the current one it will import
 // TODO Drop client if err != nil
 func (cs *ConnectionStore) UpdateChain() error {
-
-	// Keep going till you have fully synced the chain
-	for ok := true; ok; {
-		didImport := false
-
-		// Ask clients for the len of their chain
+	for cs.bc.CurrentBlock <= cs.bc.GetNetworkIndex() {
 		for k := range cs.clients {
+			// Ask for blockchain len
 			req := &network.Request{
 				Type: network.Request_GET_BLOCKCHAIN_LEN,
 			}
@@ -48,53 +44,49 @@ func (cs *ConnectionStore) UpdateChain() error {
 				continue
 			}
 
-			// We can import blocks from this node, start downloading and check them
 			cb := cs.bc.CurrentBlock
+			if flen < cb {
+				continue
+			}
 
-			if flen > cb {
+			// Download new blocks up to MaxBlockPeer
+			for i := cb; i < min(cb+MaxBlockPeer, flen); i++ {
+				req = &network.Request{
+					Type:  network.Request_GET_BLOCK,
+					Index: i,
+				}
 
-				// Limit the imported blocks per peer to MAX_BLOCKS_PEER
-				for i := cb; cb < min(cb+MaxBlockPeer, flen); i++ {
-					req = &network.Request{
-						Type:  network.Request_GET_BLOCK,
-						Index: i,
-					}
+				d, err = makeReqEnvelope(req)
+				if err != nil {
+					break
+				}
 
-					d, err = makeReqEnvelope(req)
-					if err != nil {
+				k.send <- d
+
+				block, err := k.GetResponse(300 * time.Millisecond)
+				if err != nil {
+					break
+				}
+
+				index := &blockchain.Index{}
+				err = proto.Unmarshal(block, index)
+				if err != nil {
+					break
+				}
+
+				for _, b := range index.GetBlocks() {
+					res, err := cs.bc.ValidateBlock(b)
+					if res {
+						cs.bc.ImportBlock(b)
+					} else {
+						log.Error(err)
 						break
-					}
-
-					k.send <- d
-
-					block, err := k.GetResponse(300 * time.Millisecond)
-					if err != nil {
-						break
-					}
-
-					index := &blockchain.Index{}
-					err = proto.Unmarshal(block, index)
-					if err != nil {
-						break
-					}
-
-					for _, b := range index.GetBlocks() {
-						res, err := cs.bc.ValidateBlock(b)
-						if res {
-							cs.bc.ImportBlock(b)
-							didImport = true
-						} else {
-							log.Error(err)
-							break
-						}
-
 					}
 
 				}
+
 			}
 		}
-
-		ok = didImport
 	}
 
 	return nil

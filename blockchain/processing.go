@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"errors"
+	"math"
 	"strconv"
 	"time"
 
@@ -20,9 +21,11 @@ type Blockchain struct {
 	Mempool    *mempool
 	Validators *ValidatorsBook
 
-	GenesisTimestamp  uint64
+	GenesisTimestamp uint64
+
 	CurrentBlock      uint64
 	CurrentCheckpoint uint64
+	CurrentValidator  string
 }
 
 // NewBlockchain creates a database db
@@ -269,6 +272,10 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 }
 
 // GetNetworkIndex returns the current block index of the network
-func (bc *Blockchain) GetNetworkIndex() int64 {
-	return (time.Now().Unix() - int64(bc.GenesisTimestamp)) / 5
+func (bc *Blockchain) GetNetworkIndex() uint64 {
+	timeSinceGenesis := time.Now().Unix() - int64(bc.GenesisTimestamp)
+
+	index := math.Floor(float64(timeSinceGenesis) / 5.0)
+
+	return uint64(index)
 }
