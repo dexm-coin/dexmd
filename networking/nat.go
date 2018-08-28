@@ -34,7 +34,7 @@ func TraverseNat(port uint16, desc string) (string, error) {
 
 // FindPeers tries to find all peers for the selected network
 func (cs *ConnectionStore) FindPeers() error {
-	ips, err := cs.GetPeerList(cs.network)
+	ips, err := GetPeerList(cs.network)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (cs *ConnectionStore) FindPeers() error {
 }
 
 // GetPeerList returns other nodes in the network
-func (cs *ConnectionStore) GetPeerList(network string) ([]string, error) {
+func GetPeerList(network string) ([]string, error) {
 	peerURL := fmt.Sprintf("https://%s.dexm.space/peers", network)
 
 	resp, err := http.Get(peerURL)
