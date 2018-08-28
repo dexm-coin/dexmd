@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/dexm-coin/dexmd/contracts"
 	"github.com/dexm-coin/dexmd/util"
 	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
@@ -18,6 +19,9 @@ import (
 type Blockchain struct {
 	balancesDb *leveldb.DB
 	blockDb    *leveldb.DB
+	ContractDb *leveldb.DB
+	StateDb    *leveldb.DB
+
 	Mempool    *mempool
 	Validators *ValidatorsBook
 
@@ -40,6 +44,16 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		return nil, err
 	}
 
+	cdb, err := leveldb.OpenFile(dbPath+".code", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	sdb, err := leveldb.OpenFile(dbPath+".memory", nil)
+	if err != nil {
+		return nil, err
+	}
+
 	// 1MB blocks
 	mp := newMempool(1000000, 100)
 
@@ -49,10 +63,14 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 	}
 
 	return &Blockchain{
-		balancesDb:        db,
-		blockDb:           dbb,
-		Mempool:           mp,
-		Validators:        vd,
+		balancesDb: db,
+		blockDb:    dbb,
+		ContractDb: cdb,
+		StateDb:    sdb,
+
+		Mempool:    mp,
+		Validators: vd,
+
 		CurrentBlock:      index,
 		CurrentCheckpoint: 0,
 	}, err
@@ -239,7 +257,7 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 		log.Info("Amnt:", t.GetAmount())
 
 		senderBalance, err := bc.GetWalletState(sender)
-		if err != nil && block.GetIndex() != 0 {
+		if err != nil {
 			return err
 		}
 
@@ -264,6 +282,31 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 
 		bc.setState(sender, &senderBalance)
 		bc.setState(t.GetRecipient(), &reciverBalance)
+
+		if t.GetContractCreation() {
+			// Use the code, sender and prev hash to decide contract address
+			contractAddrSource := append(t.GetData(), t.GetSender()...)
+			contractAddrSource = append(contractAddrSource, block.PrevHash...)
+			contractAddr := wallet.BytesToAddress(contractAddrSource)
+
+			// Save it on a separate db
+			bc.ContractDb.Put([]byte(contractAddr), t.GetData(), nil)
+		}
+
+		// If a function identifier is specified then fetch the contract and execute
+		if t.GetFunction() != "" {
+			c, err := contracts.GetContract(t.GetRecipient(), bc.ContractDb, bc.StateDb)
+			if err != nil {
+				return err
+			}
+
+			err = c.ExecuteContract(t.GetFunction(), t.GetArgs())
+			if err != nil {
+				return err
+			}
+
+			c.SaveState()
+		}
 	}
 
 	//bc.CurrentBlock++
