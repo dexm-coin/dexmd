@@ -121,6 +121,7 @@ func (cs *ConnectionStore) Connect(ip string) error {
 }
 
 // save the 100's hash of newest messages (without the ttl) arrived
+// TODO If 2 blocks are found with the same index and same validator then slash
 var hashMessages = make([][]byte, 0)
 
 // run is the event handler to update the ConnectionStore
@@ -270,5 +271,79 @@ func (c *client) write() {
 		toWrite := <-c.send
 
 		c.conn.WriteMessage(websocket.BinaryMessage, toWrite)
+	}
+}
+
+// ValidatorLoop updates the current expected validator and generates a block
+// if the validator has the same identity as the node generates a block
+func (cs *ConnectionStore) ValidatorLoop() {
+	for {
+		// The validator changes every time the unix timestamp is a multiple of 5
+		time.Sleep(time.Duration(time.Now().Unix()%5) * time.Second)
+
+		cs.bc.CurrentBlock++
+
+		validator, err := cs.bc.Validators.ChooseValidator(int64(cs.bc.CurrentBlock))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Start accepting the block from the new validator
+		cs.bc.CurrentValidator = validator
+
+		wal, err := cs.identity.GetWallet()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// If this node is the validator then generate a block and sign it
+		if wal == validator {
+			block, err := cs.bc.GenerateBlock(wal)
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+
+			// Get marshaled block
+			blockBytes, _ := proto.Marshal(block)
+
+			// Sign the new block
+			pub, _ := cs.identity.GetPubKey()
+
+			bhash := sha256.Sum256(blockBytes)
+			hash := bhash[:]
+
+			r, s, err := cs.identity.Sign(hash)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			signature := &network.Signature{
+				Pubkey: pub,
+				R:      r.Bytes(),
+				S:      s.Bytes(),
+				Data:   hash,
+			}
+
+			// Create a broadcast message and send it to the network
+			broadcast := &network.Broadcast{
+				Data:     blockBytes,
+				Type:     network.Broadcast_BLOCK_PROPOSAL,
+				Identity: signature,
+				TTL:      32,
+			}
+
+			broadcastBytes, _ := proto.Marshal(broadcast)
+
+			env := &network.Envelope{
+				Data: broadcastBytes,
+				Type: network.Envelope_BROADCAST,
+			}
+
+			data, _ := proto.Marshal(env)
+
+			cs.broadcast <- data
+		}
 	}
 }
