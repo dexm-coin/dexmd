@@ -2,15 +2,19 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"os/user"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/dexm-coin/dexmd/networking"
+	"github.com/gorilla/websocket"
 
 	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
+	"github.com/dexm-coin/protobufs/build/network"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -101,7 +105,7 @@ func main() {
 
 				cs.FindPeers()
 
-				// Update chain before 
+				// Update chain before
 				log.Info("Staring chain import")
 
 				cs.UpdateChain()
@@ -115,13 +119,14 @@ func main() {
 
 		{
 			Name:    "maketransaction",
-			Usage:   "mkt [walletPath] [recipient] [amount]",
+			Usage:   "mkt [walletPath] [recipient] [amount] [gas] [network]",
 			Aliases: []string{"mkt", "gt"},
 			Action: func(c *cli.Context) error {
 				walletPath := c.Args().Get(0)
 				recipient := c.Args().Get(1)
-
 				amount, err := strconv.ParseUint(c.Args().Get(2), 10, 64)
+				gas := strconv.ParseUint(c.Args().Get(3), 10, 64)
+				networkName := c.Args().Get(4)
 
 				if err != nil {
 					log.Error(err)
@@ -133,14 +138,51 @@ func main() {
 					return nil
 				}
 
-				transaction, err := senderWallet.NewTransaction(recipient, amount, 0)
+				ip, err := networking.GetPeerList(networkName)
 				if err != nil {
 					log.Error(err)
 					return nil
 				}
-				_ = transaction
+
+				dial := websocket.Dialer{
+					Proxy:            http.ProxyFromEnvironment,
+					HandshakeTimeout: 5 * time.Second,
+				}
+				conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", ip[0]), nil)
+				if err != nil {
+					return err
+				}
+				c := client{
+					conn:      conn,
+					send:      make(chan []byte, 256),
+					readOther: make(chan []byte, 256),
+					store:     nil,
+				}
+
+				env := &network.Envelope{
+					Type: network.Request_GET_WALLET_STATUS,
+					Data: []byte{},
+				}
+
+				accountState := c.send <- env
+				senderWallet.Nonce = accountState.Nonce
+				senderWallet.Balance = accountState.Balance
+
+				transaction, err := senderWallet.NewTransaction(recipient, amount, gas)
+				if err != nil {
+					log.Error(err)
+					return nil
+				}
 				//the nonce and amount have changed, let's save them
 				senderWallet.ExportWallet(walletPath)
+
+				env := &network.Envelope{
+					Type: network.Envelope_REQUEST,
+					Data: transaction,
+				}
+
+				c.send <- env
+				
 				return nil
 			},
 		},
