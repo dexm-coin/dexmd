@@ -277,6 +277,11 @@ func (c *client) write() {
 // ValidatorLoop updates the current expected validator and generates a block
 // if the validator has the same identity as the node generates a block
 func (cs *ConnectionStore) ValidatorLoop() {
+	if int64(cs.bc.GenesisTimestamp) > time.Now().Unix() {
+		log.Info("Waiting for genesis")
+		time.Sleep(time.Duration(int64(cs.bc.GenesisTimestamp)-time.Now().Unix()) * time.Second)
+	}
+
 	for {
 		// The validator changes every time the unix timestamp is a multiple of 5
 		time.Sleep(time.Duration(time.Now().Unix()%5) * time.Second)
