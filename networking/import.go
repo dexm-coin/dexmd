@@ -83,6 +83,7 @@ func (cs *ConnectionStore) UpdateChain() error {
 					res, err := cs.bc.ValidateBlock(b)
 					if res {
 						cs.bc.ImportBlock(b)
+						cs.bc.CurrentBlock++
 					} else {
 						log.Error(err)
 						break
