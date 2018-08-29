@@ -90,9 +90,11 @@ func main() {
 
 				log.Info("Adding genesis block...")
 
+				log.Info(time.Now().Unix())
+
 				genesisBlock := &bp.Block{
 					Index:     0,
-					Timestamp: 1535561000,
+					Timestamp: 1535568900,
 					Miner:     "Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683",
 				}
 				b.SaveBlock(genesisBlock)
