@@ -243,7 +243,14 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 	// The genesis block is a title of a The Times article, We still need to
 	// add a validator because otherwise no blocks will be generated
 	if block.GetIndex() == 0 {
-		// bc.Validators.AddValidator()
+		// A bit of balance to run tests
+		state := &protobufs.AccountState{
+			Balance: 100000,
+			Nonce:   0,
+		}
+
+		bc.setState("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", state)
+		bc.Validators.AddValidator("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", 10000)
 		return nil
 	}
 
@@ -315,10 +322,10 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 }
 
 // GetNetworkIndex returns the current block index of the network
-func (bc *Blockchain) GetNetworkIndex() uint64 {
+func (bc *Blockchain) GetNetworkIndex() int64 {
 	timeSinceGenesis := time.Now().Unix() - int64(bc.GenesisTimestamp)
 
 	index := math.Floor(float64(timeSinceGenesis) / 5.0)
 
-	return uint64(index)
+	return int64(index)
 }
