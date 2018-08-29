@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/user"
@@ -159,7 +160,7 @@ func main() {
 					return nil
 				}
 
-				ip, err := networking.GetPeerList("hackney")
+				ips, err := networking.GetPeerList("hackney")
 				if err != nil {
 					log.Error(err)
 					return nil
@@ -170,8 +171,7 @@ func main() {
 					HandshakeTimeout: 5 * time.Second,
 				}
 
-				// TODO Pick a random node instead of first
-				conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", ip[0]), nil)
+				conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", ips[rand.Intn(len(ips))]), nil)
 				if err != nil {
 					return err
 				}
