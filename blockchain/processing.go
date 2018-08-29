@@ -221,8 +221,7 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 	}
 
 	// Check if nonce is correct
-	newNonce, ok := util.AddU32O(balance.GetNonce(), 1)
-	if t.GetNonce() != newNonce || !ok {
+	if t.GetNonce() != balance.GetNonce() || !ok {
 		return errors.New("Invalid nonce in transaction")
 	}
 
