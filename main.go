@@ -249,8 +249,8 @@ func main() {
 
 		{
 			Name:    "interact",
-			Usage:   "mc [address]",
-			Aliases: []string{"mc"},
+			Usage:   "i [address]",
+			Aliases: []string{"i"},
 			Action: func(c *cli.Context) error {
 				address := c.Args().Get(0)
 
