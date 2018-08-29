@@ -92,7 +92,7 @@ func main() {
 
 				genesisBlock := &bp.Block{
 					Index:     0,
-					Timestamp: 1535558500,
+					Timestamp: 1535559000,
 					Miner:     "Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683",
 				}
 				b.SaveBlock(genesisBlock)
