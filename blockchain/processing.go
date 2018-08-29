@@ -57,10 +57,7 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 	// 1MB blocks
 	mp := newMempool(1000000, 100)
 
-	vd, err := ImportValidatorsBook(dbPath + ".validators")
-	if err != nil {
-		return nil, err
-	}
+	vd := NewValidatorsBook()
 
 	return &Blockchain{
 		balancesDb: db,
@@ -69,7 +66,7 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		StateDb:    sdb,
 
 		Mempool:    mp,
-		Validators: vd,
+		Validators: &vd,
 
 		CurrentBlock:      index,
 		CurrentCheckpoint: 0,
