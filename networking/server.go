@@ -284,7 +284,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 	for {
 		// The validator changes every time the unix timestamp is a multiple of 5
-		time.Sleep(time.Duration(time.Now().Unix()%5) * time.Second)
+		time.Sleep(5 * time.Second)
 
 		cs.bc.CurrentBlock++
 
