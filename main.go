@@ -6,15 +6,18 @@ import (
 	"os"
 	"os/user"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/golang/protobuf/proto"
 
+	"github.com/abiosoft/ishell"
 	"github.com/dexm-coin/dexmd/networking"
 	"github.com/gorilla/websocket"
 
 	"github.com/dexm-coin/dexmd/blockchain"
+	"github.com/dexm-coin/dexmd/contracts"
 	"github.com/dexm-coin/dexmd/wallet"
 	bp "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/dexm-coin/protobufs/build/network"
@@ -244,6 +247,63 @@ func main() {
 				return nil
 			},
 		},
+
+		{
+			Name:    "makecontract",
+			Usage:   "mc [dbPath] [address]",
+			Aliases: []string{"mc"},
+			Action: func(c *cli.Context) error {
+				dbPath := c.Args().Get(0)
+				address := c.Args().Get(1)
+
+				b, err := blockchain.NewBlockchain(user.HomeDir+"/.dexm/contract", 0)
+				if err != nil {
+					log.Fatal(err)
+					return nil
+				}
+
+				contract, err := contracts.GetContract(address, b.ContractDb, b.StateDb)
+				if err != nil {
+					return nil
+				}
+
+				shell := ishell.New()
+
+				var entries []string
+				for key, value := range contract.Module.Export.Entries {
+					append(entries, key+" -> "+string(value))
+				}
+
+				var arguments []string
+				shell.AddCmd(&ishell.Cmd{
+					Name: "args",
+					Help: "arguments for the contract in multiple lines",
+					Func: func(c *ishell.Context) {
+						c.Println("Write the arguments in multiple lines and end with semicolon ';'")
+						lines := c.ReadMultiLines(";")[:len(lines)-1]
+						arguments = strings.Split(lines, "\n")
+					},
+				})
+
+				var choice int
+				shell.AddCmd(&ishell.Cmd{
+					Name: "entries",
+					Help: "fucntions entries from the contract",
+					Func: func(c *ishell.Context) {
+						choice = c.MultiChoice(entries, "Which function do you want to use ?")
+					},
+				})
+
+				counter := 0
+				for key, value := range contract.Module.Export.Entries {
+					if counter == choice {
+						// do something
+					}
+					counter++
+				}
+			},
+		},
+
 		{
 			Name:    "makevanitywallet",
 			Usage:   "mvw [wallet] [regex]",
