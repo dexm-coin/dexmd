@@ -67,7 +67,7 @@ func GetPeerList(network string) ([]string, error) {
 	}
 
 	if len(ips) == 0 {
-		ips = append(ips, "35.231.132.159:3141")
+		ips = append(ips, "35.237.4.164:3141")
 	}
 
 	return ips, err
