@@ -20,7 +20,12 @@ const (
 // has a chain longer than the current one it will import
 // TODO Drop client if err != nil
 func (cs *ConnectionStore) UpdateChain() error {
-	for cs.bc.CurrentBlock <= cs.bc.GetNetworkIndex() {
+	if cs.bc.GenesisTimestamp > uint64(time.Now().Unix()) {
+		toStart := cs.bc.GenesisTimestamp - uint64(time.Now().Unix())
+		time.Sleep(time.Duration(toStart) * time.Second)
+	}
+
+	for cs.bc.CurrentBlock <= uint64(cs.bc.GetNetworkIndex()) {
 		for k := range cs.clients {
 			// Ask for blockchain len
 			req := &network.Request{
