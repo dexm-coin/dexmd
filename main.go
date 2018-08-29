@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/user"
@@ -124,7 +125,7 @@ func main() {
 
 		{
 			Name:    "maketransaction",
-			Usage:   "mkt [walletPath] [recipient] [amount] [gas] [network]",
+			Usage:   "mkt [walletPath] [recipient] [amount] [gas] [contract]",
 			Aliases: []string{"mkt", "gt"},
 			Action: func(c *cli.Context) error {
 				// User supplied arguments
@@ -140,11 +141,16 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				networkName := c.Args().Get(4)
+
+				cdata := []byte{}
+				contractPath := c.Args().Get(4)
 
 				// Default network is hackney for now
-				if networkName == "" {
-					networkName = "hackney"
+				if contractPath != "" {
+					cdata, err = ioutil.ReadFile(contractPath)
+					if err != nil {
+						log.Fatal(err)
+					}
 				}
 
 				senderWallet, err := wallet.ImportWallet(walletPath)
@@ -153,7 +159,7 @@ func main() {
 					return nil
 				}
 
-				ip, err := networking.GetPeerList(networkName)
+				ip, err := networking.GetPeerList("hackney")
 				if err != nil {
 					log.Error(err)
 					return nil
@@ -222,7 +228,7 @@ func main() {
 				senderWallet.Nonce = int(walletStatus.Nonce)
 				senderWallet.Balance = int(walletStatus.Balance)
 
-				trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas))
+				trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata)
 				if err != nil {
 					log.Fatal(err)
 				}
