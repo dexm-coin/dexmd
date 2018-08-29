@@ -240,7 +240,7 @@ func base58Encoding(bin []byte) string {
 
 // RawTransaction returns a struct with a transaction. Used in GopherJS to avoid
 // protobuf which uses the unsupported unsafe
-func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32) (*protobufs.Transaction, error) {
+func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32, data []byte) (*protobufs.Transaction, error) {
 	if !IsWalletValid(recipient) {
 		return nil, errors.New("Invalid recipient")
 	}
@@ -249,7 +249,6 @@ func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32) (*p
 		return nil, errors.New("Insufficient Balance")
 	}
 
-	w.Nonce++
 	w.Balance -= int(amount + uint64(gas))
 
 	x509Encoded, err := x509.MarshalPKIXPublicKey(&w.PrivKey.PublicKey)
@@ -264,8 +263,10 @@ func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32) (*p
 		Amount:    amount,
 		Gas:       gas,
 		Timestamp: uint64(time.Now().Unix()),
+		Data:      data,
 	}
 
+	w.Nonce++
 	result, err := proto.Marshal(newT)
 	if err != nil {
 		return nil, err
@@ -284,8 +285,8 @@ func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32) (*p
 
 // NewTransaction generates a signed transaction for the given arguments without
 // broadcasting it to the newtwork
-func (w *Wallet) NewTransaction(recipient string, amount uint64, gas uint32) ([]byte, error) {
-	newT, err := w.RawTransaction(recipient, amount, gas)
+func (w *Wallet) NewTransaction(recipient string, amount uint64, gas uint32, data []byte) ([]byte, error) {
+	newT, err := w.RawTransaction(recipient, amount, gas, data)
 	if err != nil {
 		return nil, err
 	}

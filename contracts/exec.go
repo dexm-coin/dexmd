@@ -97,142 +97,137 @@ func (c *Contract) SaveState() error {
 }
 
 func setupImport(name string) (*wasm.Module, error) {
-	switch name {
-	case "dexm":
-		m := wasm.NewModule()
+	m := wasm.NewModule()
 
-		m.Types = &wasm.SectionTypes{
-			Entries: []wasm.FunctionSig{
-				// revert()
-				{
-					Form:        0,
-					ParamTypes:  []wasm.ValueType{},
-					ReturnTypes: []wasm.ValueType{},
-				},
-
-				// balance() : i64
-				{
-					Form:        1,
-					ParamTypes:  []wasm.ValueType{},
-					ReturnTypes: []wasm.ValueType{wasm.ValueTypeI32},
-				},
-
-				// pay(to_ptr: i64, amnt: i64, gas : i64)
-				{
-					Form: 2,
-					ParamTypes: []wasm.ValueType{wasm.ValueTypeI64,
-						wasm.ValueTypeI64, wasm.ValueTypeI64},
-					ReturnTypes: []wasm.ValueType{},
-				},
-
-				// time() : i64
-				{
-					Form:        3,
-					ParamTypes:  []wasm.ValueType{},
-					ReturnTypes: []wasm.ValueType{wasm.ValueTypeI64},
-				},
-
-				// sender(ptr: i64, size: i64) : i64
-				{
-					Form:        4,
-					ParamTypes:  []wasm.ValueType{wasm.ValueTypeI64, wasm.ValueTypeI64},
-					ReturnTypes: []wasm.ValueType{wasm.ValueTypeI64},
-				},
-
-				// value() : i64
-				{
-					Form:        5,
-					ParamTypes:  []wasm.ValueType{},
-					ReturnTypes: []wasm.ValueType{wasm.ValueTypeI64},
-				},
-			},
-		}
-
-		m.FunctionIndexSpace = []wasm.Function{
+	m.Types = &wasm.SectionTypes{
+		Entries: []wasm.FunctionSig{
 			// revert()
 			{
-				Sig:  &m.Types.Entries[0],
-				Host: reflect.ValueOf(revert),
-				Body: &wasm.FunctionBody{},
+				Form:        0,
+				ParamTypes:  []wasm.ValueType{},
+				ReturnTypes: []wasm.ValueType{},
 			},
 
-			// balance() : i64
+			// balance() : i32
 			{
-				Sig:  &m.Types.Entries[1],
-				Host: reflect.ValueOf(balance),
-				Body: &wasm.FunctionBody{},
+				Form:        1,
+				ParamTypes:  []wasm.ValueType{},
+				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI32},
 			},
 
-			// pay(to_ptr: i32, amnt: i64)
+			// pay(to_ptr: i32, amnt: i32, gas : i32)
 			{
-				Sig:  &m.Types.Entries[2],
-				Host: reflect.ValueOf(pay),
-				Body: &wasm.FunctionBody{},
+				Form: 2,
+				ParamTypes: []wasm.ValueType{wasm.ValueTypeI32,
+					wasm.ValueTypeI32, wasm.ValueTypeI32},
+				ReturnTypes: []wasm.ValueType{},
 			},
 
-			// time() : i64
+			// time() : i32
 			{
-				Sig:  &m.Types.Entries[3],
-				Host: reflect.ValueOf(time),
-				Body: &wasm.FunctionBody{},
+				Form:        3,
+				ParamTypes:  []wasm.ValueType{},
+				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI32},
 			},
 
-			// sender(ptr: i64, size: i64) : i64
+			// sender(ptr: i32, size: i32) : i32
 			{
-				Sig:  &m.Types.Entries[4],
-				Host: reflect.ValueOf(sender),
-				Body: &wasm.FunctionBody{},
+				Form:        4,
+				ParamTypes:  []wasm.ValueType{wasm.ValueTypeI32, wasm.ValueTypeI32},
+				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI32},
 			},
 
-			// value() : i64
+			// value() : i32
 			{
-				Sig:  &m.Types.Entries[5],
-				Host: reflect.ValueOf(value),
-				Body: &wasm.FunctionBody{},
+				Form:        5,
+				ParamTypes:  []wasm.ValueType{},
+				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI32},
 			},
-		}
-
-		m.Export = &wasm.SectionExports{
-			Entries: map[string]wasm.ExportEntry{
-				"revert": {
-					FieldStr: "revert",
-					Kind:     wasm.ExternalFunction,
-					Index:    0,
-				},
-
-				"balance": {
-					FieldStr: "balance",
-					Kind:     wasm.ExternalFunction,
-					Index:    1,
-				},
-
-				"pay": {
-					FieldStr: "pay",
-					Kind:     wasm.ExternalFunction,
-					Index:    2,
-				},
-
-				"time": {
-					FieldStr: "time",
-					Kind:     wasm.ExternalFunction,
-					Index:    3,
-				},
-
-				"sender": {
-					FieldStr: "sender",
-					Kind:     wasm.ExternalFunction,
-					Index:    4,
-				},
-				"value": {
-					FieldStr: "value",
-					Kind:     wasm.ExternalFunction,
-					Index:    5,
-				},
-			},
-		}
-
-		return m, nil
+		},
 	}
 
-	return nil, nil
+	m.FunctionIndexSpace = []wasm.Function{
+		// revert()
+		{
+			Sig:  &m.Types.Entries[0],
+			Host: reflect.ValueOf(revert),
+			Body: &wasm.FunctionBody{},
+		},
+
+		// balance() : i64
+		{
+			Sig:  &m.Types.Entries[1],
+			Host: reflect.ValueOf(balance),
+			Body: &wasm.FunctionBody{},
+		},
+
+		// pay(to_ptr: i32, amnt: i64)
+		{
+			Sig:  &m.Types.Entries[2],
+			Host: reflect.ValueOf(pay),
+			Body: &wasm.FunctionBody{},
+		},
+
+		// time() : i64
+		{
+			Sig:  &m.Types.Entries[3],
+			Host: reflect.ValueOf(time),
+			Body: &wasm.FunctionBody{},
+		},
+
+		// sender(ptr: i64, size: i64) : i64
+		{
+			Sig:  &m.Types.Entries[4],
+			Host: reflect.ValueOf(sender),
+			Body: &wasm.FunctionBody{},
+		},
+
+		// value() : i64
+		{
+			Sig:  &m.Types.Entries[5],
+			Host: reflect.ValueOf(value),
+			Body: &wasm.FunctionBody{},
+		},
+	}
+
+	m.Export = &wasm.SectionExports{
+		Entries: map[string]wasm.ExportEntry{
+			"revert": {
+				FieldStr: "revert",
+				Kind:     wasm.ExternalFunction,
+				Index:    0,
+			},
+
+			"balance": {
+				FieldStr: "balance",
+				Kind:     wasm.ExternalFunction,
+				Index:    1,
+			},
+
+			"pay": {
+				FieldStr: "pay",
+				Kind:     wasm.ExternalFunction,
+				Index:    2,
+			},
+
+			"time": {
+				FieldStr: "time",
+				Kind:     wasm.ExternalFunction,
+				Index:    3,
+			},
+
+			"sender": {
+				FieldStr: "sender",
+				Kind:     wasm.ExternalFunction,
+				Index:    4,
+			},
+			"value": {
+				FieldStr: "value",
+				Kind:     wasm.ExternalFunction,
+				Index:    5,
+			},
+		},
+	}
+
+	return m, nil
 }

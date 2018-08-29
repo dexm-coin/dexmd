@@ -69,13 +69,13 @@ func main() {
 				// Import an identity to encrypt data and sign for validator msg
 				w, err := wallet.ImportWallet(walletPath)
 				if err != nil {
-					log.Fatal(err)
+					log.Fatal("import", err)
 				}
 
 				// Find the home folder of the current user
 				user, err := user.Current()
 				if err != nil {
-					log.Fatal(err)
+					log.Fatal("user", err)
 				}
 
 				// Create the dexm folder in case it's not there
@@ -84,7 +84,18 @@ func main() {
 				// Create the blockchain database
 				b, err := blockchain.NewBlockchain(user.HomeDir+"/.dexm", 0)
 				if err != nil {
-					log.Fatal(err)
+					log.Fatal("blockchain", err)
+				}
+
+				// If there is no genesis block add it
+				genesis, _ := b.GetBlocks(0)
+				if len(genesis) == 0 {
+					genesisBlock := &bp.Block{
+						Index:     0,
+						Timestamp: 0,
+						Miner:     "Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683",
+					}
+					b.ImportBlock(genesisBlock)
 				}
 
 				// Open the port on the router, ignore errors
@@ -99,7 +110,7 @@ func main() {
 				)
 
 				if err != nil {
-					log.Fatal(err)
+					log.Fatal("start", err)
 				}
 
 				// This is only supposed to be one for nodes that are
@@ -145,7 +156,6 @@ func main() {
 				cdata := []byte{}
 				contractPath := c.Args().Get(4)
 
-				// Default network is hackney for now
 				if contractPath != "" {
 					cdata, err = ioutil.ReadFile(contractPath)
 					if err != nil {
@@ -155,13 +165,13 @@ func main() {
 
 				senderWallet, err := wallet.ImportWallet(walletPath)
 				if err != nil {
-					log.Error(err)
+					log.Error("import", err)
 					return nil
 				}
 
 				ip, err := networking.GetPeerList("hackney")
 				if err != nil {
-					log.Error(err)
+					log.Error("peer", err)
 					return nil
 				}
 
