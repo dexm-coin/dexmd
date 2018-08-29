@@ -20,9 +20,9 @@ const (
 // has a chain longer than the current one it will import
 // TODO Drop client if err != nil
 func (cs *ConnectionStore) UpdateChain() error {
+	// No need to sync before genesis
 	for cs.bc.GetNetworkIndex() < 0 {
-		log.Info("Waiting for genesis...")
-		time.Sleep(1 * time.Second)
+		return nil
 	}
 
 	for cs.bc.CurrentBlock <= uint64(cs.bc.GetNetworkIndex()) {
