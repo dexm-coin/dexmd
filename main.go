@@ -92,10 +92,11 @@ func main() {
 				genesis, _ := b.GetBlocks(0)
 				if len(genesis) == 0 {
 					genesisBlock := &bp.Block{
-						Index:     1535555000,
+						Index:     1535556000,
 						Timestamp: 0,
 						Miner:     "Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683",
 					}
+					b.SaveBlock(genesisBlock)
 					b.ImportBlock(genesisBlock)
 				}
 
