@@ -9,11 +9,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+
 	"github.com/dexm-coin/dexmd/networking"
 	"github.com/gorilla/websocket"
 
 	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
+	bp "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/dexm-coin/protobufs/build/network"
 
 	log "github.com/sirupsen/logrus"
@@ -122,16 +125,26 @@ func main() {
 			Usage:   "mkt [walletPath] [recipient] [amount] [gas] [network]",
 			Aliases: []string{"mkt", "gt"},
 			Action: func(c *cli.Context) error {
+				// User supplied arguments
 				walletPath := c.Args().Get(0)
 				recipient := c.Args().Get(1)
+
 				amount, err := strconv.ParseUint(c.Args().Get(2), 10, 64)
-				gas := strconv.ParseUint(c.Args().Get(3), 10, 64)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				gas, err := strconv.Atoi(c.Args().Get(3))
+				if err != nil {
+					log.Fatal(err)
+				}
 				networkName := c.Args().Get(4)
 
-				if err != nil {
-					log.Error(err)
-					return nil
+				// Default network is hackney for now
+				if networkName == "" {
+					networkName = "hackney"
 				}
+
 				senderWallet, err := wallet.ImportWallet(walletPath)
 				if err != nil {
 					log.Error(err)
@@ -148,41 +161,86 @@ func main() {
 					Proxy:            http.ProxyFromEnvironment,
 					HandshakeTimeout: 5 * time.Second,
 				}
+
+				// TODO Pick a random node instead of first
 				conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", ip[0]), nil)
 				if err != nil {
 					return err
 				}
-				c := client{
-					conn:      conn,
-					send:      make(chan []byte, 256),
-					readOther: make(chan []byte, 256),
-					store:     nil,
-				}
 
-				env := &network.Envelope{
+				req := &network.Request{
 					Type: network.Request_GET_WALLET_STATUS,
-					Data: []byte{},
 				}
 
-				accountState := c.send <- env
-				senderWallet.Nonce = accountState.Nonce
-				senderWallet.Balance = accountState.Balance
-
-				transaction, err := senderWallet.NewTransaction(recipient, amount, gas)
-				if err != nil {
-					log.Error(err)
-					return nil
-				}
-				//the nonce and amount have changed, let's save them
-				senderWallet.ExportWallet(walletPath)
+				reqD, _ := proto.Marshal(req)
 
 				env := &network.Envelope{
 					Type: network.Envelope_REQUEST,
-					Data: transaction,
+					Data: reqD,
 				}
 
-				c.send <- env
-				
+				// GET_WALLET_STATUS requires to first send a request and then the address
+				envD, _ := proto.Marshal(env)
+				err = conn.WriteMessage(websocket.BinaryMessage, envD)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				senderAddr, _ := senderWallet.GetWallet()
+				senderEnv := &network.Envelope{
+					Type: network.Envelope_OTHER,
+					Data: []byte(senderAddr),
+				}
+
+				senderAddrD, _ := proto.Marshal(senderEnv)
+
+				err = conn.WriteMessage(websocket.BinaryMessage, []byte(senderAddrD))
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				// Parse the message and save the new state
+				_, msg, err := conn.ReadMessage()
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				walletEnv := &network.Envelope{}
+				err = proto.Unmarshal(msg, walletEnv)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				walletStatus := &bp.AccountState{}
+				err = proto.Unmarshal(walletEnv.Data, walletStatus)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				senderWallet.Nonce = int(walletStatus.Nonce)
+				senderWallet.Balance = int(walletStatus.Balance)
+
+				trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas))
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				trBroad := &network.Broadcast{
+					Type: network.Broadcast_TRANSACTION,
+					Data: trans,
+				}
+
+				brD, _ := proto.Marshal(trBroad)
+
+				trEnv := &network.Envelope{
+					Type: network.Envelope_BROADCAST,
+					Data: brD,
+				}
+
+				finalD, _ := proto.Marshal(trEnv)
+				conn.WriteMessage(websocket.BinaryMessage, finalD)
+
+				senderWallet.ExportWallet(walletPath)
 				return nil
 			},
 		},
