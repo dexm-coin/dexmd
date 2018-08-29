@@ -92,7 +92,7 @@ func main() {
 				genesis, _ := b.GetBlocks(0)
 				if len(genesis) == 0 {
 					genesisBlock := &bp.Block{
-						Index:     0,
+						Index:     1535554000,
 						Timestamp: 0,
 						Miner:     "Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683",
 					}
@@ -130,8 +130,8 @@ func main() {
 
 				log.Info("Done importing")
 
-				select {}
-
+				cs.ValidatorLoop()
+				return nil
 			},
 		},
 
