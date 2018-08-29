@@ -92,7 +92,7 @@ func main() {
 
 				genesisBlock := &bp.Block{
 					Index:     0,
-					Timestamp: 1535559000,
+					Timestamp: 1535560200,
 					Miner:     "Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683",
 				}
 				b.SaveBlock(genesisBlock)
@@ -221,6 +221,8 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
+
+				log.Info(msg)
 
 				walletEnv := &network.Envelope{}
 				err = proto.Unmarshal(msg, walletEnv)
