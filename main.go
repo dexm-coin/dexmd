@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/user"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -249,14 +248,19 @@ func main() {
 		},
 
 		{
-			Name:    "makecontract",
-			Usage:   "mc [dbPath] [address]",
+			Name:    "interact",
+			Usage:   "mc [address]",
 			Aliases: []string{"mc"},
 			Action: func(c *cli.Context) error {
-				dbPath := c.Args().Get(0)
-				address := c.Args().Get(1)
+				address := c.Args().Get(0)
 
-				b, err := blockchain.NewBlockchain(user.HomeDir+"/.dexm/contract", 0)
+				// Find the home folder of the current user
+				user, err := user.Current()
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				b, err := blockchain.NewBlockchain(user.HomeDir+"/.dexm", 0)
 				if err != nil {
 					log.Fatal(err)
 					return nil
@@ -270,20 +274,9 @@ func main() {
 				shell := ishell.New()
 
 				var entries []string
-				for key, value := range contract.Module.Export.Entries {
-					append(entries, key+" -> "+string(value))
+				for key := range contract.Module.Export.Entries {
+					entries = append(entries, key)
 				}
-
-				var arguments []string
-				shell.AddCmd(&ishell.Cmd{
-					Name: "args",
-					Help: "arguments for the contract in multiple lines",
-					Func: func(c *ishell.Context) {
-						c.Println("Write the arguments in multiple lines and end with semicolon ';'")
-						lines := c.ReadMultiLines(";")[:len(lines)-1]
-						arguments = strings.Split(lines, "\n")
-					},
-				})
 
 				var choice int
 				shell.AddCmd(&ishell.Cmd{
@@ -294,13 +287,7 @@ func main() {
 					},
 				})
 
-				counter := 0
-				for key, value := range contract.Module.Export.Entries {
-					if counter == choice {
-						// do something
-					}
-					counter++
-				}
+				return nil
 			},
 		},
 
