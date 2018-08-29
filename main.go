@@ -29,7 +29,7 @@ import (
 
 const (
 	PORT              = 3141
-	PUBLIC_PEERSERVER = false
+	PUBLIC_PEERSERVER = true
 )
 
 func main() {
@@ -92,7 +92,7 @@ func main() {
 
 				genesisBlock := &bp.Block{
 					Index:     0,
-					Timestamp: 1535561000,
+					Timestamp: 1535566700,
 					Miner:     "Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683",
 				}
 				b.SaveBlock(genesisBlock)
@@ -125,7 +125,7 @@ func main() {
 				// Update chain before
 				log.Info("Staring chain import")
 
-				cs.UpdateChain()
+				//cs.UpdateChain()
 
 				log.Info("Done importing")
 
