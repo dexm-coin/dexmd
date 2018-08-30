@@ -142,6 +142,7 @@ func (cs *ConnectionStore) run() {
 		// Network wide broadcast. For now this uses a very simple and broken
 		// algorithm but it could be optimized using ASNs as an overlay network
 		case message := <-cs.broadcast:
+			log.Info("Message arrived")
 			env := &network.Envelope{}
 			broadcast := &network.Broadcast{}
 			proto.Unmarshal(message, env)
@@ -149,11 +150,12 @@ func (cs *ConnectionStore) run() {
 
 			broadcast.TTL--
 			if broadcast.TTL < 1 || broadcast.TTL > 32 {
+				log.Info("skip message TTL")
 				continue
 			}
 
 			// set TTL to 0, calculate the hash of the message, check if already exist
-			copyBroadcast := broadcast
+			copyBroadcast := *broadcast
 			copyBroadcast.TTL = 0
 			bhash := sha256.Sum256([]byte(fmt.Sprintf("%v", copyBroadcast)))
 			hash := bhash[:]
@@ -166,6 +168,7 @@ func (cs *ConnectionStore) run() {
 				}
 			}
 			if alreadyReceived {
+				log.Info("skip message")
 				continue
 			}
 			hashMessages = append(hashMessages, hash)
@@ -226,7 +229,6 @@ func (c *client) read() {
 			log.Error(err)
 			continue
 		}
-		log.Printf("Recived message(%d): %x", pb.GetType(), msg)
 
 		switch pb.GetType() {
 

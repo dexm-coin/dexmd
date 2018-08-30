@@ -129,14 +129,16 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	for i, t := range block.GetTransactions() {
 		sender := wallet.BytesToAddress(t.GetSender())
 
-		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), []byte{})
-
-		// Straight gang shit
-		/*if !valid {
+		result, err := proto.Marshal(t)
+		if err != nil {
 			return false, err
-		}*/
+		}
 
-		_ = valid
+		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), result)
+		if !valid || err != nil {
+			log.Info(err)
+			return false, err
+		}
 
 		balance := protobufs.AccountState{}
 
@@ -159,13 +161,11 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 			return false, errors.New("Balance is insufficient in transaction " + strconv.Itoa(i))
 		}
 
-		log.Info(t.GetNonce(), balance.GetNonce())
-		/*
-			// Check if nonce is correct
-			newNonce, ok := util.AddU32O(balance.GetNonce(), 1)
-			if t.GetNonce() != newNonce || !ok {
-				return false, errors.New("Invalid nonce in transaction " + strconv.Itoa(i))
-			}*/
+		// Check if nonce is correct
+		newNonce, ok := util.AddU32O(balance.GetNonce(), uint32(1))
+		if t.GetNonce() != newNonce || !ok {
+			return false, errors.New("Invalid nonce in transaction " + strconv.Itoa(i))
+		}
 
 		// Taint sender and update his balance. Reciver will be able to spend
 		// his cash from the next block
@@ -319,8 +319,6 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 			c.SaveState()
 		}
 	}
-
-	//bc.CurrentBlock++
 
 	return nil
 }

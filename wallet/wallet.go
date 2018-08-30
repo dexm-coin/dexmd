@@ -256,6 +256,8 @@ func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32, dat
 		return nil, err
 	}
 
+	w.Nonce++
+
 	newT := &protobufs.Transaction{
 		Sender:    x509Encoded,
 		Recipient: recipient,
@@ -266,7 +268,6 @@ func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32, dat
 		Data:      data,
 	}
 
-	w.Nonce++
 	result, err := proto.Marshal(newT)
 	if err != nil {
 		return nil, err

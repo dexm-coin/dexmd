@@ -19,6 +19,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 	switch broadcastEnvelope.GetType() {
 	// Register a new transaction to the mempool
 	case protobufs.Broadcast_TRANSACTION:
+		log.Printf("New Transaction: %x", broadcastEnvelope.GetData())
 		cs.bc.AddMempoolTransaction(broadcastEnvelope.GetData())
 
 	// Save a block proposed by a validator TODO Verify turn and identity
@@ -31,8 +32,8 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			return err
 		}
 
-		log.Error(cs.bc.SaveBlock(block))
-		log.Error(cs.bc.ImportBlock(block))
+		cs.bc.SaveBlock(block)
+		cs.bc.ImportBlock(block)
 	}
 
 	return nil

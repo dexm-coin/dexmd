@@ -34,9 +34,24 @@ func TraverseNat(port uint16, desc string) (string, error) {
 
 // FindPeers tries to find all peers for the selected network
 func (cs *ConnectionStore) FindPeers() error {
-	ips, err := GetPeerList(cs.network)
+	ipsDuplicate, err := GetPeerList(cs.network)
 	if err != nil {
 		return err
+	}
+
+	var ips []string
+	for _, ip1 := range ipsDuplicate {
+		duplicate := false
+		for _, ip2 := range ips {
+			if ip2 == ip1 {
+				duplicate = true
+				break
+			}
+		}
+		if duplicate {
+			continue
+		}
+		ips = append(ips, ip1)
 	}
 
 	for _, i := range ips {
@@ -60,14 +75,29 @@ func GetPeerList(network string) ([]string, error) {
 		return nil, err
 	}
 
-	ips := []string{}
-	err = json.Unmarshal(data, &ips)
+	ipsDuplicate := []string{}
+	err = json.Unmarshal(data, &ipsDuplicate)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(ips) == 0 {
-		ips = append(ips, "35.237.4.164:3141")
+	if len(ipsDuplicate) == 0 {
+		ipsDuplicate = append(ipsDuplicate, "35.237.4.164")
+	}
+
+	var ips []string
+	for _, ip1 := range ipsDuplicate {
+		duplicate := false
+		for _, ip2 := range ips {
+			if ip2 == ip1 {
+				duplicate = true
+				break
+			}
+		}
+		if duplicate {
+			continue
+		}
+		ips = append(ips, ip1)
 	}
 
 	return ips, err
