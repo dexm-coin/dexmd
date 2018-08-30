@@ -285,6 +285,7 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 		senderBalance.Nonce++
 
 		log.Info("Sender balance:", senderBalance.Balance)
+		log.Info("Sender nonce: ", senderBalance.Nonce)
 		log.Info("Reciver balance:", reciverBalance.Balance)
 
 		totalGas += t.GetGas()
@@ -299,6 +300,7 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 			contractAddr := wallet.BytesToAddress(contractAddrSource)
 
 			// Save it on a separate db
+			log.Info("New contract at ", contractAddr)
 			bc.ContractDb.Put([]byte(contractAddr), t.GetData(), nil)
 		}
 
