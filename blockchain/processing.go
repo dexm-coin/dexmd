@@ -177,6 +177,7 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 		}
 
 		balance.Balance = newBal
+		balance.Nonce++
 		taintedState[sender] = balance
 
 		// To save a DB query we don't check the reciver for an overflow. If someone
