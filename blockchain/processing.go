@@ -240,6 +240,7 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 	res, err := bc.ValidateBlock(block)
 	if !res {
+		log.Error("ImportBlock 1")
 		log.Error(err)
 		return err
 	}

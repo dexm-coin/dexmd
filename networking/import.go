@@ -85,6 +85,7 @@ func (cs *ConnectionStore) UpdateChain() error {
 						cs.bc.ImportBlock(b)
 						cs.bc.CurrentBlock++
 					} else {
+						log.Error("import")
 						log.Error(err)
 						break
 					}

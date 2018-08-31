@@ -156,6 +156,7 @@ func (cs *ConnectionStore) run() {
 
 			broadcastBytes, err := proto.Marshal(broadcast)
 			if err != nil {
+				log.Error("broadcat 1")
 				log.Error(err)
 				continue
 			}
@@ -165,6 +166,7 @@ func (cs *ConnectionStore) run() {
 			}
 			data, err := proto.Marshal(newEnv)
 			if err != nil {
+				log.Error("broadcat 2")
 				log.Error(err)
 				continue
 			}
@@ -234,6 +236,7 @@ func (c *client) read() {
 		err = proto.Unmarshal(msg, &pb)
 
 		if err != nil {
+			log.Error("read 1")
 			log.Error(err)
 			continue
 		}
@@ -335,6 +338,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 			r, s, err := cs.identity.Sign(hash)
 			if err != nil {
+				log.Error("if wal == validator")
 				log.Error(err)
 				return
 			}

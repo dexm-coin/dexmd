@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/user"
@@ -183,9 +182,9 @@ func main() {
 				}
 
 				log.Info(ips)
-				randomIp := ips[rand.Intn(len(ips))]
+				// randomIp := ips[rand.Intn(len(ips))]
 				// conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", randomIp), nil)
-				conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", randomIp+":"+strconv.Itoa(PORT)), nil)
+				conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", "35.237.4.164"+":"+strconv.Itoa(PORT)), nil)
 				if err != nil {
 					log.Fatal(err)
 					return err
