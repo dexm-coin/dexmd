@@ -239,6 +239,7 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 	res, err := bc.ValidateBlock(block)
 	if !res {
+		log.Error(err)
 		return err
 	}
 
@@ -267,6 +268,7 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 
 		senderBalance, err := bc.GetWalletState(sender)
 		if err != nil {
+			log.Error(err)
 			return err
 		}
 

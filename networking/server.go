@@ -154,32 +154,10 @@ func (cs *ConnectionStore) run() {
 				continue
 			}
 
-			// set TTL to 0, calculate the hash of the message, check if already exist
-			copyBroadcast := *broadcast
-			copyBroadcast.TTL = 0
-			bhash := sha256.Sum256([]byte(fmt.Sprintf("%v", copyBroadcast)))
-			hash := bhash[:]
-			alreadyReceived := false
-			for _, h := range hashMessages {
-				equal := reflect.DeepEqual(h, hash)
-				if equal {
-					alreadyReceived = true
-					break
-				}
-			}
-			if alreadyReceived {
-				log.Info("skip message")
-				continue
-			}
-			hashMessages = append(hashMessages, hash)
-			if len(hashMessages) > maxMessagesSave {
-				hashMessages = hashMessages[1:]
-			}
-
 			broadcastBytes, err := proto.Marshal(broadcast)
 			if err != nil {
 				log.Error(err)
-				return
+				continue
 			}
 			newEnv := &network.Envelope{
 				Type: env.Type,
@@ -188,7 +166,7 @@ func (cs *ConnectionStore) run() {
 			data, err := proto.Marshal(newEnv)
 			if err != nil {
 				log.Error(err)
-				return
+				continue
 			}
 
 			y := math.Exp(float64(20/len(cs.clients))) - 0.5
@@ -200,6 +178,36 @@ func (cs *ConnectionStore) run() {
 			}
 		}
 	}
+}
+
+func checkDuplicatedMessage(msg []byte) bool {
+	env := &network.Envelope{}
+	broadcast := &network.Broadcast{}
+	proto.Unmarshal(msg, env)
+	proto.Unmarshal(env.Data, broadcast)
+
+	// set TTL to 0, calculate the hash of the message, check if already exist
+	copyBroadcast := *broadcast
+	copyBroadcast.TTL = 0
+	bhash := sha256.Sum256([]byte(fmt.Sprintf("%v", copyBroadcast)))
+	hash := bhash[:]
+	alreadyReceived := false
+	for _, h := range hashMessages {
+		equal := reflect.DeepEqual(h, hash)
+		if equal {
+			alreadyReceived = true
+			break
+		}
+	}
+	if alreadyReceived {
+		log.Info("skip message")
+		return true
+	}
+	hashMessages = append(hashMessages, hash)
+	if len(hashMessages) > maxMessagesSave {
+		hashMessages = hashMessages[1:]
+	}
+	return false
 }
 
 // read reads data from the socket and handles it
@@ -227,6 +235,11 @@ func (c *client) read() {
 
 		if err != nil {
 			log.Error(err)
+			continue
+		}
+
+		skip := checkDuplicatedMessage(msg)
+		if skip {
 			continue
 		}
 

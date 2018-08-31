@@ -182,8 +182,12 @@ func main() {
 					HandshakeTimeout: 5 * time.Second,
 				}
 
-				conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", ips[rand.Intn(len(ips))]), nil)
+				log.Info(ips)
+				randomIp := ips[rand.Intn(len(ips))]
+				// conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", randomIp), nil)
+				conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", randomIp+":"+strconv.Itoa(PORT)), nil)
 				if err != nil {
+					log.Fatal(err)
 					return err
 				}
 
@@ -249,6 +253,7 @@ func main() {
 				trBroad := &network.Broadcast{
 					Type: network.Broadcast_TRANSACTION,
 					Data: trans,
+					TTL:  32,
 				}
 
 				brD, _ := proto.Marshal(trBroad)
@@ -262,6 +267,7 @@ func main() {
 				conn.WriteMessage(websocket.BinaryMessage, finalD)
 
 				senderWallet.ExportWallet(walletPath)
+				log.Info("Transaction done successfully")
 				return nil
 			},
 		},

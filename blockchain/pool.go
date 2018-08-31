@@ -8,6 +8,7 @@ import (
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 	pq "github.com/jupp0r/go-priority-queue"
+	log "github.com/sirupsen/logrus"
 )
 
 type mempool struct {
@@ -26,11 +27,13 @@ func (bc *Blockchain) AddMempoolTransaction(rawTx []byte) error {
 
 	err := proto.Unmarshal(rawTx, pb)
 	if err != nil {
+		log.Error(err)
 		return err
 	}
 
 	err = bc.ValidateTransaction(pb)
 	if err != nil {
+		log.Error(err)
 		return err
 	}
 
@@ -88,6 +91,7 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 	var transactions []*protobufs.Transaction
 
 	currentLen := len(blockHeader)
+
 
 	// Check that the len is smaller than the max
 	for currentLen < bc.Mempool.maxBlockBytes {
