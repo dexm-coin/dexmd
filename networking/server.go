@@ -156,7 +156,6 @@ func (cs *ConnectionStore) run() {
 
 			broadcastBytes, err := proto.Marshal(broadcast)
 			if err != nil {
-				log.Error("broadcat 1")
 				log.Error(err)
 				continue
 			}
@@ -166,7 +165,6 @@ func (cs *ConnectionStore) run() {
 			}
 			data, err := proto.Marshal(newEnv)
 			if err != nil {
-				log.Error("broadcat 2")
 				log.Error(err)
 				continue
 			}
@@ -236,19 +234,18 @@ func (c *client) read() {
 		err = proto.Unmarshal(msg, &pb)
 
 		if err != nil {
-			log.Error("read 1")
 			log.Error(err)
-			continue
-		}
-
-		skip := checkDuplicatedMessage(msg)
-		if skip {
 			continue
 		}
 
 		switch pb.GetType() {
 
 		case protobufs.Envelope_BROADCAST:
+			skip := checkDuplicatedMessage(msg)
+			if skip {
+				continue
+			}
+
 			go c.store.handleBroadcast(pb.GetData())
 			c.store.broadcast <- msg
 
@@ -257,6 +254,7 @@ func (c *client) read() {
 			request := protobufs.Request{}
 			err := proto.Unmarshal(pb.GetData(), &request)
 			if err != nil {
+				log.Error(err)
 				continue
 			}
 
@@ -270,6 +268,7 @@ func (c *client) read() {
 
 				toSend, err := proto.Marshal(&env)
 				if err != nil {
+					log.Error(err)
 					return
 				}
 
@@ -338,7 +337,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 			r, s, err := cs.identity.Sign(hash)
 			if err != nil {
-				log.Error("if wal == validator")
 				log.Error(err)
 				return
 			}

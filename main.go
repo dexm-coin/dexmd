@@ -93,7 +93,7 @@ func main() {
 
 				genesisBlock := &bp.Block{
 					Index:     0,
-					Timestamp: 153557000,
+					Timestamp: 1535753100,
 					Miner:     "Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683",
 				}
 				b.SaveBlock(genesisBlock)
@@ -126,7 +126,7 @@ func main() {
 				// Update chain before
 				log.Info("Staring chain import")
 
-				//cs.UpdateChain()
+				// cs.UpdateChain()
 
 				log.Info("Done importing")
 
@@ -192,6 +192,7 @@ func main() {
 
 				req := &network.Request{
 					Type: network.Request_GET_WALLET_STATUS,
+					// Index: uint64(rand.Intn(100000000)),
 				}
 
 				reqD, _ := proto.Marshal(req)
@@ -227,20 +228,21 @@ func main() {
 					log.Fatal(err)
 				}
 
-				log.Info(msg)
-
 				walletEnv := &network.Envelope{}
 				err = proto.Unmarshal(msg, walletEnv)
 				if err != nil {
 					log.Fatal(err)
 				}
 
-				walletStatus := &bp.AccountState{}
-				err = proto.Unmarshal(walletEnv.Data, walletStatus)
+				var walletStatus bp.AccountState
+				err = proto.Unmarshal(walletEnv.Data, &walletStatus)
 				if err != nil {
 					log.Fatal(err)
 				}
-
+				log.Info("senderWallet")
+				log.Info(senderWallet)
+				log.Info("walletStatus")
+				log.Info(walletStatus)
 				senderWallet.Nonce = int(walletStatus.Nonce)
 				senderWallet.Balance = int(walletStatus.Balance)
 

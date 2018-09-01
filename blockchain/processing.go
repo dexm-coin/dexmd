@@ -131,12 +131,15 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 
 		result, err := proto.Marshal(t)
 		if err != nil {
+			log.Error("Marshal")
+			log.Error(err)
 			return false, err
 		}
 
 		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), result)
 		if !valid || err != nil {
-			log.Info(err)
+			log.Error("SignatureValid")
+			log.Error(err)
 			return false, err
 		}
 
@@ -148,9 +151,9 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 		if !isTainted[sender] {
 			balance, err = bc.GetWalletState(sender)
 			if err != nil {
+				log.Error("getwalletstate")
 				return false, err
 			}
-
 		} else {
 			balance = taintedState[sender]
 		}
@@ -161,6 +164,9 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 			return false, errors.New("Balance is insufficient in transaction " + strconv.Itoa(i))
 		}
 
+		log.Info("Nonce")
+		log.Info(t.GetNonce())
+		log.Info(balance.GetNonce())
 		// Check if nonce is correct
 		newNonce, ok := util.AddU32O(balance.GetNonce(), uint32(1))
 		if t.GetNonce() != newNonce || !ok {
@@ -240,7 +246,7 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 	res, err := bc.ValidateBlock(block)
 	if !res {
-		log.Error("ImportBlock 1")
+		log.Error("ImportBlock")
 		log.Error(err)
 		return err
 	}
@@ -256,6 +262,12 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 
 		bc.setState("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", state)
 		bc.Validators.AddValidator("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", 10000)
+
+		bc.setState("DexmJ6yqZ2bYcEbGyiYyaRzL82tsPc1l69f03db5", state)
+		bc.Validators.AddValidator("DexmJ6yqZ2bYcEbGyiYyaRzL82tsPc1l69f03db5", 10000)
+
+		bc.setState("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", state)
+		bc.Validators.AddValidator("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", 10000)
 		return nil
 	}
 
@@ -294,8 +306,18 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 
 		totalGas += t.GetGas()
 
-		bc.setState(sender, &senderBalance)
-		bc.setState(t.GetRecipient(), &reciverBalance)
+		err = bc.setState(sender, &senderBalance)
+		if err != nil {
+			log.Error("bc.setState 1")
+			log.Error(err)
+			return err
+		}
+		err = bc.setState(t.GetRecipient(), &reciverBalance)
+		if err != nil {
+			log.Error("bc.setState 2")
+			log.Error(err)
+			return err
+		}
 
 		if t.GetContractCreation() {
 			// Use the code, sender and prev hash to decide contract address

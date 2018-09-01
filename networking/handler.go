@@ -1,11 +1,13 @@
 package networking
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
 	protobufs "github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 )
 
 func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client) []byte {
@@ -46,15 +48,19 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client) []byt
 	case protobufs.Request_GET_WALLET_STATUS:
 		walletAddr, err := c.GetResponse(100 * time.Millisecond)
 		if err != nil {
+			log.Error(err)
 			return []byte{}
 		}
 
-		state, err := cs.bc.GetWalletState(string(walletAddr))
+		state, err := cs.bc.GetWalletState(fmt.Sprintf("%s", walletAddr))
 		if err != nil {
 			return []byte("Error")
 		}
 
-		data, _ := proto.Marshal(&state)
+		data, err := proto.Marshal(&state)
+		if err != nil {
+			return []byte("Error")
+		}
 		return data
 
 	// GET_VERSION returns the version of the node

@@ -21,20 +21,20 @@ func newMempool(maxBlockSize int, maxGas float64) *mempool {
 	return &mempool{maxBlockSize, maxGas, pq.New()}
 }
 
+// ad entrambi arriva la transazione ed entrambi la mettono in queue, poi quando tocca a uno la mette nel blocco, e quando tocca a l'altro fa lo stesso con la stessa transazione
+
 // AddMempoolTransaction adds a transaction to the mempool
 func (bc *Blockchain) AddMempoolTransaction(rawTx []byte) error {
 	pb := &protobufs.Transaction{}
 
 	err := proto.Unmarshal(rawTx, pb)
 	if err != nil {
-		log.Error("AddMempoolTransaction 1")
 		log.Error(err)
 		return err
 	}
 
 	err = bc.ValidateTransaction(pb)
 	if err != nil {
-		log.Error("AddMempoolTransaction 2")
 		log.Error(err)
 		return err
 	}
