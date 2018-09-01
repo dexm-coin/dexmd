@@ -10,7 +10,7 @@ $ cd dexmd
 $ ./init.sh
 ```
 
-### Start step-by-step
+### Guide step-by-step
 
 1) First of all you have to create your identity (wallet) in the network.
 
@@ -23,6 +23,10 @@ $ ./init.sh
     ```sh
     $ ./dexm sn myWallet
     ```
+
+3) Ones you done that you are in! 
+   Now you can make transaction or create and interact smart contract
+
 
 ### Functionality
 
