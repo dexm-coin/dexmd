@@ -10,6 +10,20 @@ $ cd dexmd
 $ ./init.sh
 ```
 
+### Start step-by-step
+
+1) First of all you have to create your identity (wallet) in the network.
+
+    ```sh
+    $ ./dexm mw myWallet
+    ```
+
+2) Now start a node to receive the message from the network.
+
+    ```sh
+    $ ./dexm sn myWallet
+    ```
+
 ### Functionality
 
 * [Wallet] - Create a wallet
@@ -17,4 +31,3 @@ $ ./init.sh
 * [Node] - Start the node to be in the network
 * [Transaction] - Make a transaction to someone else
 * [Smart Contract] - Create and interact with a smart contract
-
