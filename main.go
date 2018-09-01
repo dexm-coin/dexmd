@@ -182,93 +182,94 @@ func main() {
 				}
 
 				log.Info(ips)
-				// randomIp := ips[rand.Intn(len(ips))]
-				// conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", randomIp), nil)
-				conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", "35.237.4.164"+":"+strconv.Itoa(PORT)), nil)
-				if err != nil {
-					log.Fatal(err)
-					return err
+				for _, ip := range ips {
+					conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", ip+":"+strconv.Itoa(PORT)), nil)
+					if err != nil {
+						log.Fatal(err)
+						continue
+					}
+
+					req := &network.Request{
+						Type: network.Request_GET_WALLET_STATUS,
+						// Index: uint64(rand.Intn(100000000)),
+					}
+
+					reqD, _ := proto.Marshal(req)
+
+					env := &network.Envelope{
+						Type: network.Envelope_REQUEST,
+						Data: reqD,
+					}
+
+					// GET_WALLET_STATUS requires to first send a request and then the address
+					envD, _ := proto.Marshal(env)
+					err = conn.WriteMessage(websocket.BinaryMessage, envD)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					senderAddr, _ := senderWallet.GetWallet()
+					senderEnv := &network.Envelope{
+						Type: network.Envelope_OTHER,
+						Data: []byte(senderAddr),
+					}
+
+					senderAddrD, _ := proto.Marshal(senderEnv)
+
+					err = conn.WriteMessage(websocket.BinaryMessage, []byte(senderAddrD))
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					// Parse the message and save the new state
+					_, msg, err := conn.ReadMessage()
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					walletEnv := &network.Envelope{}
+					err = proto.Unmarshal(msg, walletEnv)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					var walletStatus bp.AccountState
+					err = proto.Unmarshal(walletEnv.Data, &walletStatus)
+					if err != nil {
+						log.Fatal(err)
+					}
+					log.Info("walletStatus")
+					log.Info(walletStatus)
+					senderWallet.Nonce = int(walletStatus.Nonce)
+					senderWallet.Balance = int(walletStatus.Balance)
+
+					trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					trBroad := &network.Broadcast{
+						Type: network.Broadcast_TRANSACTION,
+						Data: trans,
+						TTL:  32,
+					}
+
+					brD, _ := proto.Marshal(trBroad)
+
+					trEnv := &network.Envelope{
+						Type: network.Envelope_BROADCAST,
+						Data: brD,
+					}
+
+					finalD, _ := proto.Marshal(trEnv)
+					conn.WriteMessage(websocket.BinaryMessage, finalD)
+
+					senderWallet.ExportWallet(walletPath)
+					log.Info("Transaction done successfully")
+
+					return nil
 				}
-
-				req := &network.Request{
-					Type: network.Request_GET_WALLET_STATUS,
-					// Index: uint64(rand.Intn(100000000)),
-				}
-
-				reqD, _ := proto.Marshal(req)
-
-				env := &network.Envelope{
-					Type: network.Envelope_REQUEST,
-					Data: reqD,
-				}
-
-				// GET_WALLET_STATUS requires to first send a request and then the address
-				envD, _ := proto.Marshal(env)
-				err = conn.WriteMessage(websocket.BinaryMessage, envD)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				senderAddr, _ := senderWallet.GetWallet()
-				senderEnv := &network.Envelope{
-					Type: network.Envelope_OTHER,
-					Data: []byte(senderAddr),
-				}
-
-				senderAddrD, _ := proto.Marshal(senderEnv)
-
-				err = conn.WriteMessage(websocket.BinaryMessage, []byte(senderAddrD))
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				// Parse the message and save the new state
-				_, msg, err := conn.ReadMessage()
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				walletEnv := &network.Envelope{}
-				err = proto.Unmarshal(msg, walletEnv)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				var walletStatus bp.AccountState
-				err = proto.Unmarshal(walletEnv.Data, &walletStatus)
-				if err != nil {
-					log.Fatal(err)
-				}
-				log.Info("senderWallet")
-				log.Info(senderWallet)
-				log.Info("walletStatus")
-				log.Info(walletStatus)
-				senderWallet.Nonce = int(walletStatus.Nonce)
-				senderWallet.Balance = int(walletStatus.Balance)
-
-				trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				trBroad := &network.Broadcast{
-					Type: network.Broadcast_TRANSACTION,
-					Data: trans,
-					TTL:  32,
-				}
-
-				brD, _ := proto.Marshal(trBroad)
-
-				trEnv := &network.Envelope{
-					Type: network.Envelope_BROADCAST,
-					Data: brD,
-				}
-
-				finalD, _ := proto.Marshal(trEnv)
-				conn.WriteMessage(websocket.BinaryMessage, finalD)
-
-				senderWallet.ExportWallet(walletPath)
-				log.Info("Transaction done successfully")
+				log.Error("Node not found")
 				return nil
 			},
 		},
