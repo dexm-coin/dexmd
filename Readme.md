@@ -26,8 +26,8 @@ $ ./init.sh
 
 ### Functionality
 
-* [Wallet] - Create a wallet
-* [Vanity Wallet] - Create a vanity wallet with a word that you want in your address
-* [Node] - Start the node to be in the network
-* [Transaction] - Make a transaction to someone else
-* [Smart Contract] - Create and interact with a smart contract
+* [Wallet](https://github.com/dexm-coin/dexmd/wiki/Functionality) - Create a wallet
+* [Vanity Wallet](https://github.com/dexm-coin/dexmd/wiki/Functionality) - Create a vanity wallet with a word that you want in your address
+* [Node](https://github.com/dexm-coin/dexmd/wiki/Functionality) - Start the node to be in the network
+* [Transaction](https://github.com/dexm-coin/dexmd/wiki/Functionality) - Make a transaction to someone else
+* [Smart Contract](https://github.com/dexm-coin/dexmd/wiki/Functionality) - Create and interact with a smart contract
