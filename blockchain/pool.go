@@ -59,7 +59,7 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 
 		currBlocks, err := bc.GetBlocks(bc.CurrentBlock - 1)
 		if err != nil {
-			log.Error(err)
+			log.Error("leveldb ", err)
 		}
 
 		index := &protobufs.Index{}
@@ -78,7 +78,7 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 	}
 
 	block := protobufs.Block{
-		Index:     bc.CurrentBlock + 1,
+		Index:     bc.CurrentBlock, // was +1
 		Timestamp: uint64(time.Now().Unix()),
 		Miner:     miner,
 		PrevHash:  hash,

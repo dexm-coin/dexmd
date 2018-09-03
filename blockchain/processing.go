@@ -97,7 +97,7 @@ func (bc *Blockchain) GetWalletState(wallet string) (protobufs.AccountState, err
 
 // SaveBlock saves an unvalidated block into the blockchain to be used with Casper
 func (bc *Blockchain) SaveBlock(block *protobufs.Block) error {
-	oldBlocks, err := bc.blockDb.Get([]byte(string(block.GetIndex())), nil)
+	oldBlocks, err := bc.blockDb.Get([]byte(strconv.Itoa(int(block.GetIndex()))), nil)
 
 	if block.GetIndex() == 0 {
 		bc.GenesisTimestamp = block.GetTimestamp()
@@ -110,17 +110,14 @@ func (bc *Blockchain) SaveBlock(block *protobufs.Block) error {
 	}
 
 	blocks.Blocks = append(blocks.Blocks, block)
-	res, err := proto.Marshal(blocks)
-	if err != nil {
-		return err
-	}
+	res, _ := proto.Marshal(blocks)
 
-	return bc.blockDb.Put([]byte(string(block.GetIndex())), res, nil)
+	return bc.blockDb.Put([]byte(strconv.Itoa(int(block.GetIndex()))), res, nil)
 }
 
 // GetBlocks returns the array of blocks at an index
 func (bc *Blockchain) GetBlocks(index uint64) ([]byte, error) {
-	return bc.blockDb.Get([]byte(string(index)), nil)
+	return bc.blockDb.Get([]byte(strconv.Itoa(int(index))), nil)
 }
 
 // ValidateBlock checks the validity of a block. It uses the current
@@ -138,17 +135,11 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	for i, t := range block.GetTransactions() {
 		sender := wallet.BytesToAddress(t.GetSender())
 
-		result, err := proto.Marshal(t)
-		if err != nil {
-			log.Error("Marshal")
-			log.Error(err)
-			return false, err
-		}
+		result, _ := proto.Marshal(t)
 
 		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), result)
 		if !valid || err != nil {
-			log.Error("SignatureValid")
-			log.Error(err)
+			log.Error("SignatureValid ", err)
 			return false, err
 		}
 
@@ -160,7 +151,7 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 		if !isTainted[sender] {
 			balance, err = bc.GetWalletState(sender)
 			if err != nil {
-				log.Error("getwalletstate")
+				log.Error("getwalletstate ", err)
 				return false, err
 			}
 		} else {
@@ -173,9 +164,6 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 			return false, errors.New("Balance is insufficient in transaction " + strconv.Itoa(i))
 		}
 
-		log.Info("Nonce")
-		log.Info(t.GetNonce())
-		log.Info(balance.GetNonce())
 		// Check if nonce is correct
 		newNonce, ok := util.AddU32O(balance.GetNonce(), uint32(1))
 		if t.GetNonce() != newNonce || !ok {
@@ -255,8 +243,7 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 	res, err := bc.ValidateBlock(block)
 	if !res {
-		log.Error("ImportBlock")
-		log.Error(err)
+		log.Error("ImportBlock ", err)
 		return err
 	}
 
@@ -271,9 +258,6 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 
 		bc.setState("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", state)
 		bc.Validators.AddValidator("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", 10000)
-
-		bc.setState("DexmJ6yqZ2bYcEbGyiYyaRzL82tsPc1l69f03db5", state)
-		bc.Validators.AddValidator("DexmJ6yqZ2bYcEbGyiYyaRzL82tsPc1l69f03db5", 10000)
 
 		bc.setState("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", state)
 		bc.Validators.AddValidator("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", 10000)
@@ -317,13 +301,11 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 
 		err = bc.setState(sender, &senderBalance)
 		if err != nil {
-			log.Error("bc.setState 1")
 			log.Error(err)
 			return err
 		}
 		err = bc.setState(t.GetRecipient(), &reciverBalance)
 		if err != nil {
-			log.Error("bc.setState 2")
 			log.Error(err)
 			return err
 		}

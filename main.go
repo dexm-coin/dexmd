@@ -82,7 +82,7 @@ func main() {
 				os.MkdirAll(".dexm", os.ModePerm)
 
 				// Create the blockchain database
-				b, err := blockchain.NewBlockchain(".dexm", 0)
+				b, err := blockchain.NewBlockchain(".dexm/", 0)
 				if err != nil {
 					log.Fatal("blockchain", err)
 				}
@@ -239,8 +239,7 @@ func main() {
 					if err != nil {
 						log.Fatal(err)
 					}
-					log.Info("walletStatus")
-					log.Info(walletStatus)
+					log.Info("walletStatus ", walletStatus)
 					senderWallet.Nonce = int(walletStatus.Nonce)
 					senderWallet.Balance = int(walletStatus.Balance)
 

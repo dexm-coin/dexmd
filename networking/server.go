@@ -201,7 +201,7 @@ func checkDuplicatedMessage(msg []byte) bool {
 		}
 	}
 	if alreadyReceived {
-		log.Info("skip message")
+		// log.Info("skip message")
 		return true
 	}
 	hashMessages = append(hashMessages, hash)
@@ -311,17 +311,15 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			log.Fatal(err)
 		}
 
-		if cs.bc.CurrentBlock != 0 && cs.bc.CurrentBlock%6 == 0 {
+		if cs.bc.CurrentBlock%101 == 0 {
 			// get source and target block in the blockchain
 			souceBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentCheckpoint)
 			if err != nil {
-				log.Fatal("souceBlockByte")
 				log.Fatal(err)
 				continue
 			}
 			targetBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentBlock - 1)
 			if err != nil {
-				log.Fatal("targetBlockByte")
 				log.Fatal(err)
 				continue
 			}
@@ -339,18 +337,10 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			source := souceBlock.Blocks[0]
 			target := targetBlock.Blocks[0]
 
-			MarshalSource, err := proto.Marshal(source)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
+			MarshalSource, _ := proto.Marshal(source)
 			bhash1 := sha256.Sum256(MarshalSource)
 			hashSource := bhash1[:]
-			MarshalTarget, err := proto.Marshal(target)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
+			MarshalTarget, _ := proto.Marshal(target)
 			bhash2 := sha256.Sum256(MarshalTarget)
 			hashTarget := bhash2[:]
 
@@ -359,8 +349,8 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			// read all the incoming vote and store it, after 1 minut call CheckpointAgreement
 			go func() {
 				currentBlockCheckpoint := cs.bc.CurrentBlock - 1
-				// time.Sleep(1*time.Minute)
-				time.Sleep(15 * time.Second)
+				time.Sleep(1 * time.Minute)
+				// time.Sleep(15 * time.Second)
 				check := blockchain.CheckpointAgreement(cs.bc, cs.bc.CurrentCheckpoint, currentBlockCheckpoint)
 				log.Info("check ", check)
 			}()
@@ -410,8 +400,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		cs.bc.CurrentValidator = validator
 
 		// If this node is the validator then generate a block and sign it
-		// TODO delete true
-		if wal == validator || true {
+		if wal == validator {
 			block, err := cs.bc.GenerateBlock(wal)
 			if err != nil {
 				log.Fatal(err)

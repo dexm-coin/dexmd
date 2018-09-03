@@ -51,7 +51,6 @@ func CheckpointAgreement(b *Blockchain, SourceHeight, TargetHeight uint64) bool 
 
 	mapVote := make(map[string][]uint64)
 	var userToRemove []string
-	log.Info("recevied votes ", receivedVotes)
 	for _, vote := range receivedVotes {
 		if vote.GetSourceHeight() != SourceHeight {
 			continue
@@ -64,7 +63,6 @@ func CheckpointAgreement(b *Blockchain, SourceHeight, TargetHeight uint64) bool 
 			log.Error("Source and target and not valid")
 			return false
 		}
-		log.Info("vote passed 2")
 
 		pubKey := string(vote.PublicKey)
 		// check if there are multiple votes of the same person
@@ -108,9 +106,8 @@ func IsVoteValid(b *Blockchain, sourceHash, targetHash []byte, TargetHeight uint
 		log.Error("No validators")
 		return false
 	}
-	
 
-	targetByte, _ := b.blockDb.Get([]byte(string(TargetHeight)), nil)
+	targetByte, _ := b.GetBlocks(TargetHeight)
 	target := &protobufs.Index{}
 	proto.Unmarshal(targetByte, target)
 
@@ -121,6 +118,9 @@ func IsVoteValid(b *Blockchain, sourceHash, targetHash []byte, TargetHeight uint
 		currentHash := bhash[:]
 		equal := reflect.DeepEqual(currentHash, targetHash)
 		if equal {
+			if len(block.GetPrevHash()) < 1 {
+				continue
+			}
 			prevHash = block.GetPrevHash()
 			break
 		}
@@ -130,10 +130,8 @@ func IsVoteValid(b *Blockchain, sourceHash, targetHash []byte, TargetHeight uint
 		return false
 	}
 
-	log.Info("IsVoteValid")
 	for i := TargetHeight - 1; i >= 0; i-- {
-		log.Info(i)
-		byteBlock, _ := b.blockDb.Get([]byte(string(i)), nil)
+		byteBlock, _ := b.GetBlocks(i)
 		blocks := &blockchain.Index{}
 		proto.Unmarshal(byteBlock, blocks)
 
@@ -147,18 +145,18 @@ func IsVoteValid(b *Blockchain, sourceHash, targetHash []byte, TargetHeight uint
 				return true
 			}
 			if equal {
-				log.Info("equal 2")
+				if len(block.PrevHash) < 1 {
+					continue
+				}
 				prevHash = block.PrevHash
 				break
 			}
 		}
 		// check untill the fist checkpoint
 		if IsJustified(b, i) {
-			log.Error("IsJustified failed")
 			return false
 		}
 	}
-	log.Error("Exit from loop casper")
 	return false
 }
 
@@ -168,36 +166,36 @@ func IsVoteValid(b *Blockchain, sourceHash, targetHash []byte, TargetHeight uint
 func GetCanonialBlockchain() {
 }
 
-// // CheckUserVote check that a validator must not vote within the span of its other votes
-// // return if its valid and if the signature are right
-// func CheckUserVote(vote1, vote2 *protobufs.CasperVote) (bool, bool) {
-// 	// check the signature of the votes
-// 	dataVote1 := []byte(string(vote1.Source) + string(vote1.Target) + fmt.Sprintf("%v", vote1.SourceHeight) + fmt.Sprintf("%v", vote1.TargetHeight) + string(vote1.PublicKey))
-// 	bhash1 := sha256.Sum256(dataVote1)
-// 	hash1 := bhash1[:]
-// 	dataVote2 := []byte(string(vote2.Source) + string(vote2.Target) + fmt.Sprintf("%v", vote2.SourceHeight) + fmt.Sprintf("%v", vote2.TargetHeight) + string(vote2.PublicKey))
-// 	bhash2 := sha256.Sum256(dataVote2)
-// 	hash2 := bhash2[:]
+// CheckUserVote check that a validator must not vote within the span of its other votes
+// return if its valid and if the signature are right
+func CheckUserVote(vote1, vote2 *protobufs.CasperVote) (bool, bool) {
+	// check the signature of the votes
+	// dataVote1 := []byte(string(vote1.Source) + string(vote1.Target) + fmt.Sprintf("%v", vote1.SourceHeight) + fmt.Sprintf("%v", vote1.TargetHeight) + string(vote1.PublicKey))
+	// bhash1 := sha256.Sum256(dataVote1)
+	// hash1 := bhash1[:]
+	// dataVote2 := []byte(string(vote2.Source) + string(vote2.Target) + fmt.Sprintf("%v", vote2.SourceHeight) + fmt.Sprintf("%v", vote2.TargetHeight) + string(vote2.PublicKey))
+	// bhash2 := sha256.Sum256(dataVote2)
+	// hash2 := bhash2[:]
 
-// 	verifyVote1, err1 := wallet.SignatureValid(vote1.GetPublicKey(), vote1.GetR(), vote1.GetS(), hash1)
-// 	verifyVote2, err2 := wallet.SignatureValid(vote2.GetPublicKey(), vote2.GetR(), vote2.GetS(), hash2)
-// 	if err1 != nil || err2 != nil {
-// 		log.Error("Check SignatureValid failed")
-// 		return false, false
-// 	}
-// 	if string(vote1.PublicKey) != string(vote2.PublicKey) || !verifyVote1 || !verifyVote2 {
-// 		log.Warning("slashing to the client that have request the CheckUserVote becuase the votes are fake")
-// 		return false, true
-// 	}
+	// verifyVote1, err1 := wallet.SignatureValid(vote1.GetPublicKey(), vote1.GetR(), vote1.GetS(), hash1)
+	// verifyVote2, err2 := wallet.SignatureValid(vote2.GetPublicKey(), vote2.GetR(), vote2.GetS(), hash2)
+	// if err1 != nil || err2 != nil {
+	// 	log.Error("Check SignatureValid failed")
+	// 	return false, false
+	// }
+	// if string(vote1.PublicKey) != string(vote2.PublicKey) || !verifyVote1 || !verifyVote2 {
+	// 	log.Warning("slashing to the client that have request the CheckUserVote becuase the votes are fake")
+	// 	return false, true
+	// }
 
-// 	// h(s1) < h(s2) < h(t2) < h(t1)
-// 	if vote1.GetSourceHeight() < vote2.GetSourceHeight() &&
-// 		vote2.GetSourceHeight() < vote2.GetTargetHeight() &&
-// 		vote2.GetTargetHeight() < vote1.GetTargetHeight() {
-// 		return false, false
-// 	}
-// 	return true, false
-// }
+	// h(s1) < h(s2) < h(t2) < h(t1)
+	if vote1.GetSourceHeight() < vote2.GetSourceHeight() &&
+		vote2.GetSourceHeight() < vote2.GetTargetHeight() &&
+		vote2.GetTargetHeight() < vote1.GetTargetHeight() {
+		return false, false
+	}
+	return true, false
+}
 
 // AddVote add a vote in receivedVotes and put it on the db
 func (bc *Blockchain) AddVote(vote *protobufs.CasperVote) error {
