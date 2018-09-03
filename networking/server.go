@@ -11,8 +11,9 @@ import (
 
 	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
+	protoBlockchain "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/dexm-coin/protobufs/build/network"
-	protobufs "github.com/dexm-coin/protobufs/build/network"
+	protoNetwork "github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -230,7 +231,7 @@ func (c *client) read() {
 			continue
 		}
 
-		pb := protobufs.Envelope{}
+		pb := protoNetwork.Envelope{}
 		err = proto.Unmarshal(msg, &pb)
 
 		if err != nil {
@@ -240,7 +241,7 @@ func (c *client) read() {
 
 		switch pb.GetType() {
 
-		case protobufs.Envelope_BROADCAST:
+		case protoNetwork.Envelope_BROADCAST:
 			skip := checkDuplicatedMessage(msg)
 			if skip {
 				continue
@@ -250,8 +251,8 @@ func (c *client) read() {
 			c.store.broadcast <- msg
 
 		// If the ContentType is a request then try to parse it as such and handle it
-		case protobufs.Envelope_REQUEST:
-			request := protobufs.Request{}
+		case protoNetwork.Envelope_REQUEST:
+			request := protoNetwork.Request{}
 			err := proto.Unmarshal(pb.GetData(), &request)
 			if err != nil {
 				log.Error(err)
@@ -260,10 +261,10 @@ func (c *client) read() {
 
 			// Free up the goroutine to recive multi part messages
 			go func() {
-				env := protobufs.Envelope{}
+				env := protoNetwork.Envelope{}
 				rawMsg := c.store.handleMessage(&request, c)
 
-				env.Type = protobufs.Envelope_OTHER
+				env.Type = protoNetwork.Envelope_OTHER
 				env.Data = rawMsg
 
 				toSend, err := proto.Marshal(&env)
@@ -276,7 +277,7 @@ func (c *client) read() {
 			}()
 
 		// Other data can be channeled so other parts of code can use it
-		case protobufs.Envelope_OTHER:
+		case protoNetwork.Envelope_OTHER:
 			c.readOther <- pb.GetData()
 		}
 	}
@@ -310,21 +311,22 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			log.Fatal(err)
 		}
 
-		if cs.bc.CurrentBlock%101 == 0 && cs.bc.Validators.CheckIsValidator(wal) {
+		if cs.bc.CurrentBlock%6 == 0 {
+			// get source and target block in the blockchain
 			souceBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentCheckpoint)
 			if err != nil {
 				log.Fatal(err)
 			}
-			targetBlockByte,, err := cs.bc.GetBlocks(cs.bc.CurrentBlock-1)
+			targetBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentBlock - 1)
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			souceBlock := &protobufs.Index{}
-			targetBlock := &protobufs.Index{}
+			souceBlock := &protoBlockchain.Index{}
+			targetBlock := &protoBlockchain.Index{}
 			proto.Unmarshal(souceBlockByte, souceBlock)
 			proto.Unmarshal(targetBlockByte, targetBlock)
-			
+
 			if len(souceBlock.Blocks) < 1 || len(targetBlock.Blocks) < 1 {
 				log.Fatal("blocks too short")
 				continue
@@ -332,17 +334,31 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			source := souceBlock.Blocks[0]
 			target := targetBlock.Blocks[0]
 
-			vote := blockchain.CreateVote("", "", cs.bc.CurrentCheckpoint, cs.bc.CurrentBlock-1, wal)
-
-			// go routine che legge da read() tutti i messaggi casper (envepole -> broadcast -> vote)
-			// poi dopo un po' di tempo chiama checkpointagreement con tutti i voti accumulati
-
-			go func () {
-				time.Sleep(1*time.Minute)
-				blockchain.CheckpointAgreement(cs.bc, , )
+			MarshalSource, err := proto.Marshal(source)
+			if err != nil {
+				log.Error(err)
+				continue
 			}
+			bhash1 := sha256.Sum256(MarshalSource)
+			hashSource := bhash1[:]
+			MarshalTarget, err := proto.Marshal(target)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			bhash2 := sha256.Sum256(MarshalTarget)
+			hashTarget := bhash2[:]
 
-			voteBytes, _ := proto.Marshal(vote)
+			vote := blockchain.CreateVote(hashSource, hashTarget, cs.bc.CurrentCheckpoint, cs.bc.CurrentBlock-1, cs.identity)
+
+			// read all the incoming vote and store it, after 1 minut call CheckpointAgreement
+			go func() {
+				// time.Sleep(1*time.Minute)
+				time.Sleep(15 * time.Second)
+				blockchain.CheckpointAgreement(cs.bc, source, target)
+			}()
+
+			voteBytes, _ := proto.Marshal(&vote)
 			pub, _ := cs.identity.GetPubKey()
 			bhash := sha256.Sum256(voteBytes)
 			hash := bhash[:]
@@ -369,8 +385,8 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			broadcastBytes, _ := proto.Marshal(broadcast)
 
 			env := &network.Envelope{
-				Data: broadcastBytes,
 				Type: network.Envelope_BROADCAST,
+				Data: broadcastBytes,
 			}
 
 			data, _ := proto.Marshal(env)

@@ -10,15 +10,7 @@ import (
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
-	"github.com/syndtr/goleveldb/leveldb"
 )
-
-var receivedVotes []*protobufs.CasperVote
-
-func (cv *CasperVotesDB) AddVote(vote *protobufs.CasperVote) {
-	receivedVotes = append(receivedVotes, vote)
-	cv.SaveCasperVote(vote)
-}
 
 // CreateVote : Create a vote based on casper Vote struct
 // CasperVote:
@@ -27,12 +19,12 @@ func (cv *CasperVotesDB) AddVote(vote *protobufs.CasperVote) {
 // - SourceHeight -> height of s
 // - TargetHeight -> height of t
 // - R, S -> signature of <s, t, h(s), h(t)> with validator private key
-func CreateVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) protobufs.CasperVote {
+func CreateVote(sVote, tVote []byte, hsVote, htVote uint64, w *wallet.Wallet) protobufs.CasperVote {
 	wal, err := w.GetWallet()
 	if err != nil {
 		log.Fatal(err)
 	}
-	data := []byte(sVote + tVote + fmt.Sprintf("%v", hsVote) + fmt.Sprintf("%v", hsVote) + wal)
+	data := []byte(fmt.Sprintf("%v", sVote) + fmt.Sprintf("%v", tVote) + fmt.Sprintf("%v", hsVote) + fmt.Sprintf("%v", hsVote) + wal)
 	bhash := sha256.Sum256(data)
 	hash := bhash[:]
 	rSign, sSign, _ := w.Sign(hash)
@@ -49,10 +41,10 @@ func CreateVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) pr
 
 // CheckpointAgreement : Every checkpoint there should be an agreement of 2/3 of the validators
 func CheckpointAgreement(b *Blockchain, source, target *protobufs.Block) bool {
-	// if !IsVoteValid(b, source, target) {
-	// 	log.Error("Source and target and not valid")
-	// 	return false
-	// }
+	if !IsVoteValid(b, source, target) {
+		log.Error("Source and target and not valid")
+		return false
+	}
 
 	// The block before the currenctCheckpoint are already justified so there is no need of a checkpoint,
 	// also the checkpoint is every 100 blocks
@@ -146,73 +138,60 @@ func IsVoteValid(b *Blockchain, source, target *protobufs.Block) bool {
 func GetCanonialBlockchain() {
 }
 
-// CheckUserVote check that a validator must not vote within the span of its other votes
-// return if its valid and if the signature are right
-func CheckUserVote(vote1, vote2 *protobufs.CasperVote) (bool, bool) {
-	// check the signature of the votes
-	dataVote1 := []byte(string(vote1.Source) + string(vote1.Target) + fmt.Sprintf("%v", vote1.SourceHeight) + fmt.Sprintf("%v", vote1.TargetHeight) + string(vote1.PublicKey))
-	bhash1 := sha256.Sum256(dataVote1)
-	hash1 := bhash1[:]
-	dataVote2 := []byte(string(vote2.Source) + string(vote2.Target) + fmt.Sprintf("%v", vote2.SourceHeight) + fmt.Sprintf("%v", vote2.TargetHeight) + string(vote2.PublicKey))
-	bhash2 := sha256.Sum256(dataVote2)
-	hash2 := bhash2[:]
+// // CheckUserVote check that a validator must not vote within the span of its other votes
+// // return if its valid and if the signature are right
+// func CheckUserVote(vote1, vote2 *protobufs.CasperVote) (bool, bool) {
+// 	// check the signature of the votes
+// 	dataVote1 := []byte(string(vote1.Source) + string(vote1.Target) + fmt.Sprintf("%v", vote1.SourceHeight) + fmt.Sprintf("%v", vote1.TargetHeight) + string(vote1.PublicKey))
+// 	bhash1 := sha256.Sum256(dataVote1)
+// 	hash1 := bhash1[:]
+// 	dataVote2 := []byte(string(vote2.Source) + string(vote2.Target) + fmt.Sprintf("%v", vote2.SourceHeight) + fmt.Sprintf("%v", vote2.TargetHeight) + string(vote2.PublicKey))
+// 	bhash2 := sha256.Sum256(dataVote2)
+// 	hash2 := bhash2[:]
 
-	verifyVote1, err1 := wallet.SignatureValid(vote1.GetPublicKey(), vote1.GetR(), vote1.GetS(), hash1)
-	verifyVote2, err2 := wallet.SignatureValid(vote2.GetPublicKey(), vote2.GetR(), vote2.GetS(), hash2)
-	if err1 != nil || err2 != nil {
-		log.Error("Check SignatureValid failed")
-		return false, false
+// 	verifyVote1, err1 := wallet.SignatureValid(vote1.GetPublicKey(), vote1.GetR(), vote1.GetS(), hash1)
+// 	verifyVote2, err2 := wallet.SignatureValid(vote2.GetPublicKey(), vote2.GetR(), vote2.GetS(), hash2)
+// 	if err1 != nil || err2 != nil {
+// 		log.Error("Check SignatureValid failed")
+// 		return false, false
+// 	}
+// 	if string(vote1.PublicKey) != string(vote2.PublicKey) || !verifyVote1 || !verifyVote2 {
+// 		log.Warning("slashing to the client that have request the CheckUserVote becuase the votes are fake")
+// 		return false, true
+// 	}
+
+// 	// h(s1) < h(s2) < h(t2) < h(t1)
+// 	if vote1.GetSourceHeight() < vote2.GetSourceHeight() &&
+// 		vote2.GetSourceHeight() < vote2.GetTargetHeight() &&
+// 		vote2.GetTargetHeight() < vote1.GetTargetHeight() {
+// 		return false, false
+// 	}
+// 	return true, false
+// }
+
+var receivedVotes []*protobufs.CasperVote
+
+// AddVote add a vote in receivedVotes and put it on the db
+func (bc *Blockchain) AddVote(vote *protobufs.CasperVote) error {
+	if !bc.Validators.CheckIsValidator(vote.GetPublicKey()) {
+		return nil
 	}
-	if string(vote1.PublicKey) != string(vote2.PublicKey) || !verifyVote1 || !verifyVote2 {
-		log.Warning("slashing to the client that have request the CheckUserVote becuase the votes are fake")
-		return false, true
-	}
+	receivedVotes = append(receivedVotes, vote)
 
-	// h(s1) < h(s2) < h(t2) < h(t1)
-	if vote1.GetSourceHeight() < vote2.GetSourceHeight() &&
-		vote2.GetSourceHeight() < vote2.GetTargetHeight() &&
-		vote2.GetTargetHeight() < vote1.GetTargetHeight() {
-		return false, false
-	}
-	return true, false
-}
-
-// CasperVotesDB contains the leveldb of the casper votes
-// TODO use sharding
-type CasperVotesDB struct {
-	VotesDb *leveldb.DB
-	Index   int
-}
-
-// NewCasperDb creates a database db for casper votes
-func NewCasperDb(dbPath string) (*CasperVotesDB, error) {
-	db, err := leveldb.OpenFile(dbPath, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &CasperVotesDB{db, 0}, err
-}
-
-// SaveCasperVote saves a casper vote inside the CasperVotesDB db
-func (cv *CasperVotesDB) SaveCasperVote(vote *protobufs.CasperVote) error {
-	cv.Index++
 	res, err := proto.Marshal(vote)
 	if err != nil {
 		return err
 	}
-	// save the CasperVote struct as an array of byte from a string
-	return cv.VotesDb.Put([]byte(string(cv.Index)), res, nil)
+	return bc.CasperVotesDb.Put([]byte(string(bc.CurrectVote)), res, nil)
 }
 
-// GetCasperVote get a casper vote inside the CasperVotesDB db
-func (cv *CasperVotesDB) GetCasperVote(index int) (protobufs.CasperVote, error) {
-	oldVote, err := cv.VotesDb.Get([]byte(string(index)), nil)
+// GetCasperVote get a casper vote inside CasperVotesDb
+func (bc *Blockchain) GetCasperVote(index int) (protobufs.CasperVote, error) {
+	oldVote, err := bc.CasperVotesDb.Get([]byte(string(index)), nil)
 
 	vote := protobufs.CasperVote{}
 	if err == nil {
 		proto.Unmarshal(oldVote, &vote)
 	}
-
-	// return cv.VotesDb.Get([]byte(string(index)), nil)
 	return vote, err
 }

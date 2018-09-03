@@ -17,10 +17,11 @@ import (
 
 // Blockchain is an internal representation of a blockchain
 type Blockchain struct {
-	balancesDb *leveldb.DB
-	blockDb    *leveldb.DB
-	ContractDb *leveldb.DB
-	StateDb    *leveldb.DB
+	balancesDb    *leveldb.DB
+	blockDb       *leveldb.DB
+	ContractDb    *leveldb.DB
+	StateDb       *leveldb.DB
+	CasperVotesDb *leveldb.DB
 
 	Mempool    *mempool
 	Validators *ValidatorsBook
@@ -30,6 +31,7 @@ type Blockchain struct {
 	CurrentBlock      uint64
 	CurrentCheckpoint uint64
 	CurrentValidator  string
+	CurrectVote       uint64
 }
 
 // NewBlockchain creates a database db
@@ -54,22 +56,29 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		return nil, err
 	}
 
+	cvdb, err := leveldb.OpenFile(dbPath+".votes", nil)
+	if err != nil {
+		return nil, err
+	}
+
 	// 1MB blocks
 	mp := newMempool(1000000, 100)
 
 	vd := NewValidatorsBook()
 
 	return &Blockchain{
-		balancesDb: db,
-		blockDb:    dbb,
-		ContractDb: cdb,
-		StateDb:    sdb,
+		balancesDb:    db,
+		blockDb:       dbb,
+		ContractDb:    cdb,
+		StateDb:       sdb,
+		CasperVotesDb: cvdb,
 
 		Mempool:    mp,
 		Validators: &vd,
 
 		CurrentBlock:      index,
 		CurrentCheckpoint: 0,
+		CurrectVote:       0,
 	}, err
 }
 

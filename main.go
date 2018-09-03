@@ -88,11 +88,6 @@ func main() {
 					log.Fatal("blockchain", err)
 				}
 
-				cv, err := blockchain.NewCasperDb(user.HomeDir + "/.dexm.votes")
-				if err != nil {
-					log.Fatal("caspervote", err)
-				}
-
 				log.Info("Adding genesis block...")
 
 				log.Info(time.Now().Unix())

@@ -2,13 +2,14 @@ package networking
 
 import (
 	bcp "github.com/dexm-coin/protobufs/build/blockchain"
-	protobufs "github.com/dexm-coin/protobufs/build/network"
+	protoBlockchain "github.com/dexm-coin/protobufs/build/blockchain"
+	protoNetwork "github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 )
 
 func (cs *ConnectionStore) handleBroadcast(data []byte) error {
-	broadcastEnvelope := &protobufs.Broadcast{}
+	broadcastEnvelope := &protoNetwork.Broadcast{}
 	err := proto.Unmarshal(data, broadcastEnvelope)
 	if err != nil {
 		return err
@@ -18,12 +19,12 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 
 	switch broadcastEnvelope.GetType() {
 	// Register a new transaction to the mempool
-	case protobufs.Broadcast_TRANSACTION:
+	case protoNetwork.Broadcast_TRANSACTION:
 		log.Printf("New Transaction: %x", broadcastEnvelope.GetData())
 		cs.bc.AddMempoolTransaction(broadcastEnvelope.GetData())
 
 	// Save a block proposed by a validator TODO Verify turn and identity
-	case protobufs.Broadcast_BLOCK_PROPOSAL:
+	case protoNetwork.Broadcast_BLOCK_PROPOSAL:
 		log.Printf("New Block: %x", broadcastEnvelope.GetData())
 
 		block := &bcp.Block{}
@@ -35,16 +36,20 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 		cs.bc.SaveBlock(block)
 		cs.bc.ImportBlock(block)
 
-	case protobufs.Broadcast_CHECKPOINT_VOTE:
+	case protoNetwork.Broadcast_CHECKPOINT_VOTE:
 		log.Printf("New CasperVote: %x", broadcastEnvelope.GetData())
 
-		vote := &protobufs.CasperVote{}
+		vote := &protoBlockchain.CasperVote{}
 		err := proto.Unmarshal(broadcastEnvelope.GetData(), vote)
 		if err != nil {
 			return err
 		}
 		if cs.bc.Validators.CheckIsValidator(vote.PublicKey) {
-			AddVote(vote)
+			err := cs.bc.AddVote(vote)
+			if err != nil {
+				return err
+			}
+			cs.bc.CurrectVote++
 		}
 	}
 	return nil
