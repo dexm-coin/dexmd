@@ -31,6 +31,16 @@ func NewValidatorsBook() (v ValidatorsBook) {
 	return newVB
 }
 
+// CheckIsValidator check if wallet is inside the valsArray
+func (v *ValidatorsBook) CheckIsValidator(wallet string) bool {
+	for _, validator := range v.valsArray {
+		if validator.wallet == wallet {
+			return true
+		}
+	}
+	return false
+}
+
 // ImportValidatorsBook creates a new ValidatorsBook from the content of the database
 func ImportValidatorsBook(dbPath string) (v *ValidatorsBook, err error) {
 	newVB := NewValidatorsBook()
@@ -136,6 +146,10 @@ func (v *ValidatorsBook) GetStake(wallet string) (stake uint64, err error) {
 func (v *ValidatorsBook) ChooseValidator(seed int64) (luckyone string, err error) {
 	sort.Sort(v)
 	rand.Seed(seed)
+	if float64(v.totalstake) < 1 {
+		return "", errors.New("Not enough stake")
+	}
+	
 	level := rand.Float64() * float64(v.totalstake)
 	var counter uint64
 	for _, val := range v.valsArray {

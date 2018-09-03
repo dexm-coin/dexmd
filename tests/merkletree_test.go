@@ -17,12 +17,12 @@ func TestGenerationMerkleTree(t *testing.T) {
 
 	// This will get your transaction rejected by the network on the real chain
 	w1.Balance = 10000
-	transaction1, _ := w1.NewTransaction(recipient, 100, 1)
-	transaction2, _ := w1.NewTransaction(recipient, 200, 1)
-	transaction3, _ := w1.NewTransaction(recipient, 300, 1)
-	transaction4, _ := w1.NewTransaction(recipient, 400, 1)
-	transaction5, _ := w1.NewTransaction(recipient, 500, 1)
-	transaction6, _ := w1.NewTransaction(recipient, 600, 1)
+	transaction1, _ := w1.NewTransaction(recipient, 100, 1, []byte{})
+	transaction2, _ := w1.NewTransaction(recipient, 200, 1, []byte{})
+	transaction3, _ := w1.NewTransaction(recipient, 300, 1, []byte{})
+	transaction4, _ := w1.NewTransaction(recipient, 400, 1, []byte{})
+	transaction5, _ := w1.NewTransaction(recipient, 500, 1, []byte{})
+	transaction6, _ := w1.NewTransaction(recipient, 600, 1, []byte{})
 
 	transactions := [][]byte{transaction1, transaction2, transaction3, transaction4, transaction5, transaction6}
 	merkletree, err := blockchain.CreateMerkleTreeFromBytes(transactions)

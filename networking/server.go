@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	maxMessagesSave = 100
+	maxMessagesSave = 500
 )
 
 // ConnectionStore handles peer messaging
@@ -149,7 +149,7 @@ func (cs *ConnectionStore) run() {
 			proto.Unmarshal(env.Data, broadcast)
 
 			broadcast.TTL--
-			if broadcast.TTL < 1 || broadcast.TTL > 32 {
+			if broadcast.TTL < 1 || broadcast.TTL > 64 {
 				log.Info("skip message TTL")
 				continue
 			}
@@ -305,6 +305,79 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 		cs.bc.CurrentBlock++
 
+		wal, err := cs.identity.GetWallet()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if cs.bc.CurrentBlock%101 == 0 && cs.bc.Validators.CheckIsValidator(wal) {
+			souceBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentCheckpoint)
+			if err != nil {
+				log.Fatal(err)
+			}
+			targetBlockByte,, err := cs.bc.GetBlocks(cs.bc.CurrentBlock-1)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			souceBlock := &protobufs.Index{}
+			targetBlock := &protobufs.Index{}
+			proto.Unmarshal(souceBlockByte, souceBlock)
+			proto.Unmarshal(targetBlockByte, targetBlock)
+			
+			if len(souceBlock.Blocks) < 1 || len(targetBlock.Blocks) < 1 {
+				log.Fatal("blocks too short")
+				continue
+			}
+			source := souceBlock.Blocks[0]
+			target := targetBlock.Blocks[0]
+
+			vote := blockchain.CreateVote("", "", cs.bc.CurrentCheckpoint, cs.bc.CurrentBlock-1, wal)
+
+			// go routine che legge da read() tutti i messaggi casper (envepole -> broadcast -> vote)
+			// poi dopo un po' di tempo chiama checkpointagreement con tutti i voti accumulati
+
+			go func () {
+				time.Sleep(1*time.Minute)
+				blockchain.CheckpointAgreement(cs.bc, , )
+			}
+
+			voteBytes, _ := proto.Marshal(vote)
+			pub, _ := cs.identity.GetPubKey()
+			bhash := sha256.Sum256(voteBytes)
+			hash := bhash[:]
+
+			r, s, err := cs.identity.Sign(hash)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			signature := &network.Signature{
+				Pubkey: pub,
+				R:      r.Bytes(),
+				S:      s.Bytes(),
+				Data:   hash,
+			}
+
+			broadcast := &network.Broadcast{
+				Data:     voteBytes,
+				Type:     network.Broadcast_CHECKPOINT_VOTE,
+				Identity: signature,
+				TTL:      64,
+			}
+
+			broadcastBytes, _ := proto.Marshal(broadcast)
+
+			env := &network.Envelope{
+				Data: broadcastBytes,
+				Type: network.Envelope_BROADCAST,
+			}
+
+			data, _ := proto.Marshal(env)
+
+			cs.broadcast <- data
+		}
+
 		validator, err := cs.bc.Validators.ChooseValidator(int64(cs.bc.CurrentBlock))
 		if err != nil {
 			log.Fatal(err)
@@ -312,11 +385,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 		// Start accepting the block from the new validator
 		cs.bc.CurrentValidator = validator
-
-		wal, err := cs.identity.GetWallet()
-		if err != nil {
-			log.Fatal(err)
-		}
 
 		// If this node is the validator then generate a block and sign it
 		if wal == validator {
@@ -353,7 +421,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				Data:     blockBytes,
 				Type:     network.Broadcast_BLOCK_PROPOSAL,
 				Identity: signature,
-				TTL:      32,
+				TTL:      64,
 			}
 
 			broadcastBytes, _ := proto.Marshal(broadcast)

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/user"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -87,6 +88,11 @@ func main() {
 					log.Fatal("blockchain", err)
 				}
 
+				cv, err := blockchain.NewCasperDb(user.HomeDir + "/.dexm.votes")
+				if err != nil {
+					log.Fatal("caspervote", err)
+				}
+
 				log.Info("Adding genesis block...")
 
 				log.Info(time.Now().Unix())
@@ -109,7 +115,6 @@ func main() {
 					b,
 					w,
 				)
-
 				if err != nil {
 					log.Fatal("start", err)
 				}
@@ -191,7 +196,6 @@ func main() {
 
 					req := &network.Request{
 						Type: network.Request_GET_WALLET_STATUS,
-						// Index: uint64(rand.Intn(100000000)),
 					}
 
 					reqD, _ := proto.Marshal(req)
@@ -206,6 +210,7 @@ func main() {
 					err = conn.WriteMessage(websocket.BinaryMessage, envD)
 					if err != nil {
 						log.Fatal(err)
+						continue
 					}
 
 					senderAddr, _ := senderWallet.GetWallet()
@@ -219,12 +224,14 @@ func main() {
 					err = conn.WriteMessage(websocket.BinaryMessage, []byte(senderAddrD))
 					if err != nil {
 						log.Fatal(err)
+						continue
 					}
 
 					// Parse the message and save the new state
 					_, msg, err := conn.ReadMessage()
 					if err != nil {
 						log.Fatal(err)
+						continue
 					}
 
 					walletEnv := &network.Envelope{}
@@ -246,12 +253,20 @@ func main() {
 					trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata)
 					if err != nil {
 						log.Fatal(err)
+						continue
 					}
 
+					// signature := &network.Signature{
+					// 	Pubkey: pub,
+					// 	R:      r.Bytes(),
+					// 	S:      s.Bytes(),
+					// 	Data:   hash,
+					// }
 					trBroad := &network.Broadcast{
 						Type: network.Broadcast_TRANSACTION,
 						Data: trans,
-						TTL:  32,
+						// identity
+						TTL: 64,
 					}
 
 					brD, _ := proto.Marshal(trBroad)
@@ -320,13 +335,12 @@ func main() {
 
 		{
 			Name:    "makevanitywallet",
-			Usage:   "mvw [wallet] [regex]",
+			Usage:   "mvw [filename] [regex] [cores]",
 			Aliases: []string{"mvw", "mv"},
 			Action: func(c *cli.Context) error {
-				log.Info("Dexm uses Base58 encoding, only chars allowed are 123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
 
-				vanity := c.Args().Get(1)
 				userWallet := c.Args().Get(0)
+				vanity := c.Args().Get(1)
 				cores, err := strconv.Atoi(c.Args().Get(2))
 
 				if err != nil {
@@ -336,6 +350,20 @@ func main() {
 
 				if c.Args().Get(0) == "" {
 					log.Fatal("Invalid filename")
+					return nil
+				}
+
+				if len(vanity) > 50 {
+					log.Fatal("Regex too long")
+					return nil
+				}
+
+				for _, letter := range vanity {
+					correct := strings.Contains("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", string(letter))
+					if !correct {
+						log.Error("Dexm uses Base58 encoding, only chars allowed are 123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
+						return nil
+					}
 				}
 
 				vainityFound := false

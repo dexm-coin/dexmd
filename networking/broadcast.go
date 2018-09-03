@@ -34,7 +34,18 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 
 		cs.bc.SaveBlock(block)
 		cs.bc.ImportBlock(block)
-	}
 
+	case protobufs.Broadcast_CHECKPOINT_VOTE:
+		log.Printf("New CasperVote: %x", broadcastEnvelope.GetData())
+
+		vote := &protobufs.CasperVote{}
+		err := proto.Unmarshal(broadcastEnvelope.GetData(), vote)
+		if err != nil {
+			return err
+		}
+		if cs.bc.Validators.CheckIsValidator(vote.PublicKey) {
+			AddVote(vote)
+		}
+	}
 	return nil
 }

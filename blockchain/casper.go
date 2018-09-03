@@ -13,6 +13,13 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
+var receivedVotes []*protobufs.CasperVote
+
+func (cv *CasperVotesDB) AddVote(vote *protobufs.CasperVote) {
+	receivedVotes = append(receivedVotes, vote)
+	cv.SaveCasperVote(vote)
+}
+
 // CreateVote : Create a vote based on casper Vote struct
 // CasperVote:
 // - Source -> hash of the source block
@@ -21,28 +28,32 @@ import (
 // - TargetHeight -> height of t
 // - R, S -> signature of <s, t, h(s), h(t)> with validator private key
 func CreateVote(sVote, tVote string, hsVote, htVote uint64, w *wallet.Wallet) protobufs.CasperVote {
-	pub, _ := w.GetPubKey()
-	data := []byte(sVote + tVote + fmt.Sprintf("%v", hsVote) + fmt.Sprintf("%v", hsVote) + string(pub))
+	wal, err := w.GetWallet()
+	if err != nil {
+		log.Fatal(err)
+	}
+	data := []byte(sVote + tVote + fmt.Sprintf("%v", hsVote) + fmt.Sprintf("%v", hsVote) + wal)
 	bhash := sha256.Sum256(data)
 	hash := bhash[:]
 	rSign, sSign, _ := w.Sign(hash)
 	return protobufs.CasperVote{
-		Source:       []byte(sVote),
-		Target:       []byte(tVote),
+		Source:       sVote,
+		Target:       tVote,
 		SourceHeight: hsVote,
 		TargetHeight: htVote,
 		R:            rSign.Bytes(),
 		S:            sSign.Bytes(),
-		PublicKey:    pub,
+		PublicKey:    wal,
 	}
 }
 
 // CheckpointAgreement : Every checkpoint there should be an agreement of 2/3 of the validators
-func CheckpointAgreement(b *Blockchain, votes *[]protobufs.CasperVote, source, target *protobufs.Block) bool {
-	if !IsVoteValid(b, source, target) {
-		log.Error("Source and target and not valid")
-		return false
-	}
+func CheckpointAgreement(b *Blockchain, source, target *protobufs.Block) bool {
+	// if !IsVoteValid(b, source, target) {
+	// 	log.Error("Source and target and not valid")
+	// 	return false
+	// }
+
 	// The block before the currenctCheckpoint are already justified so there is no need of a checkpoint,
 	// also the checkpoint is every 100 blocks
 	if target.GetIndex() <= b.CurrentCheckpoint && target.GetIndex()%100 != 0 {
@@ -51,7 +62,7 @@ func CheckpointAgreement(b *Blockchain, votes *[]protobufs.CasperVote, source, t
 
 	mapVote := make(map[string][]uint64)
 	var userToRemove []string
-	for _, vote := range *votes {
+	for _, vote := range receivedVotes {
 		if vote.GetSourceHeight() != source.GetIndex() {
 			continue
 		}
@@ -166,24 +177,24 @@ func CheckUserVote(vote1, vote2 *protobufs.CasperVote) (bool, bool) {
 	return true, false
 }
 
-// DbCasperVotes contains the leveldb of the casper votes
+// CasperVotesDB contains the leveldb of the casper votes
 // TODO use sharding
-type DbCasperVotes struct {
+type CasperVotesDB struct {
 	VotesDb *leveldb.DB
 	Index   int
 }
 
 // NewCasperDb creates a database db for casper votes
-func NewCasperDb(dbPath string) (*DbCasperVotes, error) {
+func NewCasperDb(dbPath string) (*CasperVotesDB, error) {
 	db, err := leveldb.OpenFile(dbPath, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &DbCasperVotes{db, 0}, err
+	return &CasperVotesDB{db, 0}, err
 }
 
-// SaveCasperVote saves a casper vote inside the DbCasperVotes db
-func (cv *DbCasperVotes) SaveCasperVote(vote *protobufs.CasperVote) error {
+// SaveCasperVote saves a casper vote inside the CasperVotesDB db
+func (cv *CasperVotesDB) SaveCasperVote(vote *protobufs.CasperVote) error {
 	cv.Index++
 	res, err := proto.Marshal(vote)
 	if err != nil {
@@ -193,8 +204,8 @@ func (cv *DbCasperVotes) SaveCasperVote(vote *protobufs.CasperVote) error {
 	return cv.VotesDb.Put([]byte(string(cv.Index)), res, nil)
 }
 
-// GetCasperVote get a casper vote inside the DbCasperVotes db
-func (cv *DbCasperVotes) GetCasperVote(index int) (protobufs.CasperVote, error) {
+// GetCasperVote get a casper vote inside the CasperVotesDB db
+func (cv *CasperVotesDB) GetCasperVote(index int) (protobufs.CasperVote, error) {
 	oldVote, err := cv.VotesDb.Get([]byte(string(index)), nil)
 
 	vote := protobufs.CasperVote{}

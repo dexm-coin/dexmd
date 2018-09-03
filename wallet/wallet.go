@@ -21,6 +21,7 @@ import (
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 	"github.com/gopherjs/gopherjs/js"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -308,7 +309,7 @@ func GenerateVanityWallet(vanity string, userWallet string, vainityFound *bool, 
 		wallString, _ := wal.GetWallet()
 
 		if wallString[:4+len(vanity)] == "Dexm"+vanity {
-			// log.Info("Found wallet: ", wallString)
+			log.Info("Found wallet: ", wallString)
 			wal.ExportWallet(userWallet)
 
 			*vainityFound = true

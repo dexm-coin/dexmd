@@ -46,7 +46,7 @@ func TestTransaction(t *testing.T) {
 
 	// Don't do this, it will get rejected by the network
 	w.Balance = 1337
-	res, err := w.NewTransaction("DexmPoS", 10, 10)
+	res, err := w.NewTransaction("DexmPoS", 10, 10, []byte{})
 	if err != nil {
 		t.Error(err)
 	}
