@@ -42,14 +42,16 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 		vote := &protoBlockchain.CasperVote{}
 		err := proto.Unmarshal(broadcastEnvelope.GetData(), vote)
 		if err != nil {
+			log.Error(err)
 			return err
 		}
 		if cs.bc.Validators.CheckIsValidator(vote.PublicKey) {
 			err := cs.bc.AddVote(vote)
 			if err != nil {
+				log.Error(err)
 				return err
 			}
-			cs.bc.CurrectVote++
+			cs.bc.CurrentVote++
 		}
 	}
 	return nil

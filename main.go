@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"os/user"
 	"strconv"
 	"strings"
 	"sync"
@@ -74,16 +73,16 @@ func main() {
 				}
 
 				// Find the home folder of the current user
-				user, err := user.Current()
-				if err != nil {
-					log.Fatal("user", err)
-				}
+				// user, err := user.Current()
+				// if err != nil {
+				// 	log.Fatal("user", err)
+				// }
 
 				// Create the dexm folder in case it's not there
-				os.MkdirAll(user.HomeDir+"/.dexm", os.ModePerm)
+				os.MkdirAll(".dexm", os.ModePerm)
 
 				// Create the blockchain database
-				b, err := blockchain.NewBlockchain(user.HomeDir+"/.dexm", 0)
+				b, err := blockchain.NewBlockchain(".dexm", 0)
 				if err != nil {
 					log.Fatal("blockchain", err)
 				}
@@ -292,12 +291,12 @@ func main() {
 				address := c.Args().Get(0)
 
 				// Find the home folder of the current user
-				user, err := user.Current()
-				if err != nil {
-					log.Fatal(err)
-				}
+				// user, err := user.Current()
+				// if err != nil {
+				// 	log.Fatal(err)
+				// }
 
-				b, err := blockchain.NewBlockchain(user.HomeDir+"/.dexm", 0)
+				b, err := blockchain.NewBlockchain(".dexm", 0)
 				if err != nil {
 					log.Fatal(err)
 					return nil

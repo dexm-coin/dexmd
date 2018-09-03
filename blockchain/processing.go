@@ -31,7 +31,7 @@ type Blockchain struct {
 	CurrentBlock      uint64
 	CurrentCheckpoint uint64
 	CurrentValidator  string
-	CurrectVote       uint64
+	CurrentVote       uint64
 }
 
 // NewBlockchain creates a database db
@@ -78,7 +78,7 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 
 		CurrentBlock:      index,
 		CurrentCheckpoint: 0,
-		CurrectVote:       0,
+		CurrentVote:       0,
 	}, err
 }
 

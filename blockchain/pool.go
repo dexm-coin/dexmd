@@ -52,17 +52,18 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 	hash := []byte{}
 
 	if bc.CurrentBlock != 0 {
-		var currBlocks []byte
-		var err error
-
 		// There may be holes in the blockchain. Keep going till you find a block
-		for i := bc.CurrentBlock - 1; err != nil; i-- {
-			currBlocks, err = bc.GetBlocks(i)
+		// for i := bc.CurrentBlock - 1; err != nil; i-- {
+		// 	currBlocks, err = bc.GetBlocks(i)
+		// }
+
+		currBlocks, err := bc.GetBlocks(bc.CurrentBlock - 1)
+		if err != nil {
+			log.Error(err)
 		}
 
 		index := &protobufs.Index{}
 		proto.Unmarshal(currBlocks, index)
-
 		if len(index.GetBlocks()) != 0 {
 			selectedBlock := index.GetBlocks()[0]
 

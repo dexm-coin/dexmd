@@ -311,15 +311,19 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			log.Fatal(err)
 		}
 
-		if cs.bc.CurrentBlock%6 == 0 {
+		if cs.bc.CurrentBlock != 0 && cs.bc.CurrentBlock%6 == 0 {
 			// get source and target block in the blockchain
 			souceBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentCheckpoint)
 			if err != nil {
+				log.Fatal("souceBlockByte")
 				log.Fatal(err)
+				continue
 			}
 			targetBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentBlock - 1)
 			if err != nil {
+				log.Fatal("targetBlockByte")
 				log.Fatal(err)
+				continue
 			}
 
 			souceBlock := &protoBlockchain.Index{}
@@ -331,6 +335,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				log.Fatal("blocks too short")
 				continue
 			}
+
 			source := souceBlock.Blocks[0]
 			target := targetBlock.Blocks[0]
 
@@ -353,9 +358,11 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 			// read all the incoming vote and store it, after 1 minut call CheckpointAgreement
 			go func() {
+				currentBlockCheckpoint := cs.bc.CurrentBlock - 1
 				// time.Sleep(1*time.Minute)
 				time.Sleep(15 * time.Second)
-				blockchain.CheckpointAgreement(cs.bc, source, target)
+				check := blockchain.CheckpointAgreement(cs.bc, cs.bc.CurrentCheckpoint, currentBlockCheckpoint)
+				log.Info("check ", check)
 			}()
 
 			voteBytes, _ := proto.Marshal(&vote)
@@ -403,7 +410,8 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		cs.bc.CurrentValidator = validator
 
 		// If this node is the validator then generate a block and sign it
-		if wal == validator {
+		// TODO delete true
+		if wal == validator || true {
 			block, err := cs.bc.GenerateBlock(wal)
 			if err != nil {
 				log.Fatal(err)

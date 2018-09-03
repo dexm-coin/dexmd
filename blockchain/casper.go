@@ -12,6 +12,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var receivedVotes []*protobufs.CasperVote
+
 // CreateVote : Create a vote based on casper Vote struct
 // CasperVote:
 // - Source -> hash of the source block
@@ -40,28 +42,29 @@ func CreateVote(sVote, tVote []byte, hsVote, htVote uint64, w *wallet.Wallet) pr
 }
 
 // CheckpointAgreement : Every checkpoint there should be an agreement of 2/3 of the validators
-func CheckpointAgreement(b *Blockchain, source, target *protobufs.Block) bool {
-	if !IsVoteValid(b, source, target) {
-		log.Error("Source and target and not valid")
-		return false
-	}
-
+func CheckpointAgreement(b *Blockchain, SourceHeight, TargetHeight uint64) bool {
 	// The block before the currenctCheckpoint are already justified so there is no need of a checkpoint,
 	// also the checkpoint is every 100 blocks
-	if target.GetIndex() <= b.CurrentCheckpoint && target.GetIndex()%100 != 0 {
-		return false
-	}
+	// if target.GetIndex() <= b.CurrentCheckpoint && target.GetIndex()%100 != 0 {
+	// 	return false
+	// }
 
 	mapVote := make(map[string][]uint64)
 	var userToRemove []string
+	log.Info("recevied votes ", receivedVotes)
 	for _, vote := range receivedVotes {
-		if vote.GetSourceHeight() != source.GetIndex() {
+		if vote.GetSourceHeight() != SourceHeight {
 			continue
 		}
 		currTargetHeight := vote.GetTargetHeight()
-		if currTargetHeight != target.GetIndex() {
+		if currTargetHeight != TargetHeight {
 			continue
 		}
+		if !IsVoteValid(b, vote.GetSource(), vote.GetTarget(), vote.GetTargetHeight()) {
+			log.Error("Source and target and not valid")
+			return false
+		}
+		log.Info("vote passed 2")
 
 		pubKey := string(vote.PublicKey)
 		// check if there are multiple votes of the same person
@@ -81,17 +84,18 @@ func CheckpointAgreement(b *Blockchain, source, target *protobufs.Block) bool {
 		delete(mapVote, user)
 	}
 
+	receivedVotes = []*protobufs.CasperVote{}
+
 	// TODO with the forks this is wrong
 	if len(mapVote) > 2*len(b.Validators.valsArray)/3 {
-		b.CurrentCheckpoint = target.GetIndex()
+		b.CurrentCheckpoint = TargetHeight
 		return true
 	}
 	return false
 }
 
 // IsJustified : A block is justified if is the root or if it's between 2 checkpoint
-func IsJustified(b *Blockchain, block *protobufs.Block) bool {
-	index := block.GetIndex()
+func IsJustified(b *Blockchain, index uint64) bool {
 	if index > b.CurrentCheckpoint {
 		return false
 	}
@@ -99,36 +103,62 @@ func IsJustified(b *Blockchain, block *protobufs.Block) bool {
 }
 
 // IsVoteValid check if s is an ancestor of t in the chain
-func IsVoteValid(b *Blockchain, source, target *protobufs.Block) bool {
+func IsVoteValid(b *Blockchain, sourceHash, targetHash []byte, TargetHeight uint64) bool {
 	if len(b.Validators.valsArray) < 1 {
 		log.Error("No validators")
 		return false
 	}
+	
 
-	prevHash := target.PrevHash
-	for i := target.Index - 1; i > 0; i-- {
+	targetByte, _ := b.blockDb.Get([]byte(string(TargetHeight)), nil)
+	target := &protobufs.Index{}
+	proto.Unmarshal(targetByte, target)
+
+	var prevHash []byte
+	for _, block := range target.GetBlocks() {
+		byteBlock, _ := proto.Marshal(block)
+		bhash := sha256.Sum256(byteBlock)
+		currentHash := bhash[:]
+		equal := reflect.DeepEqual(currentHash, targetHash)
+		if equal {
+			prevHash = block.GetPrevHash()
+			break
+		}
+	}
+	if len(prevHash) < 1 {
+		log.Error("len(prevHash)")
+		return false
+	}
+
+	log.Info("IsVoteValid")
+	for i := TargetHeight - 1; i >= 0; i-- {
+		log.Info(i)
 		byteBlock, _ := b.blockDb.Get([]byte(string(i)), nil)
 		blocks := &blockchain.Index{}
 		proto.Unmarshal(byteBlock, blocks)
 
 		for _, block := range blocks.GetBlocks() {
-			// check untill the fist checkpoint
-			if IsJustified(b, block) {
-				return false
-			}
-
-			byteBlock := []byte(fmt.Sprintf("%v", block))
+			byteBlock, _ := proto.Marshal(block)
 			bhash := sha256.Sum256(byteBlock)
 			currentHash := bhash[:]
 			equal := reflect.DeepEqual(prevHash, currentHash)
-			if block == source && equal {
+			isTheSource := reflect.DeepEqual(currentHash, sourceHash)
+			if isTheSource && equal {
 				return true
 			}
 			if equal {
+				log.Info("equal 2")
 				prevHash = block.PrevHash
+				break
 			}
 		}
+		// check untill the fist checkpoint
+		if IsJustified(b, i) {
+			log.Error("IsJustified failed")
+			return false
+		}
 	}
+	log.Error("Exit from loop casper")
 	return false
 }
 
@@ -169,8 +199,6 @@ func GetCanonialBlockchain() {
 // 	return true, false
 // }
 
-var receivedVotes []*protobufs.CasperVote
-
 // AddVote add a vote in receivedVotes and put it on the db
 func (bc *Blockchain) AddVote(vote *protobufs.CasperVote) error {
 	if !bc.Validators.CheckIsValidator(vote.GetPublicKey()) {
@@ -182,7 +210,7 @@ func (bc *Blockchain) AddVote(vote *protobufs.CasperVote) error {
 	if err != nil {
 		return err
 	}
-	return bc.CasperVotesDb.Put([]byte(string(bc.CurrectVote)), res, nil)
+	return bc.CasperVotesDb.Put([]byte(string(bc.CurrentVote)), res, nil)
 }
 
 // GetCasperVote get a casper vote inside CasperVotesDb
