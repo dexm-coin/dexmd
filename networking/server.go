@@ -312,83 +312,86 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		}
 
 		if cs.bc.CurrentBlock%101 == 0 {
-			// get source and target block in the blockchain
-			souceBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentCheckpoint)
-			if err != nil {
-				log.Fatal(err)
-				continue
+			// check if it is a validator, also check that the dynasty are correct
+			if cs.bc.Validators.CheckDynasty(wal, cs.bc.CurrentBlock) {
+				// get source and target block in the blockchain
+				souceBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentCheckpoint)
+				if err != nil {
+					log.Fatal(err)
+					continue
+				}
+				targetBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentBlock - 1)
+				if err != nil {
+					log.Fatal(err)
+					continue
+				}
+
+				souceBlock := &protoBlockchain.Index{}
+				targetBlock := &protoBlockchain.Index{}
+				proto.Unmarshal(souceBlockByte, souceBlock)
+				proto.Unmarshal(targetBlockByte, targetBlock)
+
+				if len(souceBlock.Blocks) < 1 || len(targetBlock.Blocks) < 1 {
+					log.Fatal("blocks too short")
+					continue
+				}
+
+				source := souceBlock.Blocks[0]
+				target := targetBlock.Blocks[0]
+
+				MarshalSource, _ := proto.Marshal(source)
+				bhash1 := sha256.Sum256(MarshalSource)
+				hashSource := bhash1[:]
+				MarshalTarget, _ := proto.Marshal(target)
+				bhash2 := sha256.Sum256(MarshalTarget)
+				hashTarget := bhash2[:]
+
+				vote := blockchain.CreateVote(hashSource, hashTarget, cs.bc.CurrentCheckpoint, cs.bc.CurrentBlock-1, cs.identity)
+
+				// read all the incoming vote and store it, after 1 minut call CheckpointAgreement
+				go func() {
+					currentBlockCheckpoint := cs.bc.CurrentBlock - 1
+					time.Sleep(1 * time.Minute)
+					// time.Sleep(15 * time.Second)
+					check := blockchain.CheckpointAgreement(cs.bc, cs.bc.CurrentCheckpoint, currentBlockCheckpoint)
+					log.Info("check ", check)
+				}()
+
+				voteBytes, _ := proto.Marshal(&vote)
+				pub, _ := cs.identity.GetPubKey()
+				bhash := sha256.Sum256(voteBytes)
+				hash := bhash[:]
+
+				r, s, err := cs.identity.Sign(hash)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+				signature := &network.Signature{
+					Pubkey: pub,
+					R:      r.Bytes(),
+					S:      s.Bytes(),
+					Data:   hash,
+				}
+
+				broadcast := &network.Broadcast{
+					Data:     voteBytes,
+					Type:     network.Broadcast_CHECKPOINT_VOTE,
+					Identity: signature,
+					TTL:      64,
+				}
+
+				broadcastBytes, _ := proto.Marshal(broadcast)
+
+				env := &network.Envelope{
+					Type: network.Envelope_BROADCAST,
+					Data: broadcastBytes,
+				}
+
+				data, _ := proto.Marshal(env)
+
+				cs.broadcast <- data
 			}
-			targetBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentBlock - 1)
-			if err != nil {
-				log.Fatal(err)
-				continue
-			}
-
-			souceBlock := &protoBlockchain.Index{}
-			targetBlock := &protoBlockchain.Index{}
-			proto.Unmarshal(souceBlockByte, souceBlock)
-			proto.Unmarshal(targetBlockByte, targetBlock)
-
-			if len(souceBlock.Blocks) < 1 || len(targetBlock.Blocks) < 1 {
-				log.Fatal("blocks too short")
-				continue
-			}
-
-			source := souceBlock.Blocks[0]
-			target := targetBlock.Blocks[0]
-
-			MarshalSource, _ := proto.Marshal(source)
-			bhash1 := sha256.Sum256(MarshalSource)
-			hashSource := bhash1[:]
-			MarshalTarget, _ := proto.Marshal(target)
-			bhash2 := sha256.Sum256(MarshalTarget)
-			hashTarget := bhash2[:]
-
-			vote := blockchain.CreateVote(hashSource, hashTarget, cs.bc.CurrentCheckpoint, cs.bc.CurrentBlock-1, cs.identity)
-
-			// read all the incoming vote and store it, after 1 minut call CheckpointAgreement
-			go func() {
-				currentBlockCheckpoint := cs.bc.CurrentBlock - 1
-				time.Sleep(1 * time.Minute)
-				// time.Sleep(15 * time.Second)
-				check := blockchain.CheckpointAgreement(cs.bc, cs.bc.CurrentCheckpoint, currentBlockCheckpoint)
-				log.Info("check ", check)
-			}()
-
-			voteBytes, _ := proto.Marshal(&vote)
-			pub, _ := cs.identity.GetPubKey()
-			bhash := sha256.Sum256(voteBytes)
-			hash := bhash[:]
-
-			r, s, err := cs.identity.Sign(hash)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			signature := &network.Signature{
-				Pubkey: pub,
-				R:      r.Bytes(),
-				S:      s.Bytes(),
-				Data:   hash,
-			}
-
-			broadcast := &network.Broadcast{
-				Data:     voteBytes,
-				Type:     network.Broadcast_CHECKPOINT_VOTE,
-				Identity: signature,
-				TTL:      64,
-			}
-
-			broadcastBytes, _ := proto.Marshal(broadcast)
-
-			env := &network.Envelope{
-				Type: network.Envelope_BROADCAST,
-				Data: broadcastBytes,
-			}
-
-			data, _ := proto.Marshal(env)
-
-			cs.broadcast <- data
 		}
 
 		validator, err := cs.bc.Validators.ChooseValidator(int64(cs.bc.CurrentBlock))

@@ -33,6 +33,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			return err
 		}
 
+		// TODO check if the signature of the block that should be cs.bc.CurrentValidator
 		cs.bc.SaveBlock(block)
 		cs.bc.ImportBlock(block)
 
@@ -53,6 +54,18 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			}
 			cs.bc.CurrentVote++
 		}
+
+	case protoNetwork.Broadcast_WITHDRAW:
+		log.Printf("New Withdraw: %x", broadcastEnvelope.GetData())
+
+		withdrawValidator := &protoBlockchain.ValidatorWithdraw{}
+		err := proto.Unmarshal(broadcastEnvelope.GetData(), withdrawValidator)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+
+		cs.bc.Validators.WithdrawValidator(withdrawValidator.GetPublicKey(), int64(cs.bc.CurrentBlock))
 	}
 	return nil
 }

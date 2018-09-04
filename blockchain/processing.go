@@ -74,7 +74,7 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		CasperVotesDb: cvdb,
 
 		Mempool:    mp,
-		Validators: &vd,
+		Validators: vd,
 
 		CurrentBlock:      index,
 		CurrentCheckpoint: 0,
@@ -257,10 +257,10 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 		}
 
 		bc.setState("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", state)
-		bc.Validators.AddValidator("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", 10000)
+		bc.Validators.AddValidator("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", 10000, -300)
 
 		bc.setState("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", state)
-		bc.Validators.AddValidator("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", 10000)
+		bc.Validators.AddValidator("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", 10000, -300)
 		return nil
 	}
 
@@ -280,7 +280,10 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 		}
 
 		if t.GetRecipient() == "DexmPoS" {
-			bc.Validators.AddValidator(sender, t.GetAmount())
+			exist := bc.Validators.AddValidator(sender, t.GetAmount(), int64(bc.CurrentBlock))
+			if exist {
+				log.Info("slash for ", sender)
+			}
 		}
 
 		// Ignore error because if the wallet doesn't exist yet we don't care
