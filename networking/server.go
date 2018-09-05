@@ -394,6 +394,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			}
 		}
 
+		// TODO if the chosen validator don't send the block proposal we skip the CurrentBlock, but if we do that casper if fucked up
 		validator, err := cs.bc.Validators.ChooseValidator(int64(cs.bc.CurrentBlock))
 		if err != nil {
 			log.Fatal(err)

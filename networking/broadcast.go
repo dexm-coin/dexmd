@@ -34,6 +34,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 		}
 
 		// TODO check if the signature of the block that should be cs.bc.CurrentValidator
+		// TODO check the timestamp of the block, if it's "wrong" don't accept it
 		cs.bc.SaveBlock(block)
 		cs.bc.ImportBlock(block)
 
