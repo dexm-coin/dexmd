@@ -9,6 +9,7 @@ import (
 	"sort"
 	// "github.com/syndtr/goleveldb/leveldb"
 	// "github.com/syndtr/goleveldb/leveldb/opt"
+	// log "github.com/sirupsen/logrus"
 )
 
 // ValidatorsBook is a structure that keeps record of every validator and its stake
@@ -26,7 +27,8 @@ type Validator struct {
 
 // NewValidatorsBook creates an empty ValidatorsBook object
 func NewValidatorsBook() (v *ValidatorsBook) {
-	return &ValidatorsBook{}
+	valsArray := make(map[string]*Validator)
+	return &ValidatorsBook{valsArray}
 }
 
 // CheckIsValidator check if wallet is inside the valsArray
