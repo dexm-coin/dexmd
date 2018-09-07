@@ -78,7 +78,7 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 	}
 
 	block := protobufs.Block{
-		Index:     bc.CurrentBlock, // was +1
+		Index:     bc.CurrentBlock,
 		Timestamp: uint64(time.Now().Unix()),
 		Miner:     miner,
 		PrevHash:  hash,

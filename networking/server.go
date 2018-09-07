@@ -170,6 +170,9 @@ func (cs *ConnectionStore) run() {
 				continue
 			}
 
+			if len(cs.clients) < 1 {
+				continue
+			}
 			y := math.Exp(float64(20/len(cs.clients))) - 0.5
 			for k := range cs.clients {
 				if rand.Float64() > y {
@@ -302,6 +305,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 	for {
 		// The validator changes every time the unix timestamp is a multiple of 5
+		// time.Sleep(time.Duration(4-time.Now().Unix()%10) * time.Second)
 		time.Sleep(5 * time.Second)
 
 		cs.bc.CurrentBlock++
@@ -317,12 +321,12 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				// get source and target block in the blockchain
 				souceBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentCheckpoint)
 				if err != nil {
-					log.Fatal(err)
+					log.Fatal("Get block ", err)
 					continue
 				}
 				targetBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentBlock - 1)
 				if err != nil {
-					log.Fatal(err)
+					log.Fatal("Get block ", err)
 					continue
 				}
 
@@ -354,7 +358,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 					time.Sleep(1 * time.Minute)
 					// time.Sleep(15 * time.Second)
 					check := blockchain.CheckpointAgreement(cs.bc, cs.bc.CurrentCheckpoint, currentBlockCheckpoint)
-					log.Info("check ", check)
+					log.Info("CheckpointAgreement ", check)
 				}()
 
 				voteBytes, _ := proto.Marshal(&vote)

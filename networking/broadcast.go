@@ -35,8 +35,14 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 
 		// TODO check if the signature of the block that should be cs.bc.CurrentValidator
 		// TODO check the timestamp of the block, if it's "wrong" don't accept it
-		cs.bc.SaveBlock(block)
-		cs.bc.ImportBlock(block)
+		err = cs.bc.SaveBlock(block)
+		if err != nil {
+			log.Error("error on saving block")
+		}
+		err = cs.bc.ImportBlock(block)
+		if err != nil {
+			log.Error("error on importing block")
+		}
 
 	case protoNetwork.Broadcast_CHECKPOINT_VOTE:
 		log.Printf("New CasperVote: %x", broadcastEnvelope.GetData())
