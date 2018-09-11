@@ -372,6 +372,23 @@ func main() {
 				return nil
 			},
 		},
+
+		/* {
+			Name:    "withdraw",
+			Usage:   "wd [walletPath]",
+			Aliases: []string{"withdraw", "wd"},
+			Action: func(c *cli.Context) error {
+				walletPath := c.Args().Get(0)
+				w, err := wallet.ImportWallet(walletPath)
+				if err != nil {
+					log.Error("import", err)
+					return nil
+				}
+
+
+				return nil
+			},
+		}, */
 	}
 
 	app.Run(os.Args)

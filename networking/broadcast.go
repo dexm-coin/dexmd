@@ -1,6 +1,10 @@
 package networking
 
 import (
+	"crypto/sha256"
+	"errors"
+
+	"github.com/dexm-coin/dexmd/wallet"
 	bcp "github.com/dexm-coin/protobufs/build/blockchain"
 	protoBlockchain "github.com/dexm-coin/protobufs/build/blockchain"
 	protoNetwork "github.com/dexm-coin/protobufs/build/network"
@@ -23,7 +27,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 		log.Printf("New Transaction: %x", broadcastEnvelope.GetData())
 		cs.bc.AddMempoolTransaction(broadcastEnvelope.GetData())
 
-	// Save a block proposed by a validator TODO Verify turn and identity
+	// Save a block proposed by a validator
 	case protoNetwork.Broadcast_BLOCK_PROPOSAL:
 		log.Printf("New Block: %x", broadcastEnvelope.GetData())
 
@@ -33,15 +37,38 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			return err
 		}
 
-		// TODO check if the signature of the block that should be cs.bc.CurrentValidator
-		// TODO check the timestamp of the block, if it's "wrong" don't accept it
+		// save only the block that have cs.bc.currentblock+1
+		if block.Index != cs.bc.CurrentBlock+1 {
+			return errors.New("The index of the block is wrong")
+		}
+
+		// check if the signature of the block that should be cs.bc.CurrentValidator
+		if block.Miner != cs.bc.CurrentValidator {
+			return errors.New("The miner is wrong")
+		}
+		blockBytes, _ := proto.Marshal(block)
+		bhash := sha256.Sum256(blockBytes)
+		hash := bhash[:]
+		r, s, err := cs.identity.Sign(hash)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		verifyBlock, err := wallet.SignatureValid([]byte(cs.bc.CurrentValidator), r.Bytes(), s.Bytes(), hash)
+		if !verifyBlock || err != nil {
+			log.Error("SignatureValid ", err)
+			return err
+		}
+
 		err = cs.bc.SaveBlock(block)
 		if err != nil {
 			log.Error("error on saving block")
+			return err
 		}
 		err = cs.bc.ImportBlock(block)
 		if err != nil {
 			log.Error("error on importing block")
+			return err
 		}
 
 	case protoNetwork.Broadcast_CHECKPOINT_VOTE:
@@ -65,14 +92,14 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 	case protoNetwork.Broadcast_WITHDRAW:
 		log.Printf("New Withdraw: %x", broadcastEnvelope.GetData())
 
-		withdrawValidator := &protoBlockchain.ValidatorWithdraw{}
-		err := proto.Unmarshal(broadcastEnvelope.GetData(), withdrawValidator)
+		withdrawVal := &protoBlockchain.ValidatorWithdraw{}
+		err := proto.Unmarshal(broadcastEnvelope.GetData(), withdrawVal)
 		if err != nil {
 			log.Error(err)
 			return err
 		}
 
-		cs.bc.Validators.WithdrawValidator(withdrawValidator.GetPublicKey(), int64(cs.bc.CurrentBlock))
+		cs.bc.Validators.WithdrawValidator(withdrawVal.GetPublicKey(), withdrawVal.GetR(), withdrawVal.GetS(), int64(cs.bc.CurrentBlock))
 	}
 	return nil
 }

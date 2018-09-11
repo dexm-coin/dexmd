@@ -44,12 +44,6 @@ func CreateVote(sVote, tVote []byte, hsVote, htVote uint64, w *wallet.Wallet) pr
 
 // CheckpointAgreement : Every checkpoint there should be an agreement of 2/3 of the validators
 func CheckpointAgreement(b *Blockchain, SourceHeight, TargetHeight uint64) bool {
-	// The block before the currenctCheckpoint are already justified so there is no need of a checkpoint,
-	// also the checkpoint is every 100 blocks
-	// if target.GetIndex() <= b.CurrentCheckpoint && target.GetIndex()%100 != 0 {
-	// 	return false
-	// }
-
 	mapVote := make(map[string]bool)
 	var userToRemove []string
 	for _, vote := range receivedVotes {
@@ -72,14 +66,6 @@ func CheckpointAgreement(b *Blockchain, SourceHeight, TargetHeight uint64) bool 
 		}
 
 		// check if there are multiple votes of the same person
-		// in all the heigths votes
-		// for _, heigths := range mapVote[pubKey] {
-		// 	if heigths == currTargetHeight {
-		// 		userToRemove = append(userToRemove, pubKey)
-		// 		continue
-		// 	}
-		// }
-		// mapVote[pubKey] = append(mapVote[pubKey], currTargetHeight)
 		if _, ok := mapVote[pubKey]; ok {
 			userToRemove = append(userToRemove, pubKey)
 		}
@@ -170,12 +156,6 @@ func IsVoteValid(b *Blockchain, sourceHash, targetHash []byte, TargetHeight uint
 		}
 	}
 	return false
-}
-
-// TODO
-// GetCanonialBlockchain return the longest chain that is the canonical one
-// I should save feald in protobuf blockchain and use checkpoint agreement to know which is the canonical chain
-func GetCanonialBlockchain() {
 }
 
 /*

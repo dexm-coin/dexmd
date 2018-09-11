@@ -209,6 +209,7 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 		return errors.New("Invalid recipient")
 	}
 
+	// TODO change []byte{} with the hash of the transaction
 	valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), []byte{})
 	if !valid {
 		return err

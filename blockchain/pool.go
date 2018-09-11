@@ -52,11 +52,6 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 	hash := []byte{}
 
 	if bc.CurrentBlock != 0 {
-		// There may be holes in the blockchain. Keep going till you find a block
-		// for i := bc.CurrentBlock - 1; err != nil; i-- {
-		// 	currBlocks, err = bc.GetBlocks(i)
-		// }
-
 		currBlocks, err := bc.GetBlocks(bc.CurrentBlock - 1)
 		if err != nil {
 			log.Error("leveldb ", err)

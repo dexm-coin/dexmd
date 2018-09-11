@@ -124,7 +124,8 @@ func (v *ValidatorsBook) RemoveValidator(wallet string) error {
 }
 
 // WithdrawValidator when a withdraw message arrive change the enddynasy of the wallet
-func (v *ValidatorsBook) WithdrawValidator(wallet string, currentBlock int64) error {
+func (v *ValidatorsBook) WithdrawValidator(wallet string, r, s []byte, currentBlock int64) error {
+	// TODO check signature with r and s
 	if _, ok := v.valsArray[wallet]; ok {
 		v.valsArray[wallet].endDynasty = currentBlock
 		return nil

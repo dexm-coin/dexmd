@@ -398,6 +398,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			}
 		}
 
+		// TODO fare una lista con i wallet che sono stati scelti ma non hanno fatto il blocco, e scartarli al prossimo giro, inoltre non incrementare CurrentBlock se non si ha quel blocco (check in save block)
 		// TODO if the chosen validator don't send the block proposal we skip the CurrentBlock, but if we do that casper if fucked up
 		validator, err := cs.bc.Validators.ChooseValidator(int64(cs.bc.CurrentBlock))
 		if err != nil {
