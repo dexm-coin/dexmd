@@ -82,7 +82,7 @@ func GetPeerList(network string) ([]string, error) {
 	}
 
 	if len(ipsDuplicate) == 0 {
-		ipsDuplicate = append(ipsDuplicate, "35.237.4.164")
+		ipsDuplicate = append(ipsDuplicate, "35.211.241.218")
 	}
 
 	var ips []string
