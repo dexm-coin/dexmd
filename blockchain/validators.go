@@ -42,7 +42,7 @@ func (v *ValidatorsBook) CheckIsValidator(wallet string) bool {
 // CheckDynasty check if the dynasty of wallet are correct
 func (v *ValidatorsBook) CheckDynasty(wallet string, currentBlock uint64) bool {
 	if _, ok := v.valsArray[wallet]; ok {
-		if v.valsArray[wallet].startDynasty >= int64(currentBlock+200) && v.valsArray[wallet].endDynasty <= int64(currentBlock+200) {
+		if v.valsArray[wallet].startDynasty+200 < int64(currentBlock) && (v.valsArray[wallet].endDynasty+200 > int64(currentBlock) || v.valsArray[wallet].endDynasty == -1) {
 			return true
 		}
 	}
@@ -163,7 +163,7 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64) (luckyone string, e
 	totalstake := uint64(0)
 	var ss []simpleValidator
 	for k, val := range v.valsArray {
-		if val.startDynasty < int64(currentBlock+200) || val.endDynasty > int64(currentBlock+200) {
+		if !v.CheckDynasty(val.wallet, uint64(currentBlock)) {
 			continue
 		}
 		ss = append(ss, simpleValidator{k, val.stake})

@@ -52,10 +52,20 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 	hash := []byte{}
 
 	if bc.CurrentBlock != 0 {
-		currBlocks, err := bc.GetBlocks(bc.CurrentBlock - 1)
-		if err != nil {
-			log.Error("leveldb ", err)
+		currBlocks := []byte{}
+		var err error
+		// There may be holes in the blockchain. Keep going till you find a block
+		for i := bc.CurrentBlock - 1; i > 0; i-- {
+			currBlocks, err = bc.GetBlocks(i)
+			if err == nil{
+				break
+			}
 		}
+
+		// currBlocks, err = bc.GetBlocks(bc.CurrentBlock - 1)
+		// if err != nil {
+		// 	log.Error("leveldb ", err)
+		// }
 
 		index := &protobufs.Index{}
 		proto.Unmarshal(currBlocks, index)

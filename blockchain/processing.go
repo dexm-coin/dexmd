@@ -166,6 +166,7 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 
 		// Check if nonce is correct
 		newNonce, ok := util.AddU32O(balance.GetNonce(), uint32(1))
+
 		if t.GetNonce() != newNonce || !ok {
 			return false, errors.New("Invalid nonce in transaction " + strconv.Itoa(i))
 		}
@@ -253,12 +254,20 @@ func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 	if block.GetIndex() == 0 {
 		// A bit of balance to run tests
 		state := &protobufs.AccountState{
-			Balance: 100000,
+			Balance: 20000,
 			Nonce:   0,
 		}
 
 		bc.setState("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", state)
-		bc.Validators.AddValidator("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", 20000, 300)
+		bc.Validators.AddValidator("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", 20000, -300)
+
+		state = &protobufs.AccountState{
+			Balance: 10000,
+			Nonce:   0,
+		}
+
+		bc.setState("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", state)
+		bc.Validators.AddValidator("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", 10000, -300)
 
 		return nil
 	}

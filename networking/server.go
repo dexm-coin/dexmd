@@ -303,17 +303,43 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		time.Sleep(time.Duration(int64(cs.bc.GenesisTimestamp)-time.Now().Unix()) * time.Second)
 	}
 
+	wal, err := cs.identity.GetWallet()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	for {
 		// The validator changes every time the unix timestamp is a multiple of 5
 		// time.Sleep(time.Duration(4-time.Now().Unix()%10) * time.Second)
 		time.Sleep(5 * time.Second)
 
-		cs.bc.CurrentBlock++
+		// TODO
+		// check if the block with index cs.bc.CurrentBlock have been saved, otherwise save an empty block
+		// _, err := cs.bc.GetBlocks(cs.bc.CurrentBlock)
+		// if err != nil {
+		// 	hash := []byte{}
+		// 	index := &protobufs.Index{}
+		// 	proto.Unmarshal(currBlocks, index)
+		// 	if len(index.GetBlocks()) != 0 {
+		// 		selectedBlock := index.GetBlocks()[0]
 
-		wal, err := cs.identity.GetWallet()
-		if err != nil {
-			log.Fatal(err)
-		}
+		// 		blockBytes, err := proto.Marshal(selectedBlock)
+		// 		if err != nil {
+		// 			return nil, err
+		// 		}
+
+		// 		bhash := sha256.Sum256(blockBytes)
+		// 		hash = bhash[:]
+		// 	}
+		// 	block := protobufs.Block{
+		// 		Index:     bc.CurrentBlock,
+		// 		Timestamp: uint64(time.Now().Unix()),
+		// 		Miner:     miner,
+		// 		PrevHash:  hash,
+		// 	}
+		// }
+
+		cs.bc.CurrentBlock++
 
 		if cs.bc.CurrentBlock%101 == 0 {
 			// check if it is a validator, also check that the dynasty are correct
@@ -398,8 +424,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			}
 		}
 
-		// TODO fare una lista con i wallet che sono stati scelti ma non hanno fatto il blocco, e scartarli al prossimo giro, inoltre non incrementare CurrentBlock se non si ha quel blocco (check in save block)
-		// TODO if the chosen validator don't send the block proposal we skip the CurrentBlock, but if we do that casper if fucked up
 		validator, err := cs.bc.Validators.ChooseValidator(int64(cs.bc.CurrentBlock))
 		if err != nil {
 			log.Fatal(err)
