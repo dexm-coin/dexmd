@@ -1,24 +1,22 @@
 package blockchain
 
 import (
-	"reflect"
 	"crypto/sha256"
 	"log"
+	"reflect"
 
 	"github.com/cbergoon/merkletree"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 )
 
-//TestContent implements the Content interface provided by merkletree and represents the content stored in the tree.
-type TestContent struct {
-	x protobufs.Transaction
+type TransactionContent struct {
+	x *protobufs.Transaction
 }
 
-//CalculateHash hashes the values of a TestContent
-func (t TestContent) CalculateHash() ([]byte, error) {
+func (t TransactionContent) CalculateHash() ([]byte, error) {
 	h := sha256.New()
-	result, err := proto.Marshal(&t.x)
+	result, err := proto.Marshal(t.x)
 	if err != nil {
 		return nil, err
 	}
@@ -27,12 +25,27 @@ func (t TestContent) CalculateHash() ([]byte, error) {
 	}
 	return h.Sum(nil), nil
 }
+func (t TransactionContent) Equals(other merkletree.Content) (bool, error) {
+	return reflect.DeepEqual(t.x, other.(TransactionContent).x), nil
+}
 
-//Equals tests for equality of two Contents
-func (t TestContent) Equals(other merkletree.Content) (bool, error) {
-	// hashT, _ := t.CalculateHash()
-	// hashOther, _ := other.CalculateHash()
-	return reflect.DeepEqual(t.x, other.(TestContent).x), nil
+type ReceiptContent struct {
+	x *protobufs.Receipt
+}
+
+func (t ReceiptContent) CalculateHash() ([]byte, error) {
+	h := sha256.New()
+	result, err := proto.Marshal(t.x)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := h.Write([]byte(result)); err != nil {
+		return nil, err
+	}
+	return h.Sum(nil), nil
+}
+func (t ReceiptContent) Equals(other merkletree.Content) (bool, error) {
+	return reflect.DeepEqual(t.x, other.(ReceiptContent).x), nil
 }
 
 // CreateMerkleTreeFromBytes take an array of bytes array, convert in transaction and add them all in a Content list to create a MerkleTree
@@ -41,7 +54,7 @@ func CreateMerkleTreeFromBytes(bytesTransaction [][]byte) (*merkletree.MerkleTre
 	for _, bTransaction := range bytesTransaction {
 		transaction := protobufs.Transaction{}
 		proto.Unmarshal(bTransaction, &transaction)
-		list = append(list, TestContent{x: transaction})
+		list = append(list, TransactionContent{x: &transaction})
 	}
 
 	t, err := merkletree.NewTree(list)
@@ -50,4 +63,27 @@ func CreateMerkleTreeFromBytes(bytesTransaction [][]byte) (*merkletree.MerkleTre
 		return nil, err
 	}
 	return t, err
+}
+
+// CreateMerkleTrees create 2 merkle trees, one for the transaction and one for the receipt of the transaction
+func CreateMerkleTrees(transactions []*protobufs.Transaction) ([]byte, []byte, error) {
+	var listTransaction []merkletree.Content
+	var listReceipt []merkletree.Content
+	for _, t := range transactions {
+		listTransaction = append(listTransaction, TransactionContent{x: t})
+		listReceipt = append(listReceipt, ReceiptContent{x: &protobufs.Receipt{string(t.GetSender()), t.GetRecipient(), t.GetAmount()}})
+	}
+
+	MerkleTreeTransaction, err := merkletree.NewTree(listTransaction)
+	if err != nil {
+		log.Fatal(err)
+		return nil, nil, err
+	}
+	MerkleTreeReceipt, err := merkletree.NewTree(listReceipt)
+	if err != nil {
+		log.Fatal(err)
+		return nil, nil, err
+	}
+
+	return MerkleTreeTransaction.MerkleRoot(), MerkleTreeReceipt.MerkleRoot(), nil
 }
