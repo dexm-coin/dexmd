@@ -345,29 +345,21 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			// check if it is a validator, also check that the dynasty are correct
 			if cs.bc.Validators.CheckDynasty(wal, cs.bc.CurrentBlock) {
 				// get source and target block in the blockchain
-				souceBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentCheckpoint)
+				souceBlockByte, err := cs.bc.GetBlock(cs.bc.CurrentCheckpoint)
 				if err != nil {
 					log.Fatal("Get block ", err)
 					continue
 				}
-				targetBlockByte, err := cs.bc.GetBlocks(cs.bc.CurrentBlock - 1)
+				targetBlockByte, err := cs.bc.GetBlock(cs.bc.CurrentBlock - 1)
 				if err != nil {
 					log.Fatal("Get block ", err)
 					continue
 				}
 
-				souceBlock := &protoBlockchain.Index{}
-				targetBlock := &protoBlockchain.Index{}
-				proto.Unmarshal(souceBlockByte, souceBlock)
-				proto.Unmarshal(targetBlockByte, targetBlock)
-
-				if len(souceBlock.Blocks) < 1 || len(targetBlock.Blocks) < 1 {
-					log.Fatal("blocks too short")
-					continue
-				}
-
-				source := souceBlock.Blocks[0]
-				target := targetBlock.Blocks[0]
+				source := &protoBlockchain.Block{}
+				target := &protoBlockchain.Block{}
+				proto.Unmarshal(souceBlockByte, source)
+				proto.Unmarshal(targetBlockByte, target)
 
 				MarshalSource, _ := proto.Marshal(source)
 				bhash1 := sha256.Sum256(MarshalSource)

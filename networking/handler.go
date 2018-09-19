@@ -37,7 +37,7 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client) []byt
 
 	// GET_BLOCK returns a block at the passed index
 	case protobufs.Request_GET_BLOCK:
-		block, err := cs.bc.GetBlocks(pb.GetIndex())
+		block, err := cs.bc.GetBlock(pb.GetIndex())
 		if err != nil {
 			return []byte("Error")
 		}

@@ -73,25 +73,20 @@ func (cs *ConnectionStore) UpdateChain() error {
 					break
 				}
 
-				index := &blockchain.Index{}
-				err = proto.Unmarshal(block, index)
+				b := &blockchain.Block{}
+				err = proto.Unmarshal(block, b)
 				if err != nil {
 					break
 				}
 
-				for _, b := range index.GetBlocks() {
-					res, err := cs.bc.ValidateBlock(b)
-					if res {
-						cs.bc.ImportBlock(b)
-						cs.bc.CurrentBlock++
-					} else {
-						log.Error("import")
-						log.Error(err)
-						break
-					}
-
+				res, err := cs.bc.ValidateBlock(b)
+				if res {
+					cs.bc.ImportBlock(b)
+					cs.bc.CurrentBlock++
+				} else {
+					log.Error("import")
+					log.Error(err)
 				}
-
 			}
 		}
 	}

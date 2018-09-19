@@ -56,30 +56,14 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 		var err error
 		// There may be holes in the blockchain. Keep going till you find a block
 		for i := bc.CurrentBlock - 1; i > 0; i-- {
-			currBlocks, err = bc.GetBlocks(i)
+			currBlocks, err = bc.GetBlock(i)
 			if err == nil {
 				break
 			}
 		}
 
-		// currBlocks, err = bc.GetBlocks(bc.CurrentBlock - 1)
-		// if err != nil {
-		// 	log.Error("leveldb ", err)
-		// }
-
-		index := &protobufs.Index{}
-		proto.Unmarshal(currBlocks, index)
-		if len(index.GetBlocks()) != 0 {
-			selectedBlock := index.GetBlocks()[0]
-
-			blockBytes, err := proto.Marshal(selectedBlock)
-			if err != nil {
-				return nil, err
-			}
-
-			bhash := sha256.Sum256(blockBytes)
-			hash = bhash[:]
-		}
+		bhash := sha256.Sum256(currBlocks)
+		hash = bhash[:]
 	}
 
 	block := protobufs.Block{
@@ -125,8 +109,8 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 		return nil, err
 	}
 
-	block.merkleRootTransaction = merkleRootTransaction
-	block.merkleRootReceipt = merkleRootReceipt
+	block.MerkleRootTransaction = merkleRootTransaction
+	block.MerkleRootReceipt = merkleRootReceipt
 
 	return &block, nil
 }

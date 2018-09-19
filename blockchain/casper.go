@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/dexm-coin/dexmd/wallet"
-	"github.com/dexm-coin/protobufs/build/blockchain"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
@@ -105,49 +104,26 @@ func IsVoteValid(b *Blockchain, sourceHash, targetHash []byte, TargetHeight uint
 		return false
 	}
 
-	targetByte, _ := b.GetBlocks(TargetHeight)
-	target := &protobufs.Index{}
+	targetByte, _ := b.GetBlock(TargetHeight)
+	target := &protobufs.Block{}
 	proto.Unmarshal(targetByte, target)
-
-	var prevHash []byte
-	for _, block := range target.GetBlocks() {
-		byteBlock, _ := proto.Marshal(block)
-		bhash := sha256.Sum256(byteBlock)
-		currentHash := bhash[:]
-		equal := reflect.DeepEqual(currentHash, targetHash)
-		if equal {
-			if len(block.GetPrevHash()) < 1 {
-				continue
-			}
-			prevHash = block.GetPrevHash()
-			break
-		}
-	}
-	if len(prevHash) < 1 {
-		log.Error("len(prevHash)")
-		return false
-	}
+	prevHash := target.GetPrevHash()
 
 	for i := TargetHeight - 1; i >= 0; i-- {
-		byteBlock, _ := b.GetBlocks(i)
-		blocks := &blockchain.Index{}
-		proto.Unmarshal(byteBlock, blocks)
+		byteBlock, _ := b.GetBlock(i)
+		block := &protobufs.Block{}
+		proto.Unmarshal(byteBlock, block)
 
-		for _, block := range blocks.GetBlocks() {
-			byteBlock, _ := proto.Marshal(block)
-			bhash := sha256.Sum256(byteBlock)
-			currentHash := bhash[:]
-			equal := reflect.DeepEqual(prevHash, currentHash)
-			isTheSource := reflect.DeepEqual(currentHash, sourceHash)
-			if isTheSource && equal {
-				return true
-			}
-			if equal {
-				if len(block.PrevHash) < 1 {
-					continue
-				}
-				prevHash = block.PrevHash
-				break
+		bhash := sha256.Sum256(byteBlock)
+		currentHash := bhash[:]
+		equal := reflect.DeepEqual(prevHash, currentHash)
+		isTheSource := reflect.DeepEqual(currentHash, sourceHash)
+		if isTheSource && equal {
+			return true
+		}
+		if equal {
+			if len(block.PrevHash) < 1 {
+				continue
 			}
 		}
 		// check untill the fist checkpoint

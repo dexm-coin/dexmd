@@ -97,26 +97,12 @@ func (bc *Blockchain) GetWalletState(wallet string) (protobufs.AccountState, err
 
 // SaveBlock saves an unvalidated block into the blockchain to be used with Casper
 func (bc *Blockchain) SaveBlock(block *protobufs.Block) error {
-	oldBlocks, err := bc.blockDb.Get([]byte(strconv.Itoa(int(block.GetIndex()))), nil)
-
-	if block.GetIndex() == 0 {
-		bc.GenesisTimestamp = block.GetTimestamp()
-	}
-
-	blocks := &protobufs.Index{}
-
-	if err == nil {
-		proto.Unmarshal(oldBlocks, blocks)
-	}
-
-	blocks.Blocks = append(blocks.Blocks, block)
-	res, _ := proto.Marshal(blocks)
-
+	res, _ := proto.Marshal(block)
 	return bc.blockDb.Put([]byte(strconv.Itoa(int(block.GetIndex()))), res, nil)
 }
 
 // GetBlocks returns the array of blocks at an index
-func (bc *Blockchain) GetBlocks(index uint64) ([]byte, error) {
+func (bc *Blockchain) GetBlock(index uint64) ([]byte, error) {
 	return bc.blockDb.Get([]byte(strconv.Itoa(int(index))), nil)
 }
 
