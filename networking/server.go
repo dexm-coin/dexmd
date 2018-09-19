@@ -2,10 +2,12 @@ package networking
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"math/rand"
 	"net/http"
+	"os"
 	"reflect"
 	"time"
 
@@ -313,35 +315,74 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		// time.Sleep(time.Duration(4-time.Now().Unix()%10) * time.Second)
 		time.Sleep(5 * time.Second)
 
-		// TODO
 		// check if the block with index cs.bc.CurrentBlock have been saved, otherwise save an empty block
-		// _, err := cs.bc.GetBlocks(cs.bc.CurrentBlock)
-		// if err != nil {
-		// 	hash := []byte{}
-		// 	index := &protobufs.Index{}
-		// 	proto.Unmarshal(currBlocks, index)
-		// 	if len(index.GetBlocks()) != 0 {
-		// 		selectedBlock := index.GetBlocks()[0]
+		selectedBlock, err := cs.bc.GetBlock(cs.bc.CurrentBlock)
+		if err != nil {
+			bhash := sha256.Sum256(selectedBlock)
+			hash := bhash[:]
+			block := &protoBlockchain.Block{
+				Index:     cs.bc.CurrentBlock,
+				Timestamp: uint64(time.Now().Unix()),
+				Miner:     "",
+				PrevHash:  hash,
+			}
 
-		// 		blockBytes, err := proto.Marshal(selectedBlock)
-		// 		if err != nil {
-		// 			return nil, err
-		// 		}
-
-		// 		bhash := sha256.Sum256(blockBytes)
-		// 		hash = bhash[:]
-		// 	}
-		// 	block := protobufs.Block{
-		// 		Index:     bc.CurrentBlock,
-		// 		Timestamp: uint64(time.Now().Unix()),
-		// 		Miner:     miner,
-		// 		PrevHash:  hash,
-		// 	}
-		// }
+			err = cs.bc.SaveBlock(block)
+			if err != nil {
+				log.Error(err)
+			}
+			err = cs.bc.ImportBlock(block)
+			if err != nil {
+				log.Error(err)
+			}
+		}
 
 		cs.bc.CurrentBlock++
 
-		if cs.bc.CurrentBlock%101 == 0 {
+		// Change shard
+		if cs.bc.CurrentBlock%10001 == 0 {
+			// calulate the hash of the previous 100 blocks from current block - 1
+			var hashBlocks []byte
+			latestBlock := true
+
+			for i := cs.bc.CurrentBlock - 1; i > cs.bc.CurrentBlock-100; i-- {
+				currentBlockByte, err := cs.bc.GetBlock(i)
+				if err != nil {
+					log.Error(err)
+				}
+				currentBlock := &protoBlockchain.Block{}
+				proto.Unmarshal(currentBlockByte, currentBlock)
+
+				if latestBlock {
+					bhash := sha256.Sum256(currentBlockByte)
+					hashBlocks = append(hashBlocks, bhash[:]...)
+					latestBlock = false
+				}
+
+				hashBlocks = append(hashBlocks, currentBlock.GetPrevHash()...)
+			}
+			finalHash := sha256.Sum256(hashBlocks)
+
+			// choose the next shard with a seed
+			seed := binary.BigEndian.Uint64(finalHash[:])
+			newShard, err := cs.bc.Validators.ChooseShard(int64(seed), wal)
+			if err != nil{
+				log.Fatal(err)
+			}
+
+			// remove the older blockchain and create a new one
+			os.RemoveAll(".dexm")
+			os.MkdirAll(".dexm", os.ModePerm)
+			b, err := blockchain.NewBlockchain(".dexm/", 0)
+			if err != nil {
+				log.Fatal("blockchain", err)
+			}
+			// ask for the chain that corrispond to
+			cs.UpdateChain()
+		}
+
+		// Checkpoint Agreement
+		if cs.bc.CurrentBlock%101 == 0 && cs.bc.CurrentBlock%10001 != 0 {
 			// check if it is a validator, also check that the dynasty are correct
 			if cs.bc.Validators.CheckDynasty(wal, cs.bc.CurrentBlock) {
 				// get source and target block in the blockchain
@@ -361,11 +402,9 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				proto.Unmarshal(souceBlockByte, source)
 				proto.Unmarshal(targetBlockByte, target)
 
-				MarshalSource, _ := proto.Marshal(source)
-				bhash1 := sha256.Sum256(MarshalSource)
+				bhash1 := sha256.Sum256(souceBlockByte)
 				hashSource := bhash1[:]
-				MarshalTarget, _ := proto.Marshal(target)
-				bhash2 := sha256.Sum256(MarshalTarget)
+				bhash2 := sha256.Sum256(targetBlockByte)
 				hashTarget := bhash2[:]
 
 				vote := blockchain.CreateVote(hashSource, hashTarget, cs.bc.CurrentCheckpoint, cs.bc.CurrentBlock-1, cs.identity)
@@ -387,7 +426,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				r, s, err := cs.identity.Sign(hash)
 				if err != nil {
 					log.Error(err)
-					return
+					continue
 				}
 				signature := &network.Signature{
 					Pubkey: pub,
@@ -419,6 +458,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		validator, err := cs.bc.Validators.ChooseValidator(int64(cs.bc.CurrentBlock))
 		if err != nil {
 			log.Fatal(err)
+			continue
 		}
 
 		// Start accepting the block from the new validator
@@ -437,10 +477,8 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 			// Sign the new block
 			pub, _ := cs.identity.GetPubKey()
-
 			bhash := sha256.Sum256(blockBytes)
 			hash := bhash[:]
-
 			r, s, err := cs.identity.Sign(hash)
 			if err != nil {
 				log.Error(err)

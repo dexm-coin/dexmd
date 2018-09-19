@@ -23,6 +23,7 @@ type Validator struct {
 	stake        uint64
 	startDynasty int64
 	endDynasty   int64
+	shard        int64
 }
 
 // NewValidatorsBook creates an empty ValidatorsBook object
@@ -110,7 +111,7 @@ func (v *ValidatorsBook) AddValidator(wallet string, stake uint64, dynasty int64
 	if _, ok := v.valsArray[wallet]; ok {
 		return true
 	}
-	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1}
+	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1, -1}
 	return false
 }
 
@@ -142,8 +143,17 @@ func (v *ValidatorsBook) SetStake(wallet string, addStake uint64) error {
 	return errors.New("Validator " + wallet + " not found")
 }
 
+// SetStake is used to update the validator's stake when it changes.
+func (v *ValidatorsBook) SetShard(wallet string, shard int64) error {
+	if _, ok := v.valsArray[wallet]; ok {
+		v.valsArray[wallet].shard = shard
+		return nil
+	}
+	return errors.New("Validator " + wallet + " not found")
+}
+
 // GetStake returns the stake for a given wallet.
-func (v *ValidatorsBook) GetStake(wallet string) (stake uint64, err error) {
+func (v *ValidatorsBook) GetStake(wallet string) (uint64, error) {
 	if _, ok := v.valsArray[wallet]; ok {
 		return v.valsArray[wallet].stake, nil
 	}
@@ -157,7 +167,7 @@ type simpleValidator struct {
 
 // ChooseValidator returns a validator's wallet, chosen randomly
 // and proportionally to the stake
-func (v *ValidatorsBook) ChooseValidator(currentBlock int64) (luckyone string, err error) {
+func (v *ValidatorsBook) ChooseValidator(currentBlock int64) (string, error) {
 	rand.Seed(currentBlock)
 
 	totalstake := uint64(0)
@@ -185,4 +195,35 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64) (luckyone string, e
 		}
 	}
 	return "", errors.New("Validator could not be chosen")
+}
+
+// ChooseShard calulate the shard for every validators
+// return the shard for a specific wallet
+func (v *ValidatorsBook) ChooseShard(seed int64, wallet string) (int64, error) {
+	rand.Seed(seed)
+
+	var ss []simpleValidator
+	for k, val := range v.valsArray {
+		if !v.CheckDynasty(val.wallet, uint64(currentBlock)) {
+			continue
+		}
+		ss = append(ss, simpleValidator{k, val.stake})
+	}
+
+	// suffle the validator with a seed
+	shardWallet := int64(-1)
+	r := rand.New(rand.NewSource(seed))
+	perm := r.Perm(len(ss))
+	for _, randIndex := range perm {
+		shard := rand.Int63n(100)
+		randValidator := ss[randIndex]
+		if randValidator.wallet == wallet {
+			shardWallet = shard
+		}
+		v.SetShard(randValidator.wallet, shard)
+	}
+	if shardWallet == -1 {
+		return 0, errors.New(wallet + " is not a validator")
+	}
+	return shardWallet, nil
 }

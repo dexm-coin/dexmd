@@ -71,7 +71,7 @@ func CreateMerkleTrees(transactions []*protobufs.Transaction) ([]byte, []byte, e
 	var listReceipt []merkletree.Content
 	for _, t := range transactions {
 		listTransaction = append(listTransaction, TransactionContent{x: t})
-		listReceipt = append(listReceipt, ReceiptContent{x: &protobufs.Receipt{string(t.GetSender()), t.GetRecipient(), t.GetAmount()}})
+		// listReceipt = append(listReceipt, ReceiptContent{x: &protobufs.Receipt{string(t.GetSender()), t.GetRecipient(), t.GetAmount()}})
 	}
 
 	MerkleTreeTransaction, err := merkletree.NewTree(listTransaction)
@@ -79,8 +79,19 @@ func CreateMerkleTrees(transactions []*protobufs.Transaction) ([]byte, []byte, e
 		log.Fatal(err)
 		return nil, nil, err
 	}
+	vt, err := MerkleTreeTransaction.VerifyTree()
+	if err != nil || !vt {
+		log.Fatal(err)
+		return nil, nil, err
+	}
+
 	MerkleTreeReceipt, err := merkletree.NewTree(listReceipt)
 	if err != nil {
+		log.Fatal(err)
+		return nil, nil, err
+	}
+	vt, err = MerkleTreeReceipt.VerifyTree()
+	if err != nil || !vt {
 		log.Fatal(err)
 		return nil, nil, err
 	}
