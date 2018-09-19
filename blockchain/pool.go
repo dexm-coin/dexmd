@@ -57,7 +57,7 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 		// There may be holes in the blockchain. Keep going till you find a block
 		for i := bc.CurrentBlock - 1; i > 0; i-- {
 			currBlocks, err = bc.GetBlocks(i)
-			if err == nil{
+			if err == nil {
 				break
 			}
 		}
@@ -119,6 +119,14 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 	}
 
 	block.Transactions = transactions
+
+	merkleRootTransaction, merkleRootReceipt, err := CreateMerkleTrees(transactions)
+	if err != nil {
+		return nil, err
+	}
+
+	block.merkleRootTransaction = merkleRootTransaction
+	block.merkleRootReceipt = merkleRootReceipt
 
 	return &block, nil
 }
