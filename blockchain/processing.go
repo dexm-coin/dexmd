@@ -23,15 +23,50 @@ type Blockchain struct {
 	StateDb       *leveldb.DB
 	CasperVotesDb *leveldb.DB
 
-	Mempool    *mempool
-	Validators *ValidatorsBook
+	Mempool *mempool
+	// Validators *ValidatorsBook
 
 	GenesisTimestamp uint64
 
-	CurrentBlock      uint64
-	CurrentCheckpoint uint64
-	CurrentValidator  string
-	CurrentVote       uint64
+	CurrentBlock            uint64
+	CurrentCheckpoint       uint64
+	CurrentValidator        string
+	CurrentVote             uint64
+	CurrentMerkleRootSigned []byte
+}
+
+// BeaconChain is an internal representation of a beacon chain
+type BeaconChain struct {
+	MerkleRootsDb map[int64]*leveldb.DB
+	Validators    *ValidatorsBook
+
+	CurrentBlock map[int64]uint64
+	CurrentSign  map[int64]int64
+}
+
+// NewBeaconChain create a new beacon chain
+func NewBeaconChain(dbPath string) (*BeaconChain, error) {
+	mrdb := make(map[int64]*leveldb.DB)
+	cb := make(map[int64]uint64)
+	cs := make(map[int64]int64)
+
+	for i := 1; i < 101; i++ {
+		db, err := leveldb.OpenFile(dbPath+".merkleroots"+strconv.Itoa(i), nil)
+		if err != nil {
+			return nil, err
+		}
+		mrdb[int64(i)] = db
+		cb[int64(i)] = 0
+		cs[int64(i)] = 0
+	}
+
+	vd := NewValidatorsBook()
+	return &BeaconChain{
+		MerkleRootsDb: mrdb,
+		Validators:    vd,
+		CurrentBlock:  cb,
+		CurrentSign:   cs,
+	}, nil
 }
 
 // NewBlockchain creates a database db
@@ -64,7 +99,7 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 	// 1MB blocks
 	mp := newMempool(1000000, 100)
 
-	vd := NewValidatorsBook()
+	// vd := NewValidatorsBook()
 
 	return &Blockchain{
 		balancesDb:    db,
@@ -73,12 +108,13 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		StateDb:       sdb,
 		CasperVotesDb: cvdb,
 
-		Mempool:    mp,
-		Validators: vd,
+		Mempool: mp,
+		// Validators: vd,
 
 		CurrentBlock:      index,
 		CurrentCheckpoint: 0,
 		CurrentVote:       0,
+		CurrentMerkleRootSigned: []byte{},
 	}, err
 }
 
@@ -95,13 +131,24 @@ func (bc *Blockchain) GetWalletState(wallet string) (protobufs.AccountState, err
 	return state, nil
 }
 
+// SaveBlockBeacon saves a block into the BeaconChain in a specific shard and index
+func (bc *BeaconChain) SaveBlockBeacon(block *protobufs.MerkleRoot, shard, index int64) error {
+	res, _ := proto.Marshal(block)
+	return bc.MerkleRootsDb[shard].Put([]byte(strconv.Itoa(int(index))), res, nil)
+}
+
+// GetBlockBeacon returns the array of blocks at an index and at a specific shard
+func (bc *BeaconChain) GetBlockBeacon(index, shard int64) ([]byte, error) {
+	return bc.MerkleRootsDb[shard].Get([]byte(strconv.Itoa(int(index))), nil)
+}
+
 // SaveBlock saves an unvalidated block into the blockchain to be used with Casper
 func (bc *Blockchain) SaveBlock(block *protobufs.Block) error {
 	res, _ := proto.Marshal(block)
 	return bc.blockDb.Put([]byte(strconv.Itoa(int(block.GetIndex()))), res, nil)
 }
 
-// GetBlocks returns the array of blocks at an index
+// GetBlock returns the array of blocks at an index
 func (bc *Blockchain) GetBlock(index uint64) ([]byte, error) {
 	return bc.blockDb.Get([]byte(strconv.Itoa(int(index))), nil)
 }
@@ -227,7 +274,7 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 }
 
 // ImportBlock imports a block into the blockchain and checks if it's valid
-// This should be called on blocks that are finalized by PoS TODO Nonce for replays
+// This should be called on blocks that are finalized by PoS
 func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
 	res, err := bc.ValidateBlock(block)
 	if !res {

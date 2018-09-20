@@ -33,7 +33,7 @@ type ConnectionStore struct {
 	register   chan *client
 	unregister chan *client
 
-	beaconChain *blockchain.Blockchain
+	beaconChain *blockchain.BeaconChain
 	shardChain  *blockchain.Blockchain
 
 	identity *wallet.Wallet
@@ -53,7 +53,7 @@ var upgrader = websocket.Upgrader{
 }
 
 // StartServer creates a new ConnectionStore, which handles network peers
-func StartServer(port, network string, shardChain *blockchain.Blockchain, beaconChain *blockchain.Blockchain, idn *wallet.Wallet) (*ConnectionStore, error) {
+func StartServer(port, network string, shardChain *blockchain.Blockchain, beaconChain *blockchain.BeaconChain, idn *wallet.Wallet) (*ConnectionStore, error) {
 	store := &ConnectionStore{
 		clients:     make(map[*client]bool),
 		broadcast:   make(chan []byte),
@@ -309,6 +309,10 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		log.Fatal(err)
 	}
 
+	signSequence := make(map[int64]string)
+	counterSigning := int64(-1)
+	totalCounterValidator := int64(-1)
+
 	for {
 		// The validator changes every time the unix timestamp is a multiple of 5
 		// time.Sleep(time.Duration(4-time.Now().Unix()%10) * time.Second)
@@ -339,13 +343,13 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		cs.shardChain.CurrentBlock++
 
 		// Change shard
-		if cs.beaconChain.CurrentBlock%10001 == 0 {
+		if cs.shardChain.CurrentBlock%10001 == 0 {
 			// calulate the hash of the previous 100 blocks from current block - 1
 			var hashBlocks []byte
 			latestBlock := true
 
-			for i := cs.beaconChain.CurrentBlock - 1; i > cs.beaconChain.CurrentBlock-100; i-- {
-				currentBlockByte, err := cs.beaconChain.GetBlock(i)
+			for i := cs.shardChain.CurrentBlock - 1; i > cs.shardChain.CurrentBlock-100; i-- {
+				currentBlockByte, err := cs.shardChain.GetBlock(i)
 				if err != nil {
 					log.Error(err)
 				}
@@ -369,6 +373,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				log.Fatal(err)
 			}
 
+			// TODO like this doesn't work, you should remove the blockchain so early
 			// remove the older blockchain and create a new one
 			os.RemoveAll(".dexm")
 			os.MkdirAll(".dexm", os.ModePerm)
@@ -379,6 +384,43 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			// ask for the chain that corrispond to newShard shard
 			cs.UpdateChain(newShard)
 		}
+
+		// every 30 block do the merkle root signature
+		if cs.shardChain.CurrentBlock%31 == 0 {
+			signSequence, totalCounterValidator = cs.beaconChain.Validators.ChooseSignSequence(int64(cs.shardChain.CurrentBlock))
+			counterSigning = 0
+		}
+		// check if the it's your turn to make the signature
+		if counterSigning < totalCounterValidator {
+			if signSequence[counterSigning] == wal {
+				// check if i'm the first to sign the merkle root
+				if cs.beaconChain.CurrentSign == 0 {
+					var transactions []*protobufs.Transaction
+					// cs.shardChain.CurrentBlock-counterSigning because maybe the real first one didn't sign and so on
+					for i := cs.shardChain.CurrentBlock-counterSigning; i > cs.shardChain.CurrentBlock-counterSigning-30; i--{
+						blockByte, err := cs.shardChain.GetBlock(uint64(i))
+						block := &protoBlockchain.Block{}
+						proto.Unmarshal(blockByte, block)
+
+						transactions = append(transactions, block.GetTransactions())
+					}
+					MerkleRootTransaction, MerkleRootReceipt, err := blockchain.CreateMerkleTrees(transactions)
+
+					schnorrPrivateKey := cs.beaconChain.Validators.GetSchnorrPrivateKey()
+					signatureTransaction := Sign(MerkleRootTransaction, schnorrPrivateKey)
+					signatureReceipt := Sign(MerkleRootReceipt, schnorrPrivateKey)
+
+					
+				} else {
+					
+				}
+				cs.beaconChain.CurrentSign = counterSigning
+			}
+			counterSigning++
+		}
+		
+		// TODO
+		// reset at the end counterSigning , cs.beaconChain.CurrentSign , totalCounterValidator , CurrentMerkleRootSigned
 
 		// Checkpoint Agreement
 		if cs.shardChain.CurrentBlock%101 == 0 && cs.shardChain.CurrentBlock%10001 != 0 {

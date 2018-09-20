@@ -77,7 +77,6 @@ func CheckpointAgreement(b *Blockchain, SourceHeight, TargetHeight uint64) bool 
 		delete(mapVote, user)
 	}
 
-	// TODO with the forks this is wrong
 	if len(mapVote) > 2*len(b.Validators.valsArray)/3 {
 		// delete all the votes only if 2/3 of validators agree
 		// so h(s1) < h(s2) < h(t2) < h(t1) is valid

@@ -5,11 +5,11 @@ import (
 	"errors"
 	// "fmt"
 	"math/rand"
-	// "os"
+
 	"sort"
-	// "github.com/syndtr/goleveldb/leveldb"
-	// "github.com/syndtr/goleveldb/leveldb/opt"
-	// log "github.com/sirupsen/logrus"
+
+	wal "github.com/dexm-coin/dexmd/wallet"
+	"gopkg.in/dedis/kyber.v2"
 )
 
 // ValidatorsBook is a structure that keeps record of every validator and its stake
@@ -23,7 +23,10 @@ type Validator struct {
 	stake        uint64
 	startDynasty int64
 	endDynasty   int64
-	shard        int64
+
+	shard             int64
+	schnorrPrivateKey kyber.Scalar
+	schnorrPublicKey  kyber.Point
 }
 
 // NewValidatorsBook creates an empty ValidatorsBook object
@@ -111,7 +114,8 @@ func (v *ValidatorsBook) AddValidator(wallet string, stake uint64, dynasty int64
 	if _, ok := v.valsArray[wallet]; ok {
 		return true
 	}
-	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1, -1}
+	privateKey, publicKey := wal.CreateSchnorrAccount()
+	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1, -1, privateKey, publicKey}
 	return false
 }
 
@@ -122,6 +126,22 @@ func (v *ValidatorsBook) RemoveValidator(wallet string) error {
 		return nil
 	}
 	return errors.New("Validator " + wallet + " not found")
+}
+
+// GetSchnorrPrivateKey returns the schnorrPrivateKey for a given wallet.
+func (v *ValidatorsBook) GetSchnorrPrivateKey(wallet string) (kyber.Scalar, error) {
+	if _, ok := v.valsArray[wallet]; ok {
+		return v.valsArray[wallet].schnorrPrivateKey, nil
+	}
+	return nil, errors.New("Validator " + wallet + " not found")
+}
+
+// GetSchnorrPublicKey returns the schnorrPublicKey for a given wallet.
+func (v *ValidatorsBook) GetSchnorrPublicKey(wallet string) (kyber.Point, error) {
+	if _, ok := v.valsArray[wallet]; ok {
+		return v.valsArray[wallet].schnorrPublicKey, nil
+	}
+	return nil, errors.New("Validator " + wallet + " not found")
 }
 
 // WithdrawValidator when a withdraw message arrive change the enddynasy of the wallet
@@ -190,13 +210,23 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64) (string, error) {
 	if totalstake < 1 {
 		return "", errors.New("Not enough stake")
 	}
-	sort.Slice(ss, func(i, j int) bool {
-		return ss[i].stake > ss[j].stake
+
+	// shuffle validators
+	r := rand.New(rand.NewSource(currentBlock))
+	perm := r.Perm(len(ss))
+	ret := make([]simpleValidator, len(ss))
+	for i, randIndex := range perm {
+		ret[i] = ss[randIndex]
+	}
+
+	// sort validators
+	sort.Slice(ret, func(i, j int) bool {
+		return ret[i].stake > ret[j].stake
 	})
 
 	level := rand.Float64() * float64(totalstake)
 	var counter uint64
-	for _, kv := range ss {
+	for _, kv := range ret {
 		counter += kv.stake
 		if float64(counter) >= level {
 			return kv.wallet, nil
@@ -228,10 +258,36 @@ func (v *ValidatorsBook) ChooseShard(seed int64, wallet string) (int64, error) {
 		if randValidator.wallet == wallet {
 			shardWallet = shard
 		}
+		// for each validator set the choosen shard
 		v.SetShard(randValidator.wallet, shard)
 	}
 	if shardWallet == -1 {
 		return 0, errors.New(wallet + " is not a validator")
 	}
 	return shardWallet, nil
+}
+
+// ChooseSignSequence return the sequence in which order the signature of a merkle root should be
+func (v *ValidatorsBook) ChooseSignSequence(currentBlock int64) (map[int64]string, int64) {
+	rand.Seed(currentBlock)
+
+	var ss []simpleValidator
+	for k, val := range v.valsArray {
+		if !v.CheckDynasty(val.wallet, uint64(currentBlock)) {
+			continue
+		}
+		ss = append(ss, simpleValidator{k, val.stake})
+	}
+
+	// suffle the validator with a seed
+	r := rand.New(rand.NewSource(currentBlock))
+	perm := r.Perm(len(ss))
+	signSequence := make(map[int64]string)
+	for i, randIndex := range perm {
+		if i > 24 {
+			break
+		}
+		signSequence[int64(i)] = ss[randIndex].wallet
+	}
+	return signSequence, int64(len(signSequence))
 }

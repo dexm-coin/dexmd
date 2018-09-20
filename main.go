@@ -92,7 +92,7 @@ func main() {
 				os.MkdirAll(".beacon", os.ModePerm)
 
 				// Create the blockchain database
-				beacon, err := blockchain.NewBlockchain(".beacon/", 0)
+				beacon, err := blockchain.NewBeaconChain(".beacon/", 0)
 				if err != nil {
 					log.Fatal("blockchain", err)
 				}
@@ -108,8 +108,6 @@ func main() {
 				}
 				b.SaveBlock(genesisBlock)
 				b.ImportBlock(genesisBlock)
-				beacon.SaveBlock(genesisBlock)
-				beacon.ImportBlock(genesisBlock)
 
 				// Open the port on the router, ignore errors
 				networking.TraverseNat(PORT, "Dexm Blockchain Node")
