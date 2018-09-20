@@ -143,7 +143,15 @@ func (v *ValidatorsBook) SetStake(wallet string, addStake uint64) error {
 	return errors.New("Validator " + wallet + " not found")
 }
 
-// SetStake is used to update the validator's stake when it changes.
+// GetStake returns the stake for a given wallet.
+func (v *ValidatorsBook) GetStake(wallet string) (uint64, error) {
+	if _, ok := v.valsArray[wallet]; ok {
+		return v.valsArray[wallet].stake, nil
+	}
+	return 0, errors.New("Validator " + wallet + " not found")
+}
+
+// SetShard is used to update the validator's shard when it changes.
 func (v *ValidatorsBook) SetShard(wallet string, shard int64) error {
 	if _, ok := v.valsArray[wallet]; ok {
 		v.valsArray[wallet].shard = shard
@@ -152,10 +160,10 @@ func (v *ValidatorsBook) SetShard(wallet string, shard int64) error {
 	return errors.New("Validator " + wallet + " not found")
 }
 
-// GetStake returns the stake for a given wallet.
-func (v *ValidatorsBook) GetStake(wallet string) (uint64, error) {
+// GetShard is used to get the validator's shard
+func (v *ValidatorsBook) GetShard(wallet string) (int64, error) {
 	if _, ok := v.valsArray[wallet]; ok {
-		return v.valsArray[wallet].stake, nil
+		return v.valsArray[wallet].shard, nil
 	}
 	return 0, errors.New("Validator " + wallet + " not found")
 }

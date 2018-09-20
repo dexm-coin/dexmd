@@ -27,19 +27,17 @@ const (
 
 // ConnectionStore handles peer messaging
 type ConnectionStore struct {
-	clients map[*client]bool
-
+	clients   map[*client]bool
 	broadcast chan []byte
 
-	register chan *client
-
+	register   chan *client
 	unregister chan *client
 
-	bc *blockchain.Blockchain
+	beaconChain *blockchain.Blockchain
+	shardChain  *blockchain.Blockchain
 
 	identity *wallet.Wallet
-
-	network string
+	network  string
 }
 
 type client struct {
@@ -55,15 +53,16 @@ var upgrader = websocket.Upgrader{
 }
 
 // StartServer creates a new ConnectionStore, which handles network peers
-func StartServer(port, network string, bch *blockchain.Blockchain, idn *wallet.Wallet) (*ConnectionStore, error) {
+func StartServer(port, network string, shardChain *blockchain.Blockchain, beaconChain *blockchain.Blockchain, idn *wallet.Wallet) (*ConnectionStore, error) {
 	store := &ConnectionStore{
-		clients:    make(map[*client]bool),
-		broadcast:  make(chan []byte),
-		register:   make(chan *client),
-		unregister: make(chan *client),
-		bc:         bch,
-		identity:   idn,
-		network:    network,
+		clients:     make(map[*client]bool),
+		broadcast:   make(chan []byte),
+		register:    make(chan *client),
+		unregister:  make(chan *client),
+		beaconChain: beaconChain,
+		shardChain:  shardChain,
+		identity:    idn,
+		network:     network,
 	}
 
 	// Hub that handles registration and unregistrations of clients
@@ -300,9 +299,9 @@ func (c *client) write() {
 // ValidatorLoop updates the current expected validator and generates a block
 // if the validator has the same identity as the node generates a block
 func (cs *ConnectionStore) ValidatorLoop() {
-	if int64(cs.bc.GenesisTimestamp) > time.Now().Unix() {
+	if int64(cs.shardChain.GenesisTimestamp) > time.Now().Unix() {
 		log.Info("Waiting for genesis")
-		time.Sleep(time.Duration(int64(cs.bc.GenesisTimestamp)-time.Now().Unix()) * time.Second)
+		time.Sleep(time.Duration(int64(cs.shardChain.GenesisTimestamp)-time.Now().Unix()) * time.Second)
 	}
 
 	wal, err := cs.identity.GetWallet()
@@ -315,38 +314,38 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		// time.Sleep(time.Duration(4-time.Now().Unix()%10) * time.Second)
 		time.Sleep(5 * time.Second)
 
-		// check if the block with index cs.bc.CurrentBlock have been saved, otherwise save an empty block
-		selectedBlock, err := cs.bc.GetBlock(cs.bc.CurrentBlock)
+		// check if the block with index cs.shardChain.CurrentBlock have been saved, otherwise save an empty block
+		selectedBlock, err := cs.shardChain.GetBlock(cs.shardChain.CurrentBlock)
 		if err != nil {
 			bhash := sha256.Sum256(selectedBlock)
 			hash := bhash[:]
 			block := &protoBlockchain.Block{
-				Index:     cs.bc.CurrentBlock,
+				Index:     cs.shardChain.CurrentBlock,
 				Timestamp: uint64(time.Now().Unix()),
 				Miner:     "",
 				PrevHash:  hash,
 			}
 
-			err = cs.bc.SaveBlock(block)
+			err = cs.shardChain.SaveBlock(block)
 			if err != nil {
 				log.Error(err)
 			}
-			err = cs.bc.ImportBlock(block)
+			err = cs.shardChain.ImportBlock(block)
 			if err != nil {
 				log.Error(err)
 			}
 		}
 
-		cs.bc.CurrentBlock++
+		cs.shardChain.CurrentBlock++
 
 		// Change shard
-		if cs.bc.CurrentBlock%10001 == 0 {
+		if cs.beaconChain.CurrentBlock%10001 == 0 {
 			// calulate the hash of the previous 100 blocks from current block - 1
 			var hashBlocks []byte
 			latestBlock := true
 
-			for i := cs.bc.CurrentBlock - 1; i > cs.bc.CurrentBlock-100; i-- {
-				currentBlockByte, err := cs.bc.GetBlock(i)
+			for i := cs.beaconChain.CurrentBlock - 1; i > cs.beaconChain.CurrentBlock-100; i-- {
+				currentBlockByte, err := cs.beaconChain.GetBlock(i)
 				if err != nil {
 					log.Error(err)
 				}
@@ -365,33 +364,33 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 			// choose the next shard with a seed
 			seed := binary.BigEndian.Uint64(finalHash[:])
-			newShard, err := cs.bc.Validators.ChooseShard(int64(seed), wal)
-			if err != nil{
+			newShard, err := cs.shardChain.Validators.ChooseShard(int64(seed), wal)
+			if err != nil {
 				log.Fatal(err)
 			}
 
 			// remove the older blockchain and create a new one
 			os.RemoveAll(".dexm")
 			os.MkdirAll(".dexm", os.ModePerm)
-			b, err := blockchain.NewBlockchain(".dexm/", 0)
+			cs.shardChain, err = blockchain.NewBlockchain(".dexm/", 0)
 			if err != nil {
-				log.Fatal("blockchain", err)
+				log.Fatal("NewBlockchain ", err)
 			}
-			// ask for the chain that corrispond to
-			cs.UpdateChain()
+			// ask for the chain that corrispond to newShard shard
+			cs.UpdateChain(newShard)
 		}
 
 		// Checkpoint Agreement
-		if cs.bc.CurrentBlock%101 == 0 && cs.bc.CurrentBlock%10001 != 0 {
+		if cs.shardChain.CurrentBlock%101 == 0 && cs.shardChain.CurrentBlock%10001 != 0 {
 			// check if it is a validator, also check that the dynasty are correct
-			if cs.bc.Validators.CheckDynasty(wal, cs.bc.CurrentBlock) {
+			if cs.shardChain.Validators.CheckDynasty(wal, cs.shardChain.CurrentBlock) {
 				// get source and target block in the blockchain
-				souceBlockByte, err := cs.bc.GetBlock(cs.bc.CurrentCheckpoint)
+				souceBlockByte, err := cs.shardChain.GetBlock(cs.shardChain.CurrentCheckpoint)
 				if err != nil {
 					log.Fatal("Get block ", err)
 					continue
 				}
-				targetBlockByte, err := cs.bc.GetBlock(cs.bc.CurrentBlock - 1)
+				targetBlockByte, err := cs.shardChain.GetBlock(cs.shardChain.CurrentBlock - 1)
 				if err != nil {
 					log.Fatal("Get block ", err)
 					continue
@@ -407,14 +406,14 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				bhash2 := sha256.Sum256(targetBlockByte)
 				hashTarget := bhash2[:]
 
-				vote := blockchain.CreateVote(hashSource, hashTarget, cs.bc.CurrentCheckpoint, cs.bc.CurrentBlock-1, cs.identity)
+				vote := blockchain.CreateVote(hashSource, hashTarget, cs.shardChain.CurrentCheckpoint, cs.shardChain.CurrentBlock-1, cs.identity)
 
 				// read all the incoming vote and store it, after 1 minut call CheckpointAgreement
 				go func() {
-					currentBlockCheckpoint := cs.bc.CurrentBlock - 1
+					currentBlockCheckpoint := cs.shardChain.CurrentBlock - 1
 					time.Sleep(1 * time.Minute)
 					// time.Sleep(15 * time.Second)
-					check := blockchain.CheckpointAgreement(cs.bc, cs.bc.CurrentCheckpoint, currentBlockCheckpoint)
+					check := blockchain.CheckpointAgreement(cs.shardChain, cs.shardChain.CurrentCheckpoint, currentBlockCheckpoint)
 					log.Info("CheckpointAgreement ", check)
 				}()
 
@@ -455,18 +454,18 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			}
 		}
 
-		validator, err := cs.bc.Validators.ChooseValidator(int64(cs.bc.CurrentBlock))
+		validator, err := cs.shardChain.Validators.ChooseValidator(int64(cs.shardChain.CurrentBlock))
 		if err != nil {
 			log.Fatal(err)
 			continue
 		}
 
 		// Start accepting the block from the new validator
-		cs.bc.CurrentValidator = validator
+		cs.shardChain.CurrentValidator = validator
 
 		// If this node is the validator then generate a block and sign it
 		if wal == validator {
-			block, err := cs.bc.GenerateBlock(wal)
+			block, err := cs.shardChain.GenerateBlock(wal)
 			if err != nil {
 				log.Fatal(err)
 				return

@@ -19,17 +19,18 @@ const (
 // UpdateChain asks all connected nodes for their chain lenght, if any of them
 // has a chain longer than the current one it will import
 // TODO Drop client if err != nil
-func (cs *ConnectionStore) UpdateChain() error {
+func (cs *ConnectionStore) UpdateChain(nextShard int64) error {
 	// No need to sync before genesis
-	for cs.bc.GetNetworkIndex() < 0 {
+	for cs.shardChain.GetNetworkIndex() < 0 {
 		return nil
 	}
 
-	for cs.bc.CurrentBlock <= uint64(cs.bc.GetNetworkIndex()) {
+	for cs.shardChain.CurrentBlock <= uint64(cs.shardChain.GetNetworkIndex()) {
 		for k := range cs.clients {
 			// Ask for blockchain len
 			req := &network.Request{
-				Type: network.Request_GET_BLOCKCHAIN_LEN,
+				Type:  network.Request_GET_BLOCKCHAIN_LEN,
+				Shard: nextShard,
 			}
 
 			d, err := makeReqEnvelope(req)
@@ -49,7 +50,7 @@ func (cs *ConnectionStore) UpdateChain() error {
 				continue
 			}
 
-			cb := cs.bc.CurrentBlock
+			cb := cs.shardChain.CurrentBlock
 			if flen < cb {
 				continue
 			}
@@ -59,6 +60,7 @@ func (cs *ConnectionStore) UpdateChain() error {
 				req = &network.Request{
 					Type:  network.Request_GET_BLOCK,
 					Index: i,
+					Shard: nextShard,
 				}
 
 				d, err = makeReqEnvelope(req)
@@ -79,13 +81,12 @@ func (cs *ConnectionStore) UpdateChain() error {
 					break
 				}
 
-				res, err := cs.bc.ValidateBlock(b)
+				res, err := cs.shardChain.ValidateBlock(b)
 				if res {
-					cs.bc.ImportBlock(b)
-					cs.bc.CurrentBlock++
+					cs.shardChain.ImportBlock(b)
+					cs.shardChain.CurrentBlock++
 				} else {
-					log.Error("import")
-					log.Error(err)
+					log.Error("import ", err)
 				}
 			}
 		}

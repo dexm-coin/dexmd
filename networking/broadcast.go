@@ -21,7 +21,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 	// Register a new transaction to the mempool
 	case protoNetwork.Broadcast_TRANSACTION:
 		log.Printf("New Transaction: %x", broadcastEnvelope.GetData())
-		cs.bc.AddMempoolTransaction(broadcastEnvelope.GetData())
+		cs.shardChain.AddMempoolTransaction(broadcastEnvelope.GetData())
 
 	// Save a block proposed by a validator
 	case protoNetwork.Broadcast_BLOCK_PROPOSAL:
@@ -34,12 +34,12 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			return err
 		}
 
-		// save only the block that have cs.bc.currentblock+1
-		// if block.Index != cs.bc.CurrentBlock+1 {
+		// save only the block that have cs.shardChain.currentblock+1
+		// if block.Index != cs.shardChain.CurrentBlock+1 {
 		// 	log.Error("The index of the block is wrong")
 		// }
-		// check if the signature of the block that should be cs.bc.CurrentValidator
-		// if block.Miner != cs.bc.CurrentValidator {
+		// check if the signature of the block that should be cs.shardChain.CurrentValidator
+		// if block.Miner != cs.shardChain.CurrentValidator {
 		// 	log.Error("The miner is wrong")
 		// }
 		// blockBytes, _ := proto.Marshal(block)
@@ -50,18 +50,18 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 		// 	log.Error(err)
 		// 	return err
 		// }
-		// verifyBlock, err := wallet.SignatureValid([]byte(cs.bc.CurrentValidator), r.Bytes(), s.Bytes(), hash)
+		// verifyBlock, err := wallet.SignatureValid([]byte(cs.shardChain.CurrentValidator), r.Bytes(), s.Bytes(), hash)
 		// if !verifyBlock || err != nil {
 		// 	log.Error("SignatureValid ", err)
 		// 	return err
 		// }
 
-		err = cs.bc.SaveBlock(block)
+		err = cs.shardChain.SaveBlock(block)
 		if err != nil {
 			log.Error("error on saving block")
 			return err
 		}
-		err = cs.bc.ImportBlock(block)
+		err = cs.shardChain.ImportBlock(block)
 		if err != nil {
 			log.Error("error on importing block")
 			return err
@@ -76,13 +76,13 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			log.Error(err)
 			return err
 		}
-		if cs.bc.Validators.CheckIsValidator(vote.PublicKey) {
-			err := cs.bc.AddVote(vote)
+		if cs.shardChain.Validators.CheckIsValidator(vote.PublicKey) {
+			err := cs.shardChain.AddVote(vote)
 			if err != nil {
 				log.Error(err)
 				return err
 			}
-			cs.bc.CurrentVote++
+			cs.shardChain.CurrentVote++
 		}
 
 	case protoNetwork.Broadcast_WITHDRAW:
@@ -95,7 +95,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			return err
 		}
 
-		cs.bc.Validators.WithdrawValidator(withdrawVal.GetPublicKey(), withdrawVal.GetR(), withdrawVal.GetS(), int64(cs.bc.CurrentBlock))
+		cs.shardChain.Validators.WithdrawValidator(withdrawVal.GetPublicKey(), withdrawVal.GetR(), withdrawVal.GetS(), int64(cs.shardChain.CurrentBlock))
 	}
 	return nil
 }
