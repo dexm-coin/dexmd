@@ -88,6 +88,15 @@ func main() {
 					log.Fatal("blockchain", err)
 				}
 
+				// Create the dexm folder in case it's not there
+				os.MkdirAll(".beacon", os.ModePerm)
+
+				// Create the blockchain database
+				beacon, err := blockchain.NewBlockchain(".beacon/", 0)
+				if err != nil {
+					log.Fatal("blockchain", err)
+				}
+
 				log.Info("Adding genesis block...")
 
 				log.Info(time.Now().Unix())
@@ -99,6 +108,8 @@ func main() {
 				}
 				b.SaveBlock(genesisBlock)
 				b.ImportBlock(genesisBlock)
+				beacon.SaveBlock(genesisBlock)
+				beacon.ImportBlock(genesisBlock)
 
 				// Open the port on the router, ignore errors
 				networking.TraverseNat(PORT, "Dexm Blockchain Node")
@@ -108,6 +119,7 @@ func main() {
 					fmt.Sprintf(":%d", PORT),
 					network,
 					b,
+					beacon,
 					w,
 				)
 				if err != nil {
@@ -190,7 +202,8 @@ func main() {
 					}
 
 					req := &network.Request{
-						Type: network.Request_GET_WALLET_STATUS,
+						Type:  network.Request_GET_WALLET_STATUS,
+						Shard: -1,
 					}
 
 					reqD, _ := proto.Marshal(req)
