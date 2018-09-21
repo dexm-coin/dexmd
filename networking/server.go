@@ -366,6 +366,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		}
 
 		cs.shardChain.CurrentBlock++
+		log.Info("Current block ", cs.shardChain.CurrentBlock)
 
 		// Change shard
 		if cs.shardChain.CurrentBlock%10001 == 0 {
@@ -424,7 +425,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				}
 				// check if i'm the first to sign the merkle root
 				if cs.beaconChain.CurrentSign[currentShard] == 0 || cs.beaconChain.SignedMerkleRoot == nil {
-					var transactions []*protoBlockchain.Transaction
 					var merkleRootTransactionArray [][]byte
 					var merkleRootReceiptArray [][]byte
 					// cs.shardChain.CurrentBlock-counterSigning because maybe the real first one didn't sign and so on
@@ -435,8 +435,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 						}
 						block := &protoBlockchain.Block{}
 						proto.Unmarshal(blockByte, block)
-
-						transactions = append(transactions, block.GetTransactions()...)
 
 						merkleRootTransaction := block.GetMerkleRootTransaction()
 						merkleRootReceipt := block.GetMerkleRootReceipt()
@@ -458,7 +456,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 						SignedMerkleRootsTransaction: merkleRootTransactionArray,
 						SignedMerkleRootsReceipt:     merkleRootReceiptArray,
 						Validators:                   validatorsSign,
-						Transactions:                 transactions,
 					}
 					mrByte, _ := proto.Marshal(mr)
 
@@ -498,7 +495,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 						SignedMerkleRootsTransaction: merkleRootTransactionArray,
 						SignedMerkleRootsReceipt:     merkleRootReceiptArray,
 						Validators:                   merkleRoot.GetValidators(),
-						Transactions:                 merkleRoot.GetTransactions(),
 					}
 					mrByte, _ := proto.Marshal(mr)
 
