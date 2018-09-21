@@ -40,8 +40,9 @@ type BeaconChain struct {
 	MerkleRootsDb map[int64]*leveldb.DB
 	Validators    *ValidatorsBook
 
-	CurrentBlock map[int64]uint64
-	CurrentSign  map[int64]int64
+	CurrentBlock     map[int64]uint64
+	CurrentSign      map[int64]int64
+	SignedMerkleRoot *protobufs.MerkleRoot
 }
 
 // NewBeaconChain create a new beacon chain
@@ -62,10 +63,11 @@ func NewBeaconChain(dbPath string) (*BeaconChain, error) {
 
 	vd := NewValidatorsBook()
 	return &BeaconChain{
-		MerkleRootsDb: mrdb,
-		Validators:    vd,
-		CurrentBlock:  cb,
-		CurrentSign:   cs,
+		MerkleRootsDb:    mrdb,
+		Validators:       vd,
+		CurrentBlock:     cb,
+		CurrentSign:      cs,
+		SignedMerkleRoot: nil,
 	}, nil
 }
 
@@ -111,9 +113,9 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		Mempool: mp,
 		// Validators: vd,
 
-		CurrentBlock:      index,
-		CurrentCheckpoint: 0,
-		CurrentVote:       0,
+		CurrentBlock:            index,
+		CurrentCheckpoint:       0,
+		CurrentVote:             0,
 		CurrentMerkleRootSigned: []byte{},
 	}, err
 }

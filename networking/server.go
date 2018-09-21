@@ -394,7 +394,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		if counterSigning < totalCounterValidator {
 			if signSequence[counterSigning] == wal {
 				// check if i'm the first to sign the merkle root
-				if cs.beaconChain.CurrentSign == 0 {
+				if cs.beaconChain.CurrentSign == 0 || cs.beaconChain.SignedMerkleRoot == nil {
 					schnorrPrivateKey, err := cs.beaconChain.Validators.GetSchnorrPrivateKey()
 					if err != nil {
 						log.Error(err)
@@ -423,6 +423,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 						merkleRootTransactionArray = append(merkleRootTransactionArray, []byte(fmt.Sprintf("%v", signatureTransaction)))
 						merkleRootReceiptArray = append(merkleRootReceiptArray, []byte(fmt.Sprintf("%v", signatureReceipt)))
 					}
+
 					currentShard := cs.beaconChain.Validators.GetShard(wal)
 					validatorsSign := []string{}
 					for _, value := range signSequence {
@@ -445,8 +446,48 @@ func (cs *ConnectionStore) ValidatorLoop() {
 						Shard: currentShard,
 					}
 
-				} else {
+					data, _ := proto.Marshal(env)
+					cs.broadcast <- data
 
+				} else {
+					merkleRoot := cs.beaconChain.SignedMerkleRoot
+					
+					var merkleRootTransactionArray [][]byte
+					var merkleRootReceiptArray [][]byte
+					mrTransaction := merkleRoot.GetSignedMerkleRootsTransaction()
+					mrReceipt := merkleRoot.GetSignedMerkleRootsReceipt()
+					for i := range len(mrTransaction) {
+						signatureTransaction := wallet.Sign(mrTransaction[i], schnorrPrivateKey)
+						signatureReceipt := wallet.Sign(mrReceipt[i], schnorrPrivateKey)
+						
+						merkleRootTransactionArray = append(merkleRootTransactionArray, []byte(fmt.Sprintf("%v", signatureTransaction)))
+						merkleRootReceiptArray = append(merkleRootReceiptArray, []byte(fmt.Sprintf("%v", signatureReceipt)))
+					}
+
+					currentShard := cs.beaconChain.Validators.GetShard(wal)
+					validatorsSign := []string{}
+					for _, value := range signSequence {
+						validatorsSign = append(validatorsSign, value)
+					}
+
+					mr := &protoBlockchain.MerkleRoot(currentShard, merkleRootTransactionArray, merkleRootReceiptArray, validatorsSign, transactions)
+					mrByte, _ := proto.Marshal(mr)
+
+					broadcastMr := &network.Broadcast{
+						Type: Broadcast_MERKLE_ROOTS,
+						TTL:  64,
+						Data: mrByte,
+					}
+					broadcastMrByte, _ := proto.Marshal(broadcastMr)
+
+					env := &network.Envelope{
+						Type:  network.Envelope_BROADCAST,
+						Data:  broadcastMrByte,
+						Shard: currentShard,
+					}
+
+					data, _ := proto.Marshal(env)
+					cs.broadcast <- data
 				}
 				cs.beaconChain.CurrentSign = counterSigning
 			}
