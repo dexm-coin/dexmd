@@ -373,7 +373,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			var hashBlocks []byte
 			latestBlock := true
 
-			for i := cs.shardChain.CurrentBlock - 1; i > cs.shardChain.CurrentBlock-100; i-- {
+			for i := cs.shardChain.CurrentBlock - 1; i > cs.shardChain.CurrentBlock-10; i-- {
 				currentBlockByte, err := cs.shardChain.GetBlock(i)
 				if err != nil {
 					log.Error(err)

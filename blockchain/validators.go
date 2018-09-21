@@ -257,7 +257,7 @@ func (v *ValidatorsBook) ChooseShard(seed int64, wallet string) (int64, error) {
 	r := rand.New(rand.NewSource(seed))
 	perm := r.Perm(len(ss))
 	for _, randIndex := range perm {
-		shard := rand.Int63n(100)
+		shard := rand.Int63n(10)
 		randValidator := ss[randIndex]
 		if randValidator.wallet == wallet {
 			shardWallet = shard
