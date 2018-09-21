@@ -395,30 +395,64 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			if signSequence[counterSigning] == wal {
 				// check if i'm the first to sign the merkle root
 				if cs.beaconChain.CurrentSign == 0 {
+					schnorrPrivateKey, err := cs.beaconChain.Validators.GetSchnorrPrivateKey()
+					if err != nil {
+						log.Error(err)
+					}
+
 					var transactions []*protobufs.Transaction
+					var merkleRootTransactionArray [][]byte
+					var merkleRootReceiptArray [][]byte
 					// cs.shardChain.CurrentBlock-counterSigning because maybe the real first one didn't sign and so on
-					for i := cs.shardChain.CurrentBlock-counterSigning; i > cs.shardChain.CurrentBlock-counterSigning-30; i--{
+					for i := cs.shardChain.CurrentBlock - counterSigning; i > cs.shardChain.CurrentBlock-counterSigning-30; i-- {
 						blockByte, err := cs.shardChain.GetBlock(uint64(i))
+						if err != nil {
+							log.Error(err)
+						}
 						block := &protoBlockchain.Block{}
 						proto.Unmarshal(blockByte, block)
 
 						transactions = append(transactions, block.GetTransactions())
+
+						merkleRootTransaction := block.GetMerkleRootTransaction()
+						merkleRootReceipt := block.GetMerkleRootReceipt()
+
+						signatureTransaction := wallet.Sign(merkleRootTransaction, schnorrPrivateKey)
+						signatureReceipt := wallet.Sign(merkleRootReceipt, schnorrPrivateKey)
+
+						merkleRootTransactionArray = append(merkleRootTransactionArray, []byte(fmt.Sprintf("%v", signatureTransaction)))
+						merkleRootReceiptArray = append(merkleRootReceiptArray, []byte(fmt.Sprintf("%v", signatureReceipt)))
 					}
-					MerkleRootTransaction, MerkleRootReceipt, err := blockchain.CreateMerkleTrees(transactions)
+					currentShard := cs.beaconChain.Validators.GetShard(wal)
+					validatorsSign := []string{}
+					for _, value := range signSequence {
+						validatorsSign = append(validatorsSign, value)
+					}
 
-					schnorrPrivateKey := cs.beaconChain.Validators.GetSchnorrPrivateKey()
-					signatureTransaction := Sign(MerkleRootTransaction, schnorrPrivateKey)
-					signatureReceipt := Sign(MerkleRootReceipt, schnorrPrivateKey)
+					mr := &protoBlockchain.MerkleRoot(currentShard, merkleRootTransactionArray, merkleRootReceiptArray, validatorsSign, transactions)
+					mrByte, _ := proto.Marshal(mr)
 
-					
+					broadcastMr := &network.Broadcast{
+						Type: Broadcast_MERKLE_ROOTS,
+						TTL:  64,
+						Data: mrByte,
+					}
+					broadcastMrByte, _ := proto.Marshal(broadcastMr)
+
+					env := &network.Envelope{
+						Type:  network.Envelope_BROADCAST,
+						Data:  broadcastMrByte,
+						Shard: currentShard,
+					}
+
 				} else {
-					
+
 				}
 				cs.beaconChain.CurrentSign = counterSigning
 			}
 			counterSigning++
 		}
-		
+
 		// TODO
 		// reset at the end counterSigning , cs.beaconChain.CurrentSign , totalCounterValidator , CurrentMerkleRootSigned
 

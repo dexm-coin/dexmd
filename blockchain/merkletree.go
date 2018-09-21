@@ -66,7 +66,7 @@ func CreateMerkleTreeFromBytes(bytesTransaction [][]byte) (*merkletree.MerkleTre
 }
 
 // CreateMerkleTrees create 2 merkle trees, one for the transaction and one for the receipt of the transaction
-func (b) CreateMerkleTrees(transactions []*protobufs.Transaction) ([]byte, []byte, error) {
+func CreateMerkleTrees(transactions []*protobufs.Transaction) ([]byte, []byte, error) {
 	var listTransaction []merkletree.Content
 	var listReceipt []merkletree.Content
 	for _, t := range transactions {
