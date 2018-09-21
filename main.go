@@ -92,7 +92,7 @@ func main() {
 				os.MkdirAll(".beacon", os.ModePerm)
 
 				// Create the blockchain database
-				beacon, err := blockchain.NewBeaconChain(".beacon/", 0)
+				beacon, err := blockchain.NewBeaconChain(".beacon/")
 				if err != nil {
 					log.Fatal("blockchain", err)
 				}
@@ -107,7 +107,6 @@ func main() {
 					Miner:     "Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683",
 				}
 				b.SaveBlock(genesisBlock)
-				b.ImportBlock(genesisBlock)
 
 				// Open the port on the router, ignore errors
 				networking.TraverseNat(PORT, "Dexm Blockchain Node")
@@ -123,6 +122,8 @@ func main() {
 				if err != nil {
 					log.Fatal("start", err)
 				}
+
+				cs.ImportBlock(genesisBlock)
 
 				// This is only supposed to be one for nodes that are
 				// pointed to by *.dexm.space. Off by default
@@ -200,15 +201,15 @@ func main() {
 					}
 
 					req := &network.Request{
-						Type:  network.Request_GET_WALLET_STATUS,
-						Shard: -1,
+						Type: network.Request_GET_WALLET_STATUS,
 					}
 
 					reqD, _ := proto.Marshal(req)
 
 					env := &network.Envelope{
-						Type: network.Envelope_REQUEST,
-						Data: reqD,
+						Type:  network.Envelope_REQUEST,
+						Data:  reqD,
+						Shard: -1,
 					}
 
 					// GET_WALLET_STATUS requires to first send a request and then the address
@@ -221,8 +222,9 @@ func main() {
 
 					senderAddr, _ := senderWallet.GetWallet()
 					senderEnv := &network.Envelope{
-						Type: network.Envelope_OTHER,
-						Data: []byte(senderAddr),
+						Type:  network.Envelope_OTHER,
+						Data:  []byte(senderAddr),
+						Shard: -1,
 					}
 
 					senderAddrD, _ := proto.Marshal(senderEnv)
@@ -273,12 +275,19 @@ func main() {
 						// identity
 						TTL: 64,
 					}
-
 					brD, _ := proto.Marshal(trBroad)
 
+					// TODO get shard of this wallet
+					// wal, err := wallet.GetWallet()
+					// if err != nil {
+					// 	log.Error(err)
+					// 	continue
+					// }
+					// currentShard, err := c.store.beaconChain.Validators.GetShard(wal)
 					trEnv := &network.Envelope{
 						Type: network.Envelope_BROADCAST,
 						Data: brD,
+						// Shard: ,
 					}
 
 					finalD, _ := proto.Marshal(trEnv)

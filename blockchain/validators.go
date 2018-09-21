@@ -107,6 +107,10 @@ func (v *ValidatorsBook) ExportValidatorsBook(dbPath string) error {
 }
 */
 
+func (v *ValidatorsBook) LenValidators() int {
+	return len(v.valsArray)
+}
+
 // AddValidator adds a new validator to the book. If the validator is already
 // registered, overwrites its stake with the new one
 // Return if the validator already exist or not

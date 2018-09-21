@@ -71,9 +71,12 @@ func CreateMerkleTrees(transactions []*protobufs.Transaction) ([]byte, []byte, e
 	var listReceipt []merkletree.Content
 	for _, t := range transactions {
 		listTransaction = append(listTransaction, TransactionContent{x: t})
-		// TODO
-		// receipt := &protobufs.Receipt{string(t.GetSender()), t.GetRecipient(), t.GetAmount()}
-		// listReceipt = append(listReceipt, ReceiptContent{x: receipt})
+		receipt := &protobufs.Receipt{
+			Sender:    string(t.GetSender()),
+			Recipient: t.GetRecipient(),
+			Amount:    t.GetAmount(),
+		}
+		listReceipt = append(listReceipt, ReceiptContent{x: receipt})
 	}
 
 	MerkleTreeTransaction, err := merkletree.NewTree(listTransaction)

@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/dexm-coin/dexmd/contracts"
 	"github.com/dexm-coin/dexmd/util"
 	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
@@ -226,7 +225,7 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	return true, nil
 }
 
-func (bc *Blockchain) setState(wallet string, newState *protobufs.AccountState) error {
+func (bc *Blockchain) SetState(wallet string, newState *protobufs.AccountState) error {
 	stateBytes, err := proto.Marshal(newState)
 	if err != nil {
 		return err
@@ -270,117 +269,6 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 	// Check if nonce is correct
 	if t.GetNonce() != balance.GetNonce() || !ok {
 		return errors.New("Invalid nonce in transaction")
-	}
-
-	return nil
-}
-
-// ImportBlock imports a block into the blockchain and checks if it's valid
-// This should be called on blocks that are finalized by PoS
-func (bc *Blockchain) ImportBlock(block *protobufs.Block) error {
-	res, err := bc.ValidateBlock(block)
-	if !res {
-		log.Error("ImportBlock ", err)
-		return err
-	}
-
-	// The genesis block is a title of a The Times article, We still need to
-	// add a validator because otherwise no blocks will be generated
-	if block.GetIndex() == 0 {
-		// A bit of balance to run tests
-		state := &protobufs.AccountState{
-			Balance: 20000,
-			Nonce:   0,
-		}
-
-		bc.setState("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", state)
-		bc.Validators.AddValidator("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", 20000, -300)
-
-		state = &protobufs.AccountState{
-			Balance: 10000,
-			Nonce:   0,
-		}
-
-		bc.setState("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", state)
-		bc.Validators.AddValidator("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", 10000, -300)
-
-		return nil
-	}
-
-	totalGas := uint32(0)
-
-	for _, t := range block.GetTransactions() {
-		sender := wallet.BytesToAddress(t.GetSender())
-
-		log.Info("Sender:", sender)
-		log.Info("Recipient:", t.GetRecipient())
-		log.Info("Amnt:", t.GetAmount())
-
-		senderBalance, err := bc.GetWalletState(sender)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-
-		if t.GetRecipient() == "DexmPoS" {
-			exist := bc.Validators.AddValidator(sender, t.GetAmount(), int64(bc.CurrentBlock))
-			if exist {
-				log.Info("slash for ", sender)
-			}
-		}
-
-		// Ignore error because if the wallet doesn't exist yet we don't care
-		reciverBalance, _ := bc.GetWalletState(t.GetRecipient())
-
-		// No overflow checks because ValidateBlock already does that
-		senderBalance.Balance -= t.GetAmount() + uint64(t.GetGas())
-		reciverBalance.Balance += t.GetAmount()
-
-		// Avoid replaying transactions
-		senderBalance.Nonce++
-
-		log.Info("Sender balance:", senderBalance.Balance)
-		log.Info("Sender nonce: ", senderBalance.Nonce)
-		log.Info("Reciver balance:", reciverBalance.Balance)
-
-		totalGas += t.GetGas()
-
-		err = bc.setState(sender, &senderBalance)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		err = bc.setState(t.GetRecipient(), &reciverBalance)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-
-		if t.GetContractCreation() {
-			// Use the code, sender and prev hash to decide contract address
-			contractAddrSource := append(t.GetData(), t.GetSender()...)
-			contractAddrSource = append(contractAddrSource, block.PrevHash...)
-			contractAddr := wallet.BytesToAddress(contractAddrSource)
-
-			// Save it on a separate db
-			log.Info("New contract at ", contractAddr)
-			bc.ContractDb.Put([]byte(contractAddr), t.GetData(), nil)
-		}
-
-		// If a function identifier is specified then fetch the contract and execute
-		if t.GetFunction() != "" {
-			c, err := contracts.GetContract(t.GetRecipient(), bc.ContractDb, bc.StateDb)
-			if err != nil {
-				return err
-			}
-
-			err = c.ExecuteContract(t.GetFunction(), t.GetArgs())
-			if err != nil {
-				return err
-			}
-
-			c.SaveState()
-		}
 	}
 
 	return nil

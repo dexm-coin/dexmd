@@ -162,8 +162,9 @@ func (cs *ConnectionStore) run() {
 				continue
 			}
 			newEnv := &network.Envelope{
-				Type: env.Type,
-				Data: broadcastBytes,
+				Type:  env.Type,
+				Data:  broadcastBytes,
+				Shard: env.Shard,
 			}
 			data, err := proto.Marshal(newEnv)
 			if err != nil {
@@ -256,8 +257,25 @@ func (c *client) read() {
 
 		// If the ContentType is a request then try to parse it as such and handle it
 		case protoNetwork.Envelope_REQUEST:
+			if pb.GetShard() != -1 {
+				wallet, err := c.store.identity.GetWallet()
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				currentShard, err := c.store.beaconChain.Validators.GetShard(wallet)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				if pb.GetShard() != currentShard {
+					log.Info("Not your shard")
+					continue
+				}
+			}
+
 			request := protoNetwork.Request{}
-			err := proto.Unmarshal(pb.GetData(), &request)
+			err = proto.Unmarshal(pb.GetData(), &request)
 			if err != nil {
 				log.Error(err)
 				continue
@@ -318,6 +336,12 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		// time.Sleep(time.Duration(4-time.Now().Unix()%10) * time.Second)
 		time.Sleep(5 * time.Second)
 
+		currentShard, err := cs.beaconChain.Validators.GetShard(wal)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
 		// check if the block with index cs.shardChain.CurrentBlock have been saved, otherwise save an empty block
 		selectedBlock, err := cs.shardChain.GetBlock(cs.shardChain.CurrentBlock)
 		if err != nil {
@@ -334,7 +358,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			if err != nil {
 				log.Error(err)
 			}
-			err = cs.shardChain.ImportBlock(block)
+			err = cs.ImportBlock(block)
 			if err != nil {
 				log.Error(err)
 			}
@@ -368,7 +392,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 			// choose the next shard with a seed
 			seed := binary.BigEndian.Uint64(finalHash[:])
-			newShard, err := cs.shardChain.Validators.ChooseShard(int64(seed), wal)
+			newShard, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -393,18 +417,17 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		// check if the it's your turn to make the signature
 		if counterSigning < totalCounterValidator {
 			if signSequence[counterSigning] == wal {
+				schnorrPrivateKey, err := cs.beaconChain.Validators.GetSchnorrPrivateKey(wal)
+				if err != nil {
+					log.Error(err)
+				}
 				// check if i'm the first to sign the merkle root
-				if cs.beaconChain.CurrentSign == 0 || cs.beaconChain.SignedMerkleRoot == nil {
-					schnorrPrivateKey, err := cs.beaconChain.Validators.GetSchnorrPrivateKey()
-					if err != nil {
-						log.Error(err)
-					}
-
-					var transactions []*protobufs.Transaction
+				if cs.beaconChain.CurrentSign[currentShard] == 0 || cs.beaconChain.SignedMerkleRoot == nil {
+					var transactions []*protoBlockchain.Transaction
 					var merkleRootTransactionArray [][]byte
 					var merkleRootReceiptArray [][]byte
 					// cs.shardChain.CurrentBlock-counterSigning because maybe the real first one didn't sign and so on
-					for i := cs.shardChain.CurrentBlock - counterSigning; i > cs.shardChain.CurrentBlock-counterSigning-30; i-- {
+					for i := int64(cs.shardChain.CurrentBlock) - counterSigning; i > int64(cs.shardChain.CurrentBlock)-counterSigning-30; i-- {
 						blockByte, err := cs.shardChain.GetBlock(uint64(i))
 						if err != nil {
 							log.Error(err)
@@ -412,7 +435,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 						block := &protoBlockchain.Block{}
 						proto.Unmarshal(blockByte, block)
 
-						transactions = append(transactions, block.GetTransactions())
+						transactions = append(transactions, block.GetTransactions()...)
 
 						merkleRootTransaction := block.GetMerkleRootTransaction()
 						merkleRootReceipt := block.GetMerkleRootReceipt()
@@ -424,17 +447,22 @@ func (cs *ConnectionStore) ValidatorLoop() {
 						merkleRootReceiptArray = append(merkleRootReceiptArray, []byte(fmt.Sprintf("%v", signatureReceipt)))
 					}
 
-					currentShard := cs.beaconChain.Validators.GetShard(wal)
 					validatorsSign := []string{}
 					for _, value := range signSequence {
 						validatorsSign = append(validatorsSign, value)
 					}
 
-					mr := &protoBlockchain.MerkleRoot(currentShard, merkleRootTransactionArray, merkleRootReceiptArray, validatorsSign, transactions)
+					mr := &protoBlockchain.MerkleRoot{
+						Shard: currentShard,
+						SignedMerkleRootsTransaction: merkleRootTransactionArray,
+						SignedMerkleRootsReceipt:     merkleRootReceiptArray,
+						Validators:                   validatorsSign,
+						Transactions:                 transactions,
+					}
 					mrByte, _ := proto.Marshal(mr)
 
 					broadcastMr := &network.Broadcast{
-						Type: Broadcast_MERKLE_ROOTS,
+						Type: protoNetwork.Broadcast_MERKLE_ROOTS,
 						TTL:  64,
 						Data: mrByte,
 					}
@@ -451,30 +479,30 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 				} else {
 					merkleRoot := cs.beaconChain.SignedMerkleRoot
-					
+
 					var merkleRootTransactionArray [][]byte
 					var merkleRootReceiptArray [][]byte
 					mrTransaction := merkleRoot.GetSignedMerkleRootsTransaction()
 					mrReceipt := merkleRoot.GetSignedMerkleRootsReceipt()
-					for i := range len(mrTransaction) {
+					for i := 0; i < len(mrTransaction); i++ {
 						signatureTransaction := wallet.Sign(mrTransaction[i], schnorrPrivateKey)
 						signatureReceipt := wallet.Sign(mrReceipt[i], schnorrPrivateKey)
-						
+
 						merkleRootTransactionArray = append(merkleRootTransactionArray, []byte(fmt.Sprintf("%v", signatureTransaction)))
 						merkleRootReceiptArray = append(merkleRootReceiptArray, []byte(fmt.Sprintf("%v", signatureReceipt)))
 					}
 
-					currentShard := cs.beaconChain.Validators.GetShard(wal)
-					validatorsSign := []string{}
-					for _, value := range signSequence {
-						validatorsSign = append(validatorsSign, value)
+					mr := &protoBlockchain.MerkleRoot{
+						Shard: currentShard,
+						SignedMerkleRootsTransaction: merkleRootTransactionArray,
+						SignedMerkleRootsReceipt:     merkleRootReceiptArray,
+						Validators:                   merkleRoot.GetValidators(),
+						Transactions:                 merkleRoot.GetTransactions(),
 					}
-
-					mr := &protoBlockchain.MerkleRoot(currentShard, merkleRootTransactionArray, merkleRootReceiptArray, validatorsSign, transactions)
 					mrByte, _ := proto.Marshal(mr)
 
 					broadcastMr := &network.Broadcast{
-						Type: Broadcast_MERKLE_ROOTS,
+						Type: protoNetwork.Broadcast_MERKLE_ROOTS,
 						TTL:  64,
 						Data: mrByte,
 					}
@@ -489,7 +517,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 					data, _ := proto.Marshal(env)
 					cs.broadcast <- data
 				}
-				cs.beaconChain.CurrentSign = counterSigning
+				cs.beaconChain.CurrentSign[currentShard] = counterSigning
 			}
 			counterSigning++
 		}
@@ -500,7 +528,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		// Checkpoint Agreement
 		if cs.shardChain.CurrentBlock%101 == 0 && cs.shardChain.CurrentBlock%10001 != 0 {
 			// check if it is a validator, also check that the dynasty are correct
-			if cs.shardChain.Validators.CheckDynasty(wal, cs.shardChain.CurrentBlock) {
+			if cs.beaconChain.Validators.CheckDynasty(wal, cs.shardChain.CurrentBlock) {
 				// get source and target block in the blockchain
 				souceBlockByte, err := cs.shardChain.GetBlock(cs.shardChain.CurrentCheckpoint)
 				if err != nil {
@@ -523,14 +551,14 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				bhash2 := sha256.Sum256(targetBlockByte)
 				hashTarget := bhash2[:]
 
-				vote := blockchain.CreateVote(hashSource, hashTarget, cs.shardChain.CurrentCheckpoint, cs.shardChain.CurrentBlock-1, cs.identity)
+				vote := CreateVote(hashSource, hashTarget, cs.shardChain.CurrentCheckpoint, cs.shardChain.CurrentBlock-1, cs.identity)
 
 				// read all the incoming vote and store it, after 1 minut call CheckpointAgreement
 				go func() {
 					currentBlockCheckpoint := cs.shardChain.CurrentBlock - 1
 					time.Sleep(1 * time.Minute)
 					// time.Sleep(15 * time.Second)
-					check := blockchain.CheckpointAgreement(cs.shardChain, cs.shardChain.CurrentCheckpoint, currentBlockCheckpoint)
+					check := cs.CheckpointAgreement(cs.shardChain.CurrentCheckpoint, currentBlockCheckpoint)
 					log.Info("CheckpointAgreement ", check)
 				}()
 
@@ -561,8 +589,9 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				broadcastBytes, _ := proto.Marshal(broadcast)
 
 				env := &network.Envelope{
-					Type: network.Envelope_BROADCAST,
-					Data: broadcastBytes,
+					Type:  network.Envelope_BROADCAST,
+					Data:  broadcastBytes,
+					Shard: currentShard,
 				}
 
 				data, _ := proto.Marshal(env)
@@ -571,7 +600,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			}
 		}
 
-		validator, err := cs.shardChain.Validators.ChooseValidator(int64(cs.shardChain.CurrentBlock))
+		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardChain.CurrentBlock))
 		if err != nil {
 			log.Fatal(err)
 			continue
@@ -619,8 +648,9 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			broadcastBytes, _ := proto.Marshal(broadcast)
 
 			env := &network.Envelope{
-				Data: broadcastBytes,
-				Type: network.Envelope_BROADCAST,
+				Data:  broadcastBytes,
+				Type:  network.Envelope_BROADCAST,
+				Shard: currentShard,
 			}
 
 			data, _ := proto.Marshal(env)

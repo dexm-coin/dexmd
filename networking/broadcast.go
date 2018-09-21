@@ -61,7 +61,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			log.Error("error on saving block")
 			return err
 		}
-		err = cs.shardChain.ImportBlock(block)
+		err = cs.ImportBlock(block)
 		if err != nil {
 			log.Error("error on importing block")
 			return err
@@ -76,8 +76,8 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			log.Error(err)
 			return err
 		}
-		if cs.shardChain.Validators.CheckIsValidator(vote.PublicKey) {
-			err := cs.shardChain.AddVote(vote)
+		if cs.beaconChain.Validators.CheckIsValidator(vote.PublicKey) {
+			err := cs.AddVote(vote)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -95,7 +95,19 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			return err
 		}
 
-		cs.shardChain.Validators.WithdrawValidator(withdrawVal.GetPublicKey(), withdrawVal.GetR(), withdrawVal.GetS(), int64(cs.shardChain.CurrentBlock))
+		cs.beaconChain.Validators.WithdrawValidator(withdrawVal.GetPublicKey(), withdrawVal.GetR(), withdrawVal.GetS(), int64(cs.shardChain.CurrentBlock))
+
+	case protoNetwork.Broadcast_MERKLE_ROOTS:
+		log.Printf("New Merkle Roots: %x", broadcastEnvelope.GetData())
+
+		mr := &protoBlockchain.MerkleRoot{}
+		err := proto.Unmarshal(broadcastEnvelope.GetData(), mr)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+
+		cs.beaconChain.SignedMerkleRoot = mr
 	}
 	return nil
 }
