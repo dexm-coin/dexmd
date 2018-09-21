@@ -288,6 +288,7 @@ func (c *client) read() {
 
 				env.Type = protoNetwork.Envelope_OTHER
 				env.Data = rawMsg
+				env.Shard = -1
 
 				toSend, err := proto.Marshal(&env)
 				if err != nil {
@@ -399,9 +400,9 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 			// TODO like this doesn't work, you should remove the blockchain so early
 			// remove the older blockchain and create a new one
-			os.RemoveAll(".dexm")
-			os.MkdirAll(".dexm", os.ModePerm)
-			cs.shardChain, err = blockchain.NewBlockchain(".dexm/", 0)
+			os.RemoveAll(".dexm/shard")
+			os.MkdirAll(".dexm/shard", os.ModePerm)
+			cs.shardChain, err = blockchain.NewBlockchain(".dexm/shard/", 0)
 			if err != nil {
 				log.Fatal("NewBlockchain ", err)
 			}
@@ -627,7 +628,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			r, s, err := cs.identity.Sign(hash)
 			if err != nil {
 				log.Error(err)
-				return
 			}
 
 			signature := &network.Signature{

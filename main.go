@@ -80,19 +80,17 @@ func main() {
 				// }
 
 				// Create the dexm folder in case it's not there
-				os.MkdirAll(".dexm", os.ModePerm)
+				os.MkdirAll(".dexm.shard", os.ModePerm)
+				os.MkdirAll(".dexm.beacon", os.ModePerm)
 
 				// Create the blockchain database
-				b, err := blockchain.NewBlockchain(".dexm/", 0)
+				b, err := blockchain.NewBlockchain(".dexm.shard/", 0)
 				if err != nil {
 					log.Fatal("blockchain", err)
 				}
 
-				// Create the dexm folder in case it's not there
-				os.MkdirAll(".beacon", os.ModePerm)
-
 				// Create the blockchain database
-				beacon, err := blockchain.NewBeaconChain(".beacon/")
+				beacon, err := blockchain.NewBeaconChain(".dexm.beacon/")
 				if err != nil {
 					log.Fatal("blockchain", err)
 				}
