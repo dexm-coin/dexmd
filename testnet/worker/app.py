@@ -9,6 +9,4 @@ start = requests.get("http://coordinator:5000/submit_addr", params={
     }
 ).text
 
-genesis_time = int(start)
-
-os.system("./dexmd sn wal.json " + genesis_time)
+os.system("./dexmd sn wal.json " + start)
