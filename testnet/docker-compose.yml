@@ -4,17 +4,19 @@ services:
   coordinator:
     build: ./coordinator
     ports:
-      - 5000:80
+      - "5000:5000"
 
   worker:
     build: ./worker
+    links:
+      - coordinator
     ports:
-      - 3141:3141
+      - "3141:3141"
     depends_on:
       - coordinator
     deploy:
       mode: replicated
-      replicas: 50
+      replicas: 5
 
       resources:
         # Hard limit - Docker does not allow to allocate more
