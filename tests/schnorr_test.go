@@ -10,6 +10,7 @@ import (
 
 var curve = edwards25519.NewBlakeSHA256Ed25519()
 var sha256 = curve.Hash()
+var g = curve.Point().Base()
 
 type Signature struct {
 	r kyber.Point
@@ -23,33 +24,68 @@ func Hash(s string) kyber.Scalar {
 	return curve.Scalar().SetBytes(sha256.Sum(nil))
 }
 
+/*
+	both generate `k`
+	both do r = k*G, r1 e r2
+	after some them up r, r1 + r2
+	P = (publickey1 + publickey2)
+	e = m + (r1+r2) + P
+	s = k – e * x , s1 e s2
+	e S = s1 + s2
+	The verification by checking that R = s * G + H(m || P || R) * P
+
+
+	C = H(P0 || P1)
+	Q0 = H(C || P0) * P0 , Q1 = H(C || P1) * P1
+	P = Q0 + Q1
+	Alice uses y0 = x0 * H(C || P0) as private key , Bob y1 = x1 * H(C || P1)
+*/
+
 // m: Message
 // x: Private key
-func Sign(m string, x kyber.Scalar) Signature {
-	// Get the base of the curve.
-	g := curve.Point().Base()
-
+func Sign(m string, x kyber.Scalar, otherR []kyber.Point, otherP []kyber.Point, k kyber.Scalar) kyber.Scalar {
 	// Pick a random k from allowed set.
-	k := curve.Scalar().Pick(curve.RandomStream())
+	// k := curve.Scalar().Pick(curve.RandomStream())
 
-	// r = k * G (a.k.a the same operation as r = g^k)
-	r := curve.Point().Mul(k, g)
+	// SHARD THIS
+	// r = k * G
+	myR := curve.Point().Mul(k, g)
 
-	// Hash(m || r)
-	e := Hash(m + r.String())
+	// p = x * G
+	myP := curve.Point().Mul(x, g)
+
+	R := myR
+	for _, r := range otherR {
+		R = curve.Point().Add(R, r)
+	}
+	P := myP
+	for _, p := range otherP {
+		P = curve.Point().Add(P, p)
+	}
+
+	// C := Hash(P.String())
+	// myQ := curve.Point().Mul(Hash(C.String()+myP.String()), myP)
+	// P2 := myQ
+	// for _, p := range otherP {
+	// 	P2 = curve.Point().Add(P2, curve.Point().Mul(Hash(C.String()+p.String()), p))
+	// }
+	// e := Hash(m + P2.String() + R.String())
+
+	// private key
+	// y := curve.Point().Mul(x, Hash(C + myP))
+
+	// Hash(m || r || p)
+	e := Hash(m + P.String() + R.String())
 
 	// s = k - e * x
 	s := curve.Scalar().Sub(k, curve.Scalar().Mul(e, x))
 
-	return Signature{r: r, s: s}
+	return s
 }
 
 // m: Message
 // S: Signature
 func PublicKey(m string, S Signature) kyber.Point {
-	// Create a generator.
-	g := curve.Point().Base()
-
 	// e = Hash(m || r)
 	e := Hash(m + S.r.String())
 
@@ -60,23 +96,31 @@ func PublicKey(m string, S Signature) kyber.Point {
 	return y
 }
 
+/*
+	The verification by checking that R = s * G + H(m || P || R) * P
+*/
+
 // s: Signature
-// y: Public key
-func Verify(m string, S Signature, y kyber.Point) bool {
-	// Create a generator.
-	g := curve.Point().Base()
+// p: Public key
+// func Verify(m string, S Signature, P kyber.Point, R kyber.Point) bool {
+// 	// e = Hash(m || r || P)
+// 	e := Hash(m + S.r.String() + P.String())
 
-	// e = Hash(m || r)
-	e := Hash(m + S.r.String())
+// 	// Attempt to reconstruct 's * G' with a provided signature; s * G = r - e * y
+// 	sGv := curve.Point().Sub(S.r, curve.Point().Mul(e, P))
+// 	// Construct the actual 's * G'
+// 	sG := curve.Point().Mul(S.s, g)
+// 	// Equality check; ensure signature and public key outputs to s * G.
+// 	return sG.Equal(sGv)
+// }
 
-	// Attempt to reconstruct 's * G' with a provided signature; s * G = r - e * y
-	sGv := curve.Point().Sub(S.r, curve.Point().Mul(e, y))
+func Verify(m string, S Signature, P kyber.Point, R kyber.Point) bool {
+	// e = Hash(m || r || P)
+	e := Hash(m + P.String() + R.String())
 
-	// Construct the actual 's * G'
-	sG := curve.Point().Mul(S.s, g)
-
-	// Equality check; ensure signature and public key outputs to s * G.
-	return sG.Equal(sGv)
+	// check R = s * G + H(m || P || R) * P
+	a := curve.Point().Add(curve.Point().Mul(S.s, g), curve.Point().Mul(e, P))
+	return R.Equal(a)
 }
 
 func (S Signature) String() string {
@@ -84,19 +128,33 @@ func (S Signature) String() string {
 }
 
 func TestSchnorr(t *testing.T) {
-	privateKey := curve.Scalar().Pick(curve.RandomStream())
-	publicKey := curve.Point().Mul(privateKey, curve.Point().Base())
+	x1 := curve.Scalar().Pick(curve.RandomStream())
+	publicKey1 := curve.Point().Mul(x1, g)
+	k1 := curve.Scalar().Pick(curve.RandomStream())
+	R1 := curve.Point().Mul(k1, g)
 
-	privateKey2 := curve.Scalar().Pick(curve.RandomStream())
-	publicKey2 := curve.Point().Mul(privateKey2, curve.Point().Base())
+	x2 := curve.Scalar().Pick(curve.RandomStream())
+	publicKey2 := curve.Point().Mul(x2, g)
+	k2 := curve.Scalar().Pick(curve.RandomStream())
+	R2 := curve.Point().Mul(k2, g)
 
 	message := "We're gonna be signing this!"
 
-	signature := Sign(message, privateKey)
-	fmt.Printf("Signature %s\n\n", signature)
-	signature2 := Sign(string([]byte(fmt.Sprintf("%v", signature))), privateKey2)
-	fmt.Printf("Signature2 %s\n\n", signature2)
+	s1 := Sign(message, x1, []kyber.Point{R2}, []kyber.Point{publicKey2}, k1)
+	fmt.Printf("Signature1 %s\n\n", s1)
+	s2 := Sign(message, x2, []kyber.Point{R1}, []kyber.Point{publicKey1}, k2)
+	fmt.Printf("Signature2 %s\n\n", s2)
 
-	fmt.Printf("Is the signature2 valid %t\n\n", Verify(string([]byte(fmt.Sprintf("%v", signature))), signature2, publicKey2))
-	fmt.Printf("Is the signature valid %t\n\n", Verify(message, signature, publicKey))
+	R := R1
+	for _, r := range []kyber.Point{R2} {
+		R = curve.Point().Add(R, r)
+	}
+	S := curve.Scalar().Add(s1, s2)
+	signature := Signature{r: R, s: S}
+
+	P := publicKey1
+	for _, p := range []kyber.Point{publicKey2} {
+		P = curve.Point().Add(P, p)
+	}
+	fmt.Printf("Is the signature valid %t\n\n", Verify(message, signature, P, R))
 }
