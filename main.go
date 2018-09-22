@@ -29,7 +29,10 @@ import (
 const (
 	PORT              = 3141
 	PUBLIC_PEERSERVER = false
-	TS                = 1536346900
+)
+
+var (
+	TS = uint64(1536346900)
 )
 
 func main() {
@@ -61,10 +64,15 @@ func main() {
 			Aliases: []string{"sn", "rn"},
 			Action: func(c *cli.Context) error {
 				walletPath := c.Args().Get(0)
-				network := c.Args().Get(1)
+				genesisTimestamp := c.Args().Get(1)
+				network := c.Args().Get(2)
 
 				if network == "" {
 					network = "hackney"
+				}
+
+				if genesisTimestamp == "" {
+					TS, _ = strconv.ParseUint(genesisTimestamp, 10, 64)
 				}
 
 				// Import an identity to encrypt data and sign for validator msg

@@ -458,7 +458,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 						SignedMerkleRootsTransaction: merkleRootTransactionArray,
 						SignedMerkleRootsReceipt:     merkleRootReceiptArray,
 						Validators:                   validatorsSign,
-						Transactions:                 transactions,
 					}
 					mrByte, _ := proto.Marshal(mr)
 
@@ -498,7 +497,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 						SignedMerkleRootsTransaction: merkleRootTransactionArray,
 						SignedMerkleRootsReceipt:     merkleRootReceiptArray,
 						Validators:                   merkleRoot.GetValidators(),
-						Transactions:                 merkleRoot.GetTransactions(),
 					}
 					mrByte, _ := proto.Marshal(mr)
 
