@@ -118,7 +118,7 @@ func (v *ValidatorsBook) AddValidator(wallet string, stake uint64, dynasty int64
 	if _, ok := v.valsArray[wallet]; ok {
 		return true
 	}
-	privateKey, publicKey := wal.CreateSchnorrAccount()
+	privateKey, publicKey := wal.CreateSchnorrKeys()
 	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1, -1, privateKey, publicKey}
 	return false
 }
@@ -272,7 +272,7 @@ func (v *ValidatorsBook) ChooseShard(seed int64, wallet string) (int64, error) {
 }
 
 // ChooseSignSequence return the sequence in which order the signature of a merkle root should be
-func (v *ValidatorsBook) ChooseSignSequence(currentBlock int64) (map[int64]string, int64) {
+func (v *ValidatorsBook) ChooseSignSequence(currentBlock int64) map[int64]string {
 	rand.Seed(currentBlock)
 
 	var ss []simpleValidator
@@ -293,5 +293,5 @@ func (v *ValidatorsBook) ChooseSignSequence(currentBlock int64) (map[int64]strin
 		}
 		signSequence[int64(i)] = ss[randIndex].wallet
 	}
-	return signSequence, int64(len(signSequence))
+	return signSequence
 }

@@ -107,7 +107,18 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			return err
 		}
 
-		cs.beaconChain.SignedMerkleRoot = mr
+		// TODO verify the merkle root and save on MerkleRootsDb
+
+	case protoNetwork.Broadcast_SCHNORR:
+		log.Printf("New Schnorr: %x", broadcastEnvelope.GetData())
+
+		schnorr := &protoBlockchain.Schnorr{}
+		err := proto.Unmarshal(broadcastEnvelope.GetData(), schnorr)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		cs.shardChain.Schnorr[schnorr.P] = schnorr.R
 	}
 	return nil
 }

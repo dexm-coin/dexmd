@@ -97,6 +97,22 @@ func (S Signature) String() string {
 	return fmt.Sprintf("(r=%s, s=%s)", S.r, S.s)
 }
 
+// func ByteToPoint(byteRs [][]byte, Ps []string) []kyber.Point {
+	// var Rs []kyber.Point
+	// for _, r := range byteRs {
+	// 	var byteR bytes.Buffer
+	// 	dec := gob.NewDecoder(&byteR)
+	// 	err := dec.Decode(&r)
+	// 	if err != nil {
+	// 		return nil
+	// 	}
+	// 	Rs = append(Rs, r)
+	// }
+	// return Rs
+// }
+
+
+
 // generate k and calculate r
 func GenerateParameter() (kyber.Scalar, kyber.Point) {
 	k := curve.Scalar().Pick(curve.RandomStream())
