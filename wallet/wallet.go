@@ -260,13 +260,14 @@ func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32, dat
 	w.Nonce++
 
 	newT := &protobufs.Transaction{
-		Sender:    x509Encoded,
-		Recipient: recipient,
-		Nonce:     uint32(w.Nonce),
-		Amount:    amount,
-		Gas:       gas,
-		Timestamp: uint64(time.Now().Unix()),
-		Data:      data,
+		Sender:           x509Encoded,
+		Recipient:        recipient,
+		Nonce:            uint32(w.Nonce),
+		Amount:           amount,
+		Gas:              gas,
+		Timestamp:        uint64(time.Now().Unix()),
+		Data:             data,
+		ContractCreation: true,
 	}
 
 	result, err := proto.Marshal(newT)

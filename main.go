@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	TS = uint64(1536346900)
+	TS = uint64(1537734511)
 )
 
 func main() {
@@ -71,14 +71,17 @@ func main() {
 					network = "hackney"
 				}
 
-				if genesisTimestamp == "" {
-					TS, _ = strconv.ParseUint(genesisTimestamp, 10, 64)
-				}
-
 				// Import an identity to encrypt data and sign for validator msg
 				w, err := wallet.ImportWallet(walletPath)
 				if err != nil {
 					log.Fatal("import", err)
+				}
+
+				if genesisTimestamp != "" {
+					TS, err = strconv.ParseUint(genesisTimestamp, 10, 64)
+					if err != nil {
+						log.Fatal(err)
+					}
 				}
 
 				// Find the home folder of the current user
@@ -226,7 +229,10 @@ func main() {
 						continue
 					}
 
-					senderAddr, _ := senderWallet.GetWallet()
+					senderAddr, err := senderWallet.GetWallet()
+					if err != nil {
+						log.Fatal(err)
+					}
 					senderEnv := &network.Envelope{
 						Type:  network.Envelope_OTHER,
 						Data:  []byte(senderAddr),
@@ -322,7 +328,7 @@ func main() {
 				// 	log.Fatal(err)
 				// }
 
-				b, err := blockchain.NewBlockchain(".dexm", 0)
+				b, err := blockchain.NewBlockchain(".dexm/shard", 0)
 				if err != nil {
 					log.Fatal(err)
 					return nil

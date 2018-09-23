@@ -1,6 +1,8 @@
 package wallet
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 
 	"gopkg.in/dedis/kyber.v2"
@@ -98,26 +100,52 @@ func (S Signature) String() string {
 }
 
 // func ByteToPoint(byteRs [][]byte, Ps []string) []kyber.Point {
-	// var Rs []kyber.Point
-	// for _, r := range byteRs {
-	// 	var byteR bytes.Buffer
-	// 	dec := gob.NewDecoder(&byteR)
-	// 	err := dec.Decode(&r)
-	// 	if err != nil {
-	// 		return nil
-	// 	}
-	// 	Rs = append(Rs, r)
-	// }
-	// return Rs
+// var Rs []kyber.Point
+// for _, r := range byteRs {
+// 	var byteR bytes.Buffer
+// 	dec := gob.NewDecoder(&byteR)
+// 	err := dec.Decode(&r)
+// 	if err != nil {
+// 		return nil
+// 	}
+// 	Rs = append(Rs, r)
+// }
+// return Rs
 // }
 
+func MarshalGob(v interface{}) ([]byte, error) {
+	b := new(bytes.Buffer)
+	err := gob.NewEncoder(b).Encode(v)
+	if err != nil {
+		fmt.Println("ERROR ", err)
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
 
+func UnmarshalGob(data []byte, v *kyber.Point) error {
+	b := bytes.NewBuffer(data)
+	return gob.NewDecoder(b).Decode(&v)
+}
+
+func SignatureToByte(S Signature) ([]byte, error) {
+	sByte, err := MarshalGob(S)
+	return sByte, err
+}
+
+func ByteToPoint(b []byte, p kyber.Point) {
+	fmt.Println("before Q ", p)
+	err := UnmarshalGob(b, &p)
+	fmt.Println("ERROR ", err)
+	fmt.Println("after Q ", p)
+}
 
 // generate k and calculate r
-func GenerateParameter() (kyber.Scalar, kyber.Point) {
+func GenerateParameter() (kyber.Scalar, []byte) {
 	k := curve.Scalar().Pick(curve.RandomStream())
 	r := curve.Point().Mul(k, g)
-	return k, r
+	rByte, _ := MarshalGob(r)
+	return k, rByte
 }
 
 func MakeSign(x kyber.Scalar, k kyber.Scalar, message string, otherR []kyber.Point, otherP []kyber.Point) kyber.Scalar {

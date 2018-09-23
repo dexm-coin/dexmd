@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/cbergoon/merkletree"
+	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 )
@@ -76,7 +77,7 @@ func CreateMerkleTrees(transactions []*protobufs.Transaction) ([]byte, []byte, e
 	for _, t := range transactions {
 		listTransaction = append(listTransaction, TransactionContent{x: t})
 		receipt := &protobufs.Receipt{
-			Sender:    string(t.GetSender()),
+			Sender:    string(wallet.BytesToAddress(t.GetSender())),
 			Recipient: t.GetRecipient(),
 			Amount:    t.GetAmount(),
 		}
