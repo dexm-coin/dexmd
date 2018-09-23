@@ -60,7 +60,7 @@ func main() {
 
 		{
 			Name:    "startnode",
-			Usage:   "sn [wallet] [network]",
+			Usage:   "sn [wallet] [timestamp] [network]",
 			Aliases: []string{"sn", "rn"},
 			Action: func(c *cli.Context) error {
 				walletPath := c.Args().Get(0)

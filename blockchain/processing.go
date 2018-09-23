@@ -23,15 +23,15 @@ type Blockchain struct {
 	CasperVotesDb *leveldb.DB
 
 	Mempool *mempool
-	// Validators *ValidatorsBook
+
+	Schnorr map[string][]byte
 
 	GenesisTimestamp uint64
 
-	CurrentBlock            uint64
-	CurrentCheckpoint       uint64
-	CurrentValidator        string
-	CurrentVote             uint64
-	CurrentMerkleRootSigned []byte
+	CurrentBlock      uint64
+	CurrentCheckpoint uint64
+	CurrentValidator  string
+	CurrentVote       uint64
 }
 
 // BeaconChain is an internal representation of a beacon chain
@@ -39,16 +39,15 @@ type BeaconChain struct {
 	MerkleRootsDb map[int64]*leveldb.DB
 	Validators    *ValidatorsBook
 
-	CurrentBlock     map[int64]uint64
-	CurrentSign      map[int64]int64
-	SignedMerkleRoot *protobufs.MerkleRoot
+	CurrentBlock map[int64]uint64
+	CurrentSign  map[int64]string
 }
 
 // NewBeaconChain create a new beacon chain
 func NewBeaconChain(dbPath string) (*BeaconChain, error) {
 	mrdb := make(map[int64]*leveldb.DB)
 	cb := make(map[int64]uint64)
-	cs := make(map[int64]int64)
+	cs := make(map[int64]string)
 
 	for i := 1; i < 11; i++ {
 		db, err := leveldb.OpenFile(dbPath+".merkleroots"+strconv.Itoa(i), nil)
@@ -57,16 +56,14 @@ func NewBeaconChain(dbPath string) (*BeaconChain, error) {
 		}
 		mrdb[int64(i)] = db
 		cb[int64(i)] = 0
-		cs[int64(i)] = 0
 	}
 
 	vd := NewValidatorsBook()
 	return &BeaconChain{
-		MerkleRootsDb:    mrdb,
-		Validators:       vd,
-		CurrentBlock:     cb,
-		CurrentSign:      cs,
-		SignedMerkleRoot: nil,
+		MerkleRootsDb: mrdb,
+		Validators:    vd,
+		CurrentBlock:  cb,
+		CurrentSign:   cs,
 	}, nil
 }
 
@@ -110,12 +107,11 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		CasperVotesDb: cvdb,
 
 		Mempool: mp,
-		// Validators: vd,
+		Schnorr: make(map[string][]byte),
 
-		CurrentBlock:            index,
-		CurrentCheckpoint:       0,
-		CurrentVote:             0,
-		CurrentMerkleRootSigned: []byte{},
+		CurrentBlock:      index,
+		CurrentCheckpoint: 0,
+		CurrentVote:       0,
 	}, err
 }
 
