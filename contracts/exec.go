@@ -9,6 +9,7 @@ import (
 	"github.com/dexm-coin/wagon/exec"
 	"github.com/dexm-coin/wagon/wasm"
 	"github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -78,6 +79,8 @@ func (c *Contract) ExecuteContract(exportName string, arguments []uint64) error 
 	if !ok {
 		return errors.New("Invalid export index")
 	}
+
+	log.Info(exportName, calledFunction.Index)
 
 	// Call the function with passed arguments
 	c.VM.ExecCode(int64(calledFunction.Index), arguments...)
