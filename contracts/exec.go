@@ -71,8 +71,8 @@ func GetContract(address string, contractDb, stateDb *leveldb.DB) (*Contract, er
 // ExecuteContract runs the function with the passed arguments
 func (c *Contract) ExecuteContract(exportName string, arguments []uint64) error {
 	// Set the VM state before executing
-	c.VM.SetMemory(c.State.Memory)
-	c.VM.SetGlobal(c.State.Globals)
+	//c.VM.SetMemory(c.State.Memory)
+	//c.VM.SetGlobal(c.State.Globals)
 
 	// Check if the passed function exists
 	calledFunction, ok := c.Module.Export.Entries[exportName]
@@ -83,7 +83,7 @@ func (c *Contract) ExecuteContract(exportName string, arguments []uint64) error 
 	log.Info(exportName, calledFunction.Index)
 
 	// Call the function with passed arguments
-	_, err := c.VM.ExecCode(int64(calledFunction.Index), arguments...)
+	_, err := c.VM.ExecCode(int64(calledFunction.Index))
 	if err != nil {
 		return err
 	}
@@ -114,40 +114,40 @@ func setupImport(name string) (*wasm.Module, error) {
 				ReturnTypes: []wasm.ValueType{},
 			},
 
-			// balance() : i32
+			// balance() : i64
 			{
 				Form:        1,
 				ParamTypes:  []wasm.ValueType{},
 				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI32},
 			},
 
-			// pay(to_ptr: i32, amnt: i32, gas : i32)
+			// pay(to_ptr: i64, amnt: i64, gas : i64)
 			{
 				Form: 2,
-				ParamTypes: []wasm.ValueType{wasm.ValueTypeI32,
-					wasm.ValueTypeI32, wasm.ValueTypeI32},
+				ParamTypes: []wasm.ValueType{wasm.ValueTypeI64,
+					wasm.ValueTypeI64, wasm.ValueTypeI64},
 				ReturnTypes: []wasm.ValueType{},
 			},
 
-			// time() : i32
+			// time() : i64
 			{
 				Form:        3,
 				ParamTypes:  []wasm.ValueType{},
-				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI32},
+				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI64},
 			},
 
-			// sender(ptr: i32, size: i32) : i32
+			// sender(ptr: i64, size: i64) : i64
 			{
 				Form:        4,
-				ParamTypes:  []wasm.ValueType{wasm.ValueTypeI32, wasm.ValueTypeI32},
-				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI32},
+				ParamTypes:  []wasm.ValueType{wasm.ValueTypeI64, wasm.ValueTypeI64},
+				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI64},
 			},
 
-			// value() : i32
+			// value() : i64
 			{
 				Form:        5,
 				ParamTypes:  []wasm.ValueType{},
-				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI32},
+				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI64},
 			},
 		},
 	}

@@ -199,7 +199,13 @@ func main() {
 			Usage:   "i [address]",
 			Aliases: []string{"i"},
 			Action: func(c *cli.Context) error {
-				address := c.Args().Get(0)
+				walPath := c.Args().Get(0)
+				address := c.Args().Get(1)
+
+				senderWallet, err := wallet.ImportWallet(walPath)
+				if err != nil {
+					log.Fatal(err)
+				}
 
 				// Find the home folder of the current user
 				// user, err := user.Current()
@@ -234,6 +240,24 @@ func main() {
 					Help: "Function entries from the contract",
 					Func: func(c *ishell.Context) {
 						choice = c.MultiChoice(entries, "Which function do you want to use ?")
+
+						c.Println("Insert the transaction value")
+						valS := c.ReadLine()
+
+						c.Println("Insert gas cost")
+						gasS := c.ReadLine()
+
+						amount, err := strconv.ParseUint(valS, 10, 64)
+						if err != nil {
+							log.Fatal(err)
+						}
+
+						gas, err := strconv.Atoi(gasS)
+						if err != nil {
+							log.Fatal(err)
+						}
+
+						networking.SendTransaction(senderWallet, address, entries[choice], amount, uint64(gas), []byte{}, false)
 					},
 				})
 
