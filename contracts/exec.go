@@ -83,7 +83,10 @@ func (c *Contract) ExecuteContract(exportName string, arguments []uint64) error 
 	log.Info(exportName, calledFunction.Index)
 
 	// Call the function with passed arguments
-	c.VM.ExecCode(int64(calledFunction.Index), arguments...)
+	_, err := c.VM.ExecCode(int64(calledFunction.Index), arguments...)
+	if err != nil {
+		return err
+	}
 
 	// Save the new state
 	c.State.Memory = c.VM.Memory()
