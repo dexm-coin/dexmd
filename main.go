@@ -4,24 +4,19 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/abiosoft/ishell"
 	"github.com/dexm-coin/dexmd/networking"
-	"github.com/gorilla/websocket"
 
 	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/contracts"
 	"github.com/dexm-coin/dexmd/wallet"
 	bp "github.com/dexm-coin/protobufs/build/blockchain"
-	"github.com/dexm-coin/protobufs/build/network"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -191,127 +186,10 @@ func main() {
 					return nil
 				}
 
-				ips, err := networking.GetPeerList("hackney")
-				if err != nil {
-					log.Error("peer", err)
-					return nil
-				}
+				ccreation := len(cdata) == 0
 
-				dial := websocket.Dialer{
-					Proxy:            http.ProxyFromEnvironment,
-					HandshakeTimeout: 5 * time.Second,
-				}
+				networking.SendTransaction(senderWallet, recipient, "", amount, uint64(gas), cdata, ccreation)
 
-				log.Info(ips)
-				for _, ip := range ips {
-					conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", ip+":"+strconv.Itoa(PORT)), nil)
-					if err != nil {
-						log.Fatal(err)
-						continue
-					}
-
-					req := &network.Request{
-						Type: network.Request_GET_WALLET_STATUS,
-					}
-
-					reqD, _ := proto.Marshal(req)
-
-					env := &network.Envelope{
-						Type:  network.Envelope_REQUEST,
-						Data:  reqD,
-						Shard: -1,
-					}
-
-					// GET_WALLET_STATUS requires to first send a request and then the address
-					envD, _ := proto.Marshal(env)
-					err = conn.WriteMessage(websocket.BinaryMessage, envD)
-					if err != nil {
-						log.Fatal(err)
-						continue
-					}
-
-					senderAddr, err := senderWallet.GetWallet()
-					if err != nil {
-						log.Fatal(err)
-					}
-					senderEnv := &network.Envelope{
-						Type:  network.Envelope_OTHER,
-						Data:  []byte(senderAddr),
-						Shard: -1,
-					}
-
-					senderAddrD, _ := proto.Marshal(senderEnv)
-
-					err = conn.WriteMessage(websocket.BinaryMessage, []byte(senderAddrD))
-					if err != nil {
-						log.Fatal(err)
-						continue
-					}
-
-					// Parse the message and save the new state
-					_, msg, err := conn.ReadMessage()
-					if err != nil {
-						log.Fatal(err)
-						continue
-					}
-
-					walletEnv := &network.Envelope{}
-					err = proto.Unmarshal(msg, walletEnv)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					var walletStatus bp.AccountState
-					err = proto.Unmarshal(walletEnv.Data, &walletStatus)
-					if err != nil {
-						log.Fatal(err)
-					}
-					log.Info("walletStatus ", walletStatus)
-					senderWallet.Nonce = int(walletStatus.Nonce)
-					senderWallet.Balance = int(walletStatus.Balance)
-
-					trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata)
-					if err != nil {
-						log.Fatal(err)
-						continue
-					}
-
-					// signature := &network.Signature{
-					// 	Pubkey: pub,
-					// 	R:      r.Bytes(),
-					// 	S:      s.Bytes(),
-					// 	Data:   hash,
-					// }
-					trBroad := &network.Broadcast{
-						Type: network.Broadcast_TRANSACTION,
-						Data: trans,
-						// identity
-						TTL: 64,
-					}
-					brD, _ := proto.Marshal(trBroad)
-
-					// TODO get shard of this wallet
-					// wal, err := wallet.GetWallet()
-					// if err != nil {
-					// 	log.Error(err)
-					// 	continue
-					// }
-					// currentShard, err := c.store.beaconChain.Validators.GetShard(wal)
-					trEnv := &network.Envelope{
-						Type: network.Envelope_BROADCAST,
-						Data: brD,
-						// Shard: ,
-					}
-
-					finalD, _ := proto.Marshal(trEnv)
-					conn.WriteMessage(websocket.BinaryMessage, finalD)
-
-					senderWallet.ExportWallet(walletPath)
-					log.Info("Transaction done successfully")
-
-					return nil
-				}
-				log.Error("Node not found")
 				return nil
 			},
 		},

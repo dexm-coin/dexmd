@@ -187,9 +187,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 			return err
 		}
 
-		// TODO
-		// if t.GetContractCreation() {
-		if true {
+		if t.GetContractCreation() {
 			// Use the code, sender and prev hash to decide contract address
 			contractAddrSource := append(t.GetData(), t.GetSender()...)
 			contractAddrSource = append(contractAddrSource, block.PrevHash...)
