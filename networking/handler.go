@@ -66,6 +66,20 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client) []byt
 	case protobufs.Request_GET_VERSION:
 		return []byte("0.0 Hackney")
 
+	// GET_CONTRACT_CODE returns the code of a contract
+	case protobufs.Request_GET_CONTRACT_CODE:
+		contractAddr, err := c.GetResponse(100 * time.Millisecond)
+		if err != nil {
+			log.Error(err)
+			return []byte{}
+		}
+
+		code, err := cs.shardChain.GetContractCode(contractAddr)
+		if err != nil {
+			return []byte("Error")
+		}
+
+		return code
 	}
 
 	return []byte{}

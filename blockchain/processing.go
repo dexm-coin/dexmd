@@ -150,6 +150,13 @@ func (bc *Blockchain) GetBlock(index uint64) ([]byte, error) {
 	return bc.blockDb.Get([]byte(strconv.Itoa(int(index))), nil)
 }
 
+// GetContractCode returns the code of a contract at an address. Used
+// as a wrapper so when we add diffed contracts in the future it's easier
+// to change without breaking everything
+func (bc *Blockchain) GetContractCode(address []byte) ([]byte, error) {
+	return bc.ContractDb.Get(address, nil)
+}
+
 // ValidateBlock checks the validity of a block. It uses the current
 // blockchain state so the passed block might become valid in the future.
 // TODO Check validator

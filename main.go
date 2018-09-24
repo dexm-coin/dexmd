@@ -343,11 +343,13 @@ func main() {
 				var choice int
 				shell.AddCmd(&ishell.Cmd{
 					Name: "entries",
-					Help: "fucntions entries from the contract",
+					Help: "Function entries from the contract",
 					Func: func(c *ishell.Context) {
 						choice = c.MultiChoice(entries, "Which function do you want to use ?")
 					},
 				})
+
+				shell.Run()
 
 				return nil
 			},
