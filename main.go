@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -328,16 +329,19 @@ func main() {
 				// 	log.Fatal(err)
 				// }
 
-				b, err := blockchain.NewBlockchain(".dexm/shard", 0)
+				b, err := blockchain.NewBlockchain(".dexm.shard/", 0)
 				if err != nil {
-					log.Fatal(err)
+					log.Fatal("nb", err)
 					return nil
 				}
 
 				contract, err := contracts.GetContract(address, b.ContractDb, b.StateDb)
 				if err != nil {
+					log.Fatal(err)
 					return nil
 				}
+
+				log.Info("Inspecting ", address)
 
 				shell := ishell.New()
 
@@ -352,6 +356,24 @@ func main() {
 					Help: "Function entries from the contract",
 					Func: func(c *ishell.Context) {
 						choice = c.MultiChoice(entries, "Which function do you want to use ?")
+					},
+				})
+
+				shell.AddCmd(&ishell.Cmd{
+					Name: "memory",
+					Help: "Inspect the contract memory",
+					Func: func(c *ishell.Context) {
+						log.Print(hex.Dump(contract.State.GetMemory()))
+					},
+				})
+
+				shell.AddCmd(&ishell.Cmd{
+					Name: "globals",
+					Help: "Inspect the contract globals",
+					Func: func(c *ishell.Context) {
+						for k, v := range contract.State.GetGlobals() {
+							log.Println(k, "->", v)
+						}
 					},
 				})
 
