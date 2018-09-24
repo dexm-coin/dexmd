@@ -269,6 +269,10 @@ func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32, dat
 		Data:      data,
 	}
 
+	if len(data) != 0 {
+		newT.ContractCreation = true
+	}
+
 	result, err := proto.Marshal(newT)
 	if err != nil {
 		return nil, err

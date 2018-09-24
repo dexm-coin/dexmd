@@ -11,7 +11,8 @@ import (
 	"reflect"
 	"time"
 
-	"gopkg.in/mgo.v2/bson"
+	// "bytes"
+	// "encoding/gob"
 
 	"gopkg.in/dedis/kyber.v2"
 	// "gopkg.in/dedis/kyber.v2/group/edwards25519"
@@ -416,17 +417,12 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		}
 
 		// every 30 blocks do the merkle root signature
-		if cs.shardChain.CurrentBlock%31 == 0 {
+		if cs.shardChain.CurrentBlock%2 == 0 {
 			cs.beaconChain.CurrentSign = cs.beaconChain.Validators.ChooseSignSequence(int64(cs.shardChain.CurrentBlock))
 
 			// generate k and caluate r
-			k, r := wallet.GenerateParameter()
+			k, rByte := wallet.GenerateParameter()
 			currentK = k
-
-			rByte, err := bson.Marshal(&r)
-			if err != nil {
-				log.Error(err)
-			}
 
 			schnorrP := &protoBlockchain.Schnorr{
 				R: rByte,
@@ -453,7 +449,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		}
 
 		// after 3 turn, make the sign and broadcast it
-		if cs.shardChain.CurrentBlock%34 == 0 {
+		if cs.shardChain.CurrentBlock%4 == 0 {
 			x, err := cs.beaconChain.Validators.GetSchnorrPrivateKey(wal)
 			if err != nil {
 				log.Error(err)
@@ -469,7 +465,10 @@ func (cs *ConnectionStore) ValidatorLoop() {
 						PartecipantValidator = append(PartecipantValidator, cs.beaconChain.CurrentSign[i])
 
 						var q kyber.Point
-						bson.Unmarshal(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]], &q)
+
+						wallet.ByteToPoint(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]], q)
+						log.Info("Q ", q)
+
 						if cs.beaconChain.CurrentSign[i] == wal {
 							myR = q
 							continue
@@ -508,11 +507,11 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			signatureTransaction := wallet.CreateSignature(Rs, myR, merkleRootTransactionArray)
 			signatureReceipt := wallet.CreateSignature(Rs, myR, merkleRootReceiptArray)
 
-			stByte, err := bson.Marshal(&signatureTransaction)
+			stByte, err := wallet.SignatureToByte(signatureTransaction)
 			if err != nil {
 				log.Error(err)
 			}
-			srByte, err := bson.Marshal(&signatureReceipt)
+			srByte, err := wallet.SignatureToByte(signatureReceipt)
 			if err != nil {
 				log.Error(err)
 			}

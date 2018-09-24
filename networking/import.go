@@ -133,6 +133,8 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		cs.shardChain.SetState("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", state)
 		cs.beaconChain.Validators.AddValidator("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", 10000, -300)
 
+		cs.shardChain.GenesisTimestamp = block.GetTimestamp()
+
 		return nil
 	}
 
@@ -185,7 +187,9 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 			return err
 		}
 
-		if t.GetContractCreation() {
+		// TODO
+		// if t.GetContractCreation() {
+		if true {
 			// Use the code, sender and prev hash to decide contract address
 			contractAddrSource := append(t.GetData(), t.GetSender()...)
 			contractAddrSource = append(contractAddrSource, block.PrevHash...)
@@ -231,8 +235,8 @@ func makeReqEnvelope(req *network.Request, currentShard int64) ([]byte, error) {
 	}
 
 	env := &network.Envelope{
-		Type: network.Envelope_REQUEST,
-		Data: d,
+		Type:  network.Envelope_REQUEST,
+		Data:  d,
 		Shard: currentShard,
 	}
 
