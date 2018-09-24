@@ -95,7 +95,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 		senderWallet.Nonce = int(walletStatus.Nonce)
 		senderWallet.Balance = int(walletStatus.Balance)
 
-		trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata, fname, ccreation)
+		trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata)
 		if err != nil {
 			log.Fatal(err)
 			continue

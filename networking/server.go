@@ -421,7 +421,10 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			cs.beaconChain.CurrentSign = cs.beaconChain.Validators.ChooseSignSequence(int64(cs.shardChain.CurrentBlock))
 
 			// generate k and caluate r
-			k, rByte := wallet.GenerateParameter()
+			k, rByte, err := wallet.GenerateParameter()
+			if err != nil {
+				log.Error(err)
+			}
 			currentK = k
 
 			schnorrP := &protoBlockchain.Schnorr{
@@ -464,10 +467,10 @@ func (cs *ConnectionStore) ValidatorLoop() {
 					if _, ok := cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]]; ok {
 						PartecipantValidator = append(PartecipantValidator, cs.beaconChain.CurrentSign[i])
 
-						var q kyber.Point
-
-						wallet.ByteToPoint(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]], q)
-						log.Info("Q ", q)
+						q, err := wallet.ByteToPoint(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]])
+						if err != nil {
+							log.Error(err)
+						}
 
 						if cs.beaconChain.CurrentSign[i] == wal {
 							myR = q
@@ -483,8 +486,11 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				}
 			}
 
-			var merkleRootTransactionArray []kyber.Scalar
-			var merkleRootReceiptArray []kyber.Scalar
+			var signMerkleRootTransactionArray []kyber.Scalar
+			var signMerkleRootReceiptArray []kyber.Scalar
+			var merkleRootTransactionArray [][]byte
+			var merkleRootReceiptArray [][]byte
+
 			// -3 becuase it's after 3 turn from sending GenerateParameter
 			for i := int64(cs.shardChain.CurrentBlock) - 3; i > int64(cs.shardChain.CurrentBlock)-33; i-- {
 				blockByte, err := cs.shardChain.GetBlock(uint64(i))
@@ -496,31 +502,45 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 				merkleRootTransaction := block.GetMerkleRootTransaction()
 				merkleRootReceipt := block.GetMerkleRootReceipt()
+				merkleRootTransactionArray = append(merkleRootTransactionArray, merkleRootTransaction)
+				merkleRootReceiptArray = append(merkleRootReceiptArray, merkleRootReceipt)
 
 				signTransaction := wallet.MakeSign(x, currentK, string(merkleRootTransaction), Rs, Ps)
 				signReceipt := wallet.MakeSign(x, currentK, string(merkleRootReceipt), Rs, Ps)
 
-				merkleRootTransactionArray = append(merkleRootTransactionArray, signTransaction)
-				merkleRootReceiptArray = append(merkleRootReceiptArray, signReceipt)
+				signMerkleRootTransactionArray = append(signMerkleRootTransactionArray, signTransaction)
+				signMerkleRootReceiptArray = append(signMerkleRootReceiptArray, signReceipt)
 			}
 
-			signatureTransaction := wallet.CreateSignature(Rs, myR, merkleRootTransactionArray)
-			signatureReceipt := wallet.CreateSignature(Rs, myR, merkleRootReceiptArray)
-
-			stByte, err := wallet.SignatureToByte(signatureTransaction)
+			RsignatureTransaction, SsignatureTransaction, err := wallet.CreateSignature(Rs, myR, signMerkleRootTransactionArray)
 			if err != nil {
 				log.Error(err)
 			}
-			srByte, err := wallet.SignatureToByte(signatureReceipt)
+			RsignatureReceipt, SsignatureReceipt, err := wallet.CreateSignature(Rs, myR, signMerkleRootReceiptArray)
 			if err != nil {
 				log.Error(err)
+			}
+
+			Rs = append(Rs, myR)
+			var RsByte [][]byte
+			for i := 0; i < len(Rs); i++ {
+				res, err := Rs[i].MarshalBinary()
+				if err != nil {
+					log.Error(err)
+				}
+				RsByte = append(RsByte, res)
 			}
 
 			mr := &protoBlockchain.MerkleRoot{
 				Shard: currentShard,
-				SignedMerkleRootsTransaction: stByte,
-				SignedMerkleRootsReceipt:     srByte,
-				Validators:                   PartecipantValidator,
+				MerkleRootsTransaction:        merkleRootTransactionArray,
+				MerkleRootsReceipt:            merkleRootReceiptArray,
+				RSignedMerkleRootsTransaction: RsignatureTransaction,
+				SSignedMerkleRootsTransaction: SsignatureTransaction,
+				RSignedMerkleRootsReceipt:     RsignatureReceipt,
+				SSignedMerkleRootsReceipt:     SsignatureReceipt,
+				RValidators:                   RsByte,
+				Validators:                    PartecipantValidator,
 			}
 			mrByte, _ := proto.Marshal(mr)
 

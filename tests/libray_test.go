@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	// "reflect"
 	"testing"
 
 	"gopkg.in/dedis/kyber.v2"
@@ -81,8 +82,22 @@ type Incer interface {
 }
 
 func TestGob2(t *testing.T) {
-	// k := curve.Scalar().Pick(curve.RandomStream())
-	// r := curve.Point().Mul(k, g)
+	k := curve.Scalar().Pick(curve.RandomStream())
+	r := curve.Point().Mul(k, g)
+	fmt.Println(r)
+	// fmt.Print(reflect.TypeOf(r))
+
+	res, err := r.MarshalBinary()
+	fmt.Println("err ", err)
+	fmt.Println(res)
+
+	var q kyber.Point
+	q = curve.Point()
+	err = q.UnmarshalBinary(res)
+	fmt.Println("err ", err)
+	fmt.Println(q)
+
+
 
 	// b := new(bytes.Buffer)
 	// err := gob.NewEncoder(b).Encode(r)
@@ -90,8 +105,8 @@ func TestGob2(t *testing.T) {
 	// rByte := b.Bytes()
 	// fmt.Println("rByte ", rByte)
 
-	// var q Incer
-	// q = &kyber.Point{}
+	// var q kyber.Point
+	// q = curve.Point()
 
 	// b2 := bytes.NewBuffer(rByte)
 	// err = gob.NewDecoder(b2).Decode(q)
