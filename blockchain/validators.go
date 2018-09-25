@@ -24,9 +24,8 @@ type Validator struct {
 	startDynasty int64
 	endDynasty   int64
 
-	shard             int64
-	schnorrPrivateKey kyber.Scalar
-	schnorrPublicKey  kyber.Point
+	shard            int64
+	schnorrPublicKey kyber.Point
 }
 
 // NewValidatorsBook creates an empty ValidatorsBook object
@@ -114,12 +113,12 @@ func (v *ValidatorsBook) LenValidators() int {
 // AddValidator adds a new validator to the book. If the validator is already
 // registered, overwrites its stake with the new one
 // Return if the validator already exist or not
-func (v *ValidatorsBook) AddValidator(wallet string, stake uint64, dynasty int64) bool {
+func (v *ValidatorsBook) AddValidator(wallet string, stake uint64, dynasty int64, pubSchnorrKey []byte) bool {
 	if _, ok := v.valsArray[wallet]; ok {
 		return true
 	}
-	privateKey, publicKey := wal.CreateSchnorrKeys()
-	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1, -1, privateKey, publicKey}
+	publicKey, _ := wal.ByteToPoint(pubSchnorrKey)
+	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1, -1, publicKey}
 	return false
 }
 
@@ -130,14 +129,6 @@ func (v *ValidatorsBook) RemoveValidator(wallet string) error {
 		return nil
 	}
 	return errors.New("Validator " + wallet + " not found")
-}
-
-// GetSchnorrPrivateKey returns the schnorrPrivateKey for a given wallet.
-func (v *ValidatorsBook) GetSchnorrPrivateKey(wallet string) (kyber.Scalar, error) {
-	if _, ok := v.valsArray[wallet]; ok {
-		return v.valsArray[wallet].schnorrPrivateKey, nil
-	}
-	return nil, errors.New("Validator " + wallet + " not found")
 }
 
 // GetSchnorrPublicKey returns the schnorrPublicKey for a given wallet.

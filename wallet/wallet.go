@@ -18,6 +18,8 @@ import (
 
 	"strings"
 
+	"gopkg.in/dedis/kyber.v2"
+
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 	"github.com/gopherjs/gopherjs/js"
@@ -27,9 +29,11 @@ import (
 
 // Wallet is an internal representation of a private key
 type Wallet struct {
-	PrivKey *ecdsa.PrivateKey
-	Nonce   int
-	Balance int
+	PrivKey        *ecdsa.PrivateKey
+	Nonce          int
+	Balance        int
+	PrivKeySchnorr []byte
+	PubKeySchnorr  []byte
 }
 
 type file struct {
@@ -47,11 +51,22 @@ func GenerateWallet() (*Wallet, error) {
 		return nil, err
 	}
 
+	x, p := CreateSchnorrKeys()
+	xByte, _ := x.MarshalBinary()
+	pByte, _ := p.MarshalBinary()
+
 	return &Wallet{
-		PrivKey: priv,
-		Nonce:   0,
-		Balance: 0,
+		PrivKey:        priv,
+		Nonce:          0,
+		Balance:        0,
+		PrivKeySchnorr: xByte,
+		PubKeySchnorr:  pByte,
 	}, nil
+}
+
+// GetPrivateKeySchnorr return the private schnorr key to the wallet
+func (w *Wallet) GetPrivateKeySchnorr() (kyber.Scalar, error) {
+	return ByteToScalar(w.PubKeySchnorr)
 }
 
 // JSWallet returns a gopherjs wrapper to the wallet
@@ -87,7 +102,8 @@ func jsonKeyToStruct(walletJSON []byte) (*Wallet, error) {
 	return &Wallet{
 		PrivKey: key,
 		Nonce:   walletfile.Nonce,
-		Balance: walletfile.Balance}, nil
+		Balance: walletfile.Balance,
+	}, nil
 }
 
 // ExportWallet saves the internal Wallet structure to a file

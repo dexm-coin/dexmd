@@ -200,6 +200,8 @@ func ByteToScalarSchnorr(b []byte) (kyber.Scalar, error) {
 func TestSchnorr(t *testing.T) {
 	x1 := curve.Scalar().Pick(curve.RandomStream())
 	publicKey1 := curve.Point().Mul(x1, g)
+	fmt.Println(publicKey1)
+	fmt.Println(x1)
 	k1 := curve.Scalar().Pick(curve.RandomStream())
 	R1 := curve.Point().Mul(k1, g)
 

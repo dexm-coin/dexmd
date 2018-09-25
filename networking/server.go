@@ -453,12 +453,13 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 		// after 3 turn, make the sign and broadcast it
 		if cs.shardChain.CurrentBlock%4 == 0 {
-			x, err := cs.beaconChain.Validators.GetSchnorrPrivateKey(wal)
+			x, err := cs.identity.GetPrivateKeySchnorr()
 			if err != nil {
 				log.Error(err)
 			}
 
-			// var myR kyber.Point
+			var myR []byte
+			var myP []byte
 			var PartecipantValidator []string
 			var Rs []kyber.Point
 			var Ps []kyber.Point
@@ -469,16 +470,18 @@ func (cs *ConnectionStore) ValidatorLoop() {
 					if _, ok := cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]]; ok {
 						PartecipantValidator = append(PartecipantValidator, cs.beaconChain.CurrentSign[i])
 
-						q, err := wallet.ByteToPoint(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]])
+						r, err := wallet.ByteToPoint(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]])
 						if err != nil {
 							log.Error(err)
 						}
 
 						if cs.beaconChain.CurrentSign[i] == wal {
-							// myR = q
+							myR, _ = r.MarshalBinary()
+							p, _ := cs.beaconChain.Validators.GetSchnorrPublicKey(wal)
+							myP, _ = p.MarshalBinary()
 							continue
 						}
-						Rs = append(Rs, q)
+						Rs = append(Rs, r)
 						p, err := cs.beaconChain.Validators.GetSchnorrPublicKey(cs.beaconChain.CurrentSign[i])
 						if err != nil {
 							log.Error(err)
@@ -511,67 +514,25 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			signTransaction := wallet.MakeSign(x, currentK, stringMRTransaction, Rs, Ps)
 			signReceipt := wallet.MakeSign(x, currentK, stringMRReceipt, Rs, Ps)
 
-			// devo mandare 1 messaggio broadcast, con scritto: shard, il mio P e R, e le due sign
+			// send the signed transaction and receipt
+			signSchorrP := &protoBlockchain.SignSchnorr{
+				Shard:                  currentShard,
+				Wallet:                 wal,
+				RSchnorr:               myR,
+				PSchnorr:               myP,
+				SignTransaction:        signTransaction,
+				SignReceipt:            signReceipt,
+				MessageSignTransaction: stringMRTransaction,
+				MessageSignReceipt:     stringMRReceipt,
+			}
+			signSchorrByte, _ := proto.Marshal(signSchorrP)
 
-		}
-
-		if cs.shardChain.CurrentBlock%6 == 0 {
-			RsignatureTransaction, SsignatureTransaction, err := wallet.CreateSignature(Rs, myR, signMerkleRootTransactionArray)
-			if err != nil {
-				log.Error(err)
-			}
-			RsignatureReceipt, SsignatureReceipt, err := wallet.CreateSignature(Rs, myR, signMerkleRootReceiptArray)
-			if err != nil {
-				log.Error(err)
-			}
-
-			currentP, err := cs.beaconChain.Validators.GetSchnorrPublicKey(wal)
-			if err != nil {
-				log.Error(err)
-			}
-			rSignedTransaction, err := wallet.ByteToPoint(RsignatureTransaction)
-			if err != nil {
-				log.Error(err)
-			}
-			sSignedTransaction, err := wallet.ByteToScalar(SsignatureTransaction)
-			if err != nil {
-				log.Error(err)
-			}
-			verify := wallet.VerifySignature(string(merkleRootTransactionArray[0]), rSignedTransaction, sSignedTransaction, Ps, currentP, Rs, myR)
-			log.Info("Verify ", verify)
-			if !verify {
-				log.Error("Not verify")
-			}
-
-			Rs = append(Rs, myR)
-			var RsByte [][]byte
-			for i := 0; i < len(Rs); i++ {
-				res, err := Rs[i].MarshalBinary()
-				if err != nil {
-					log.Error(err)
-				}
-				RsByte = append(RsByte, res)
-			}
-
-			mr := &protoBlockchain.MerkleRoot{
-				Shard: currentShard,
-				MerkleRootsTransaction:        merkleRootTransactionArray,
-				MerkleRootsReceipt:            merkleRootReceiptArray,
-				RSignedMerkleRootsTransaction: RsignatureTransaction,
-				SSignedMerkleRootsTransaction: SsignatureTransaction,
-				RSignedMerkleRootsReceipt:     RsignatureReceipt,
-				SSignedMerkleRootsReceipt:     SsignatureReceipt,
-				RValidators:                   RsByte,
-				Validators:                    PartecipantValidator,
-			}
-			mrByte, _ := proto.Marshal(mr)
-
-			broadcastMr := &network.Broadcast{
-				Type: protoNetwork.Broadcast_MERKLE_ROOTS,
+			broadcastSignSchorr := &network.Broadcast{
+				Type: protoNetwork.Broadcast_SIGN_SCHNORR,
 				TTL:  64,
-				Data: mrByte,
+				Data: signSchorrByte,
 			}
-			broadcastMrByte, _ := proto.Marshal(broadcastMr)
+			broadcastMrByte, _ := proto.Marshal(broadcastSignSchorr)
 
 			env := &network.Envelope{
 				Type:  network.Envelope_BROADCAST,
@@ -581,6 +542,116 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 			data, _ := proto.Marshal(env)
 			cs.broadcast <- data
+		}
+
+		// after another 3 turn make the final signature, from sign of the chosen validator, and verify it
+		if cs.shardChain.CurrentBlock%6 == 0 {
+			// cs.shardChain.MTTrasaction
+			// cs.shardChain.MTReceipt
+			// cs.shardChain.RSchnorr
+			// cs.shardChain.PSchnorr
+			// cs.shardChain.MessagesTransaction
+			// cs.shardChain.MessagesReceipt
+
+			var Rs []kyber.Point
+			var Ps []kyber.Point
+			var SsTransaction []kyber.Scalar
+			var SsReceipt []kyber.Scalar
+			var MessagesTransaction []string
+			var MessagesReceipt []string
+
+			// TODO change 2 with len(cs.shardChain.RSchnorr)
+			for i := 0; i < 2; i++ {
+				r, err := wallet.ByteToPoint(cs.shardChain.RSchnorr[i])
+				if err != nil {
+					log.Error(err)
+				}
+				p, err := wallet.ByteToPoint(cs.shardChain.PSchnorr[i])
+				if err != nil {
+					log.Error(err)
+				}
+
+				sTransaction, err := wallet.ByteToScalar(cs.shardChain.MTTrasaction[i])
+				if err != nil {
+					log.Error(err)
+				}
+				sReceipt, err := wallet.ByteToScalar(cs.shardChain.MTReceipt[i])
+				if err != nil {
+					log.Error(err)
+				}
+
+				Rs = append(Rs, r)
+				Ps = append(Ps, p)
+				SsTransaction = append(SsTransaction, sTransaction)
+				SsReceipt = append(SsReceipt, sReceipt)
+				MessagesTransaction = append(MessagesTransaction, cs.shardChain.MessagesTransaction[i])
+				MessagesReceipt = append(MessagesReceipt, cs.shardChain.MessagesReceipt[i])
+			}
+
+			RsignatureTransaction, SsignatureTransaction, err := wallet.CreateSignature(Rs, SsTransaction)
+			if err != nil {
+				log.Error(err)
+			}
+			// RsignatureReceipt, SsignatureReceipt, err := wallet.CreateSignature(Rs, SsReceipt)
+			// if err != nil {
+			// 	log.Error(err)
+			// }
+
+			rSignedTransaction, err := wallet.ByteToPoint(RsignatureTransaction)
+			if err != nil {
+				log.Error(err)
+			}
+			sSignedTransaction, err := wallet.ByteToScalar(SsignatureTransaction)
+			if err != nil {
+				log.Error(err)
+			}
+
+			for _, message := range MessagesTransaction {
+				verify := wallet.VerifySignature(message, rSignedTransaction, sSignedTransaction, Ps, Rs)
+				// log.Info("Verify ", verify)
+				if !verify {
+					log.Error("Not verify")
+				}
+			}
+
+			// Rs = append(Rs, myR)
+			// var RsByte [][]byte
+			// for i := 0; i < len(Rs); i++ {
+			// 	res, err := Rs[i].MarshalBinary()
+			// 	if err != nil {
+			// 		log.Error(err)
+			// 	}
+			// 	RsByte = append(RsByte, res)
+			// }
+
+			// mr := &protoBlockchain.MerkleRoot{
+			// 	Shard: currentShard,
+			// 	MerkleRootsTransaction:        merkleRootTransactionArray,
+			// 	MerkleRootsReceipt:            merkleRootReceiptArray,
+			// 	RSignedMerkleRootsTransaction: RsignatureTransaction,
+			// 	SSignedMerkleRootsTransaction: SsignatureTransaction,
+			// 	RSignedMerkleRootsReceipt:     RsignatureReceipt,
+			// 	SSignedMerkleRootsReceipt:     SsignatureReceipt,
+			// 	RValidators:                   RsByte,
+			// 	Validators:                    PartecipantValidator,
+			// }
+			// mrByte, _ := proto.Marshal(mr)
+
+			// broadcastMr := &network.Broadcast{
+			// 	Type: protoNetwork.Broadcast_MERKLE_ROOTS_SIGNED,
+			// 	TTL:  64,
+			// 	Data: mrByte,
+			// }
+			// broadcastMrByte, _ := proto.Marshal(broadcastMr)
+
+			// env := &network.Envelope{
+			// 	Type:  network.Envelope_BROADCAST,
+			// 	Data:  broadcastMrByte,
+			// 	Shard: currentShard,
+			// }
+
+			// data, _ := proto.Marshal(env)
+			// cs.broadcast <- data
 
 			for k := range cs.beaconChain.CurrentSign {
 				delete(cs.beaconChain.CurrentSign, k)

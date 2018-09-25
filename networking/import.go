@@ -123,7 +123,8 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		}
 
 		cs.shardChain.SetState("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", state)
-		cs.beaconChain.Validators.AddValidator("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", 20000, -300)
+		//TODO change []byte{}
+		cs.beaconChain.Validators.AddValidator("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", 20000, -300, []byte{})
 
 		state = &protobufs.AccountState{
 			Balance: 10000,
@@ -131,7 +132,8 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		}
 
 		cs.shardChain.SetState("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", state)
-		cs.beaconChain.Validators.AddValidator("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", 10000, -300)
+		//TODO change []byte{}
+		cs.beaconChain.Validators.AddValidator("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", 10000, -300, []byte{})
 
 		cs.shardChain.GenesisTimestamp = block.GetTimestamp()
 
@@ -154,7 +156,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		}
 
 		if t.GetRecipient() == "DexmPoS" {
-			exist := cs.beaconChain.Validators.AddValidator(sender, t.GetAmount(), int64(cs.shardChain.CurrentBlock))
+			exist := cs.beaconChain.Validators.AddValidator(sender, t.GetAmount(), int64(cs.shardChain.CurrentBlock), t.GetPubSchnorrKey())
 			if exist {
 				log.Info("slash for ", sender)
 			}

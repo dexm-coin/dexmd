@@ -24,9 +24,13 @@ type Blockchain struct {
 
 	Mempool *mempool
 
-	Schnorr map[string][]byte
-	MTTrasaction [][]byte
-	MTReceipt [][]byte
+	Schnorr             map[string][]byte
+	MTTrasaction        [][]byte
+	MTReceipt           [][]byte
+	RSchnorr            [][]byte
+	PSchnorr            [][]byte
+	MessagesTransaction []string
+	MessagesReceipt     []string
 
 	GenesisTimestamp uint64
 
@@ -131,7 +135,7 @@ func (bc *Blockchain) GetWalletState(wallet string) (protobufs.AccountState, err
 }
 
 // SaveBlockBeacon saves a block into the BeaconChain in a specific shard and index
-func (bc *BeaconChain) SaveBlockBeacon(block *protobufs.MerkleRoot, shard, index int64) error {
+func (bc *BeaconChain) SaveBlockBeacon(block *protobufs.MerkleRootsSigned, shard, index int64) error {
 	res, _ := proto.Marshal(block)
 	return bc.MerkleRootsDb[shard].Put([]byte(strconv.Itoa(int(index))), res, nil)
 }

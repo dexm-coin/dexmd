@@ -9,11 +9,6 @@ var curve = edwards25519.NewBlakeSHA256Ed25519()
 var hashSha256 = curve.Hash()
 var g = curve.Point().Base()
 
-// type Signature struct {
-// 	r kyber.Point
-// 	s kyber.Scalar
-// }
-
 func Hash(s string) kyber.Scalar {
 	hashSha256.Reset()
 	hashSha256.Write([]byte(s))
@@ -55,6 +50,7 @@ func Sign(m string, x kyber.Scalar, otherR []kyber.Point, otherP []kyber.Point, 
 		P = curve.Point().Add(P, p)
 	}
 
+	// TODO add this stuff
 	// C := Hash(P.String())
 	// myQ := curve.Point().Mul(Hash(C.String()+myP.String()), myP)
 	// P2 := myQ
@@ -91,44 +87,6 @@ func Verify(m string, rSignature kyber.Point, sSignature kyber.Scalar, P kyber.P
 	return R.Equal(a)
 }
 
-// func (S Signature) String() string {
-// 	return fmt.Sprintf("(r=%s, s=%s)", S.r, S.s)
-// }
-
-// func ByteToPoint(byteRs [][]byte, Ps []string) []kyber.Point {
-// var Rs []kyber.Point
-// for _, r := range byteRs {
-// 	var byteR bytes.Buffer
-// 	dec := gob.NewDecoder(&byteR)
-// 	err := dec.Decode(&r)
-// 	if err != nil {
-// 		return nil
-// 	}
-// 	Rs = append(Rs, r)
-// }
-// return Rs
-// }
-
-// func MarshalGob(v interface{}) ([]byte, error) {
-// 	b := new(bytes.Buffer)
-// 	err := gob.NewEncoder(b).Encode(v)
-// 	if err != nil {
-// 		fmt.Println("ERROR ", err)
-// 		return nil, err
-// 	}
-// 	return b.Bytes(), nil
-// }
-
-// func UnmarshalGob(data []byte, v *kyber.Point) error {
-// 	b := bytes.NewBuffer(data)
-// 	return gob.NewDecoder(b).Decode(&v)
-// }
-
-// func SignatureToByte(S Signature) ([]byte, error) {
-// 	sByte, err := MarshalGob(S)
-// 	return sByte, err
-// }
-
 func ByteToPoint(b []byte) (kyber.Point, error) {
 	p := curve.Point()
 	err := p.UnmarshalBinary(b)
@@ -159,13 +117,15 @@ func GenerateParameter() (kyber.Scalar, []byte, error) {
 	return k, res, nil
 }
 
-func MakeSign(x kyber.Scalar, k kyber.Scalar, message string, otherR []kyber.Point, otherP []kyber.Point) kyber.Scalar {
-	return Sign(message, x, otherR, otherP, k)
+func MakeSign(x kyber.Scalar, k kyber.Scalar, message string, otherR []kyber.Point, otherP []kyber.Point) []byte {
+	s := Sign(message, x, otherR, otherP, k)
+	res, _ := s.MarshalBinary()
+	return res
 }
 
-func CreateSignature(Rs []kyber.Point, myR kyber.Point, Ss []kyber.Scalar) ([]byte, []byte, error) {
-	R := myR
-	for _, r := range Rs {
+func CreateSignature(Rs []kyber.Point, Ss []kyber.Scalar) ([]byte, []byte, error) {
+	R := Rs[0]
+	for _, r := range Rs[1:] {
 		R = curve.Point().Add(R, r)
 	}
 
@@ -187,14 +147,14 @@ func CreateSignature(Rs []kyber.Point, myR kyber.Point, Ss []kyber.Scalar) ([]by
 	return byteR, byteS, nil
 }
 
-func VerifySignature(message string, rSignature kyber.Point, sSignature kyber.Scalar, otherP []kyber.Point, myP kyber.Point, otherR []kyber.Point, myR kyber.Point) bool {
-	P := myP
-	for _, p := range otherP {
+func VerifySignature(message string, rSignature kyber.Point, sSignature kyber.Scalar, allP []kyber.Point, allR []kyber.Point) bool {
+	P := allP[0]
+	for _, p := range allP[1:] {
 		P = curve.Point().Add(P, p)
 	}
 
-	R := myR
-	for _, r := range otherR {
+	R := allR[0]
+	for _, r := range allR[1:] {
 		R = curve.Point().Add(R, r)
 	}
 

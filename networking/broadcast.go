@@ -1,13 +1,11 @@
 package networking
 
 import (
-	"github.com/dexm-coin/dexmd/wallet"
 	bcp "github.com/dexm-coin/protobufs/build/blockchain"
 	protoBlockchain "github.com/dexm-coin/protobufs/build/blockchain"
 	protoNetwork "github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/dedis/kyber.v2"
 )
 
 func (cs *ConnectionStore) handleBroadcast(data []byte) error {
@@ -99,82 +97,6 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 
 		cs.beaconChain.Validators.WithdrawValidator(withdrawVal.GetPublicKey(), withdrawVal.GetR(), withdrawVal.GetS(), int64(cs.shardChain.CurrentBlock))
 
-	case protoNetwork.Broadcast_MERKLE_ROOTS:
-		log.Printf("New Merkle Roots: %x", broadcastEnvelope.GetData())
-
-		mr := &protoBlockchain.MerkleRoot{}
-		err := proto.Unmarshal(broadcastEnvelope.GetData(), mr)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-
-		// TODO verify the merkle root and save on MerkleRootsDb
-
-		// func VerifySignature(message string, rSignature kyber.Point, sSignature kyber.Scalar, otherP []kyber.Point, myP kyber.Point, otherR []kyber.Point, myR kyber.Point) bool {
-
-		transactions := mr.GetMerkleRootsTransaction()
-		receipts := mr.GetMerkleRootsReceipt()
-		validators := mr.GetValidators()
-		// TODO change 2
-		for i := 0; i < 2; i++ {
-			// rValidators contain all the Rs except for 1, that is currentR
-			// also get the public key of R
-			var currentR kyber.Point
-			var rValidators []kyber.Point
-			var pValidators []kyber.Point
-			for j, valByte := range mr.GetRValidators() {
-				r, err := wallet.ByteToPoint(valByte)
-				if err != nil {
-					log.Error(err)
-				}
-
-				if j == i {
-					currentR = r
-					continue
-				}
-				rValidators = append(rValidators, r)
-
-				p, err := cs.beaconChain.Validators.GetSchnorrPublicKey(validators[j])
-				if err != nil {
-					log.Error(err)
-				}
-				pValidators = append(pValidators, p)
-			}
-
-			currentP, err := cs.beaconChain.Validators.GetSchnorrPublicKey(validators[i])
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-
-			rSignedTransaction, err := wallet.ByteToPoint(mr.GetRSignedMerkleRootsTransaction())
-			if err != nil {
-				log.Error(err)
-			}
-			sSignedTransaction, err := wallet.ByteToScalar(mr.GetSSignedMerkleRootsTransaction())
-			if err != nil {
-				log.Error(err)
-			}
-			verify := wallet.VerifySignature(string(transactions[i]), rSignedTransaction, sSignedTransaction, pValidators, currentP, rValidators, currentR)
-			if !verify {
-				log.Error("Not verify")
-			}
-
-			rSignedReceipt, err := wallet.ByteToPoint(mr.GetRSignedMerkleRootsReceipt())
-			if err != nil {
-				log.Error(err)
-			}
-			sSignedReceipt, err := wallet.ByteToScalar(mr.GetSSignedMerkleRootsReceipt())
-			if err != nil {
-				log.Error(err)
-			}
-			verify = wallet.VerifySignature(string(receipts[i]), rSignedReceipt, sSignedReceipt, pValidators, currentP, rValidators, currentR)
-			if !verify {
-				log.Error("Not verify")
-			}
-		}
-
 	case protoNetwork.Broadcast_SCHNORR:
 		log.Printf("New Schnorr: %x", broadcastEnvelope.GetData())
 
@@ -185,6 +107,98 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			return err
 		}
 		cs.shardChain.Schnorr[schnorr.P] = schnorr.R
+
+	case protoNetwork.Broadcast_SIGN_SCHNORR:
+		log.Printf("New Sign Schnorr: %x", broadcastEnvelope.GetData())
+
+		signSchnorr := &protoBlockchain.SignSchnorr{}
+		err := proto.Unmarshal(broadcastEnvelope.GetData(), signSchnorr)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+
+		cs.shardChain.MTTrasaction = append(cs.shardChain.MTTrasaction, signSchnorr.GetSignTransaction())
+		cs.shardChain.MTReceipt = append(cs.shardChain.MTReceipt, signSchnorr.GetSignReceipt())
+		cs.shardChain.RSchnorr = append(cs.shardChain.RSchnorr, signSchnorr.GetRSchnorr())
+		cs.shardChain.PSchnorr = append(cs.shardChain.PSchnorr, signSchnorr.GetPSchnorr())
+		cs.shardChain.MessagesTransaction = append(cs.shardChain.MessagesTransaction, signSchnorr.GetMessageSignTransaction())
+		cs.shardChain.MessagesReceipt = append(cs.shardChain.MessagesReceipt, signSchnorr.GetMessageSignReceipt())
+
+		// case protoNetwork.Broadcast_MERKLE_ROOTS_SIGNED:
+		// 	log.Printf("New Merkle Roots: %x", broadcastEnvelope.GetData())
+
+		// 	mr := &protoBlockchain.MerkleRootsSigned{}
+		// 	err := proto.Unmarshal(broadcastEnvelope.GetData(), mr)
+		// 	if err != nil {
+		// 		log.Error(err)
+		// 		return err
+		// 	}
+
+		// 	// TODO verify the merkle root and save on MerkleRootsDb
+
+		// 	transactions := mr.GetMerkleRootsTransaction()
+		// 	receipts := mr.GetMerkleRootsReceipt()
+		// 	validators := mr.GetValidators()
+		// 	// TODO change 2
+		// 	for i := 0; i < 2; i++ {
+		// 		// rValidators contain all the Rs except for 1, that is currentR
+		// 		// also get the public key of R
+		// 		var currentR kyber.Point
+		// 		var rValidators []kyber.Point
+		// 		var pValidators []kyber.Point
+		// 		for j, valByte := range mr.GetRValidators() {
+		// 			r, err := wallet.ByteToPoint(valByte)
+		// 			if err != nil {
+		// 				log.Error(err)
+		// 			}
+
+		// 			if j == i {
+		// 				currentR = r
+		// 				continue
+		// 			}
+		// 			rValidators = append(rValidators, r)
+
+		// 			p, err := cs.beaconChain.Validators.GetSchnorrPublicKey(validators[j])
+		// 			if err != nil {
+		// 				log.Error(err)
+		// 			}
+		// 			pValidators = append(pValidators, p)
+		// 		}
+
+		// 		currentP, err := cs.beaconChain.Validators.GetSchnorrPublicKey(validators[i])
+		// 		if err != nil {
+		// 			log.Error(err)
+		// 			return err
+		// 		}
+
+		// 		rSignedTransaction, err := wallet.ByteToPoint(mr.GetRSignedMerkleRootsTransaction())
+		// 		if err != nil {
+		// 			log.Error(err)
+		// 		}
+		// 		sSignedTransaction, err := wallet.ByteToScalar(mr.GetSSignedMerkleRootsTransaction())
+		// 		if err != nil {
+		// 			log.Error(err)
+		// 		}
+		// 		verify := wallet.VerifySignature(string(transactions[i]), rSignedTransaction, sSignedTransaction, pValidators, currentP, rValidators, currentR)
+		// 		if !verify {
+		// 			log.Error("Not verify")
+		// 		}
+
+		// 		rSignedReceipt, err := wallet.ByteToPoint(mr.GetRSignedMerkleRootsReceipt())
+		// 		if err != nil {
+		// 			log.Error(err)
+		// 		}
+		// 		sSignedReceipt, err := wallet.ByteToScalar(mr.GetSSignedMerkleRootsReceipt())
+		// 		if err != nil {
+		// 			log.Error(err)
+		// 		}
+		// 		verify = wallet.VerifySignature(string(receipts[i]), rSignedReceipt, sSignedReceipt, pValidators, currentP, rValidators, currentR)
+		// 		if !verify {
+		// 			log.Error("Not verify")
+		// 		}
+		// 	}
+
 	}
 	return nil
 }
