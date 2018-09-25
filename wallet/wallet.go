@@ -38,10 +38,12 @@ type Wallet struct {
 
 type file struct {
 	// content to be converted in json
-	PrivKeyString string
-	Address       string
-	Nonce         int
-	Balance       int
+	PrivKeyString        string
+	Address              string
+	Nonce                int
+	Balance              int
+	PrivKeySchnorrString string
+	PubKeySchnorrString  string
 }
 
 // GenerateWallet generates a new random wallet with a 0 balance and nonce
@@ -52,8 +54,16 @@ func GenerateWallet() (*Wallet, error) {
 	}
 
 	x, p := CreateSchnorrKeys()
-	xByte, _ := x.MarshalBinary()
-	pByte, _ := p.MarshalBinary()
+	xByte, err := x.MarshalBinary()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	pByte, err := p.MarshalBinary()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
 
 	return &Wallet{
 		PrivKey:        priv,
@@ -99,10 +109,13 @@ func jsonKeyToStruct(walletJSON []byte) (*Wallet, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &Wallet{
-		PrivKey: key,
-		Nonce:   walletfile.Nonce,
-		Balance: walletfile.Balance,
+		PrivKey:        key,
+		Nonce:          walletfile.Nonce,
+		Balance:        walletfile.Balance,
+		PrivKeySchnorr: []byte(walletfile.PrivKeySchnorrString),
+		PubKeySchnorr:  []byte(walletfile.PubKeySchnorrString),
 	}, nil
 }
 
@@ -128,13 +141,25 @@ func (w *Wallet) GetEncodedWallet() ([]byte, error) {
 	add, err := w.GetWallet()
 	if err != nil {
 		return nil, err
-
 	}
+	x, err := ByteToScalar(w.PrivKeySchnorr)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	p, err := ByteToPoint(w.PubKeySchnorr)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
 	walletfile := file{
-		Address:       add,
-		PrivKeyString: string(pemEncoded),
-		Nonce:         w.Nonce,
-		Balance:       w.Balance,
+		Address:              add,
+		PrivKeyString:        string(pemEncoded),
+		Nonce:                w.Nonce,
+		Balance:              w.Balance,
+		PrivKeySchnorrString: x.String(),
+		PubKeySchnorrString:  p.String(),
 	}
 
 	return json.Marshal(walletfile)

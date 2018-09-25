@@ -460,32 +460,47 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 			var myR []byte
 			var myP []byte
-			var PartecipantValidator []string
 			var Rs []kyber.Point
 			var Ps []kyber.Point
 
-			log.Info("\n\nCurrentSign ", cs.beaconChain.CurrentSign)
+			log.Info("CurrentSign ", cs.beaconChain.CurrentSign)
+			log.Info("cs.shardChain.Schnorr ", cs.shardChain.Schnorr)
+			// 25 is the total number of validator that should sign
 			for i := int64(0); i < 25; i++ {
 				if _, ok := cs.beaconChain.CurrentSign[i]; ok {
 					if _, ok := cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]]; ok {
-						PartecipantValidator = append(PartecipantValidator, cs.beaconChain.CurrentSign[i])
+						log.Info("Index ", i)
 
 						r, err := wallet.ByteToPoint(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]])
 						if err != nil {
-							log.Error(err)
+							log.Error("r ByteToPoint ", err)
 						}
-
+						log.Info("ok1")
 						if cs.beaconChain.CurrentSign[i] == wal {
-							myR, _ = r.MarshalBinary()
-							p, _ := cs.beaconChain.Validators.GetSchnorrPublicKey(wal)
-							myP, _ = p.MarshalBinary()
+							myR, err = r.MarshalBinary()
+							if err != nil {
+								log.Error("r marshal ", err)
+							}
+							log.Info("ok2")
+							p, err := cs.beaconChain.Validators.GetSchnorrPublicKey(wal)
+							if err != nil {
+								log.Error("GetSchnorrPublicKey ", err)
+							}
+							log.Info("ok3")
+							myP, err = p.MarshalBinary()
+							if err != nil {
+								log.Error("p marshal ", err)
+							}
+							log.Info("ok4")
 							continue
 						}
+						log.Info("ok5")
 						Rs = append(Rs, r)
 						p, err := cs.beaconChain.Validators.GetSchnorrPublicKey(cs.beaconChain.CurrentSign[i])
 						if err != nil {
-							log.Error(err)
+							log.Error("GetSchnorrPublicKey ", err)
 						}
+						log.Info("ok6")
 						Ps = append(Ps, p)
 					}
 				}

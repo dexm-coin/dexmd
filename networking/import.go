@@ -123,7 +123,6 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		}
 
 		cs.shardChain.SetState("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", state)
-		//TODO change []byte{}
 		cs.beaconChain.Validators.AddValidator("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", 20000, -300, []byte{})
 
 		state = &protobufs.AccountState{

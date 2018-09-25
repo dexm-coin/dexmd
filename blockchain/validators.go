@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	wal "github.com/dexm-coin/dexmd/wallet"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/dedis/kyber.v2"
 )
 
@@ -117,7 +118,10 @@ func (v *ValidatorsBook) AddValidator(wallet string, stake uint64, dynasty int64
 	if _, ok := v.valsArray[wallet]; ok {
 		return true
 	}
-	publicKey, _ := wal.ByteToPoint(pubSchnorrKey)
+	publicKey, err := wal.ByteToPoint(pubSchnorrKey)
+	if err != nil {
+		log.Error("addvalidator ", err)
+	}
 	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1, -1, publicKey}
 	return false
 }
