@@ -458,10 +458,12 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				log.Error(err)
 			}
 
-			var myR kyber.Point
+			// var myR kyber.Point
 			var PartecipantValidator []string
 			var Rs []kyber.Point
 			var Ps []kyber.Point
+
+			log.Info("\n\nCurrentSign ", cs.beaconChain.CurrentSign)
 			for i := int64(0); i < 25; i++ {
 				if _, ok := cs.beaconChain.CurrentSign[i]; ok {
 					if _, ok := cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]]; ok {
@@ -473,7 +475,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 						}
 
 						if cs.beaconChain.CurrentSign[i] == wal {
-							myR = q
+							// myR = q
 							continue
 						}
 						Rs = append(Rs, q)
@@ -485,33 +487,35 @@ func (cs *ConnectionStore) ValidatorLoop() {
 					}
 				}
 			}
+			log.Info("Rs ", Rs)
+			log.Info("Ps ", Ps)
 
-			var signMerkleRootTransactionArray []kyber.Scalar
-			var signMerkleRootReceiptArray []kyber.Scalar
-			var merkleRootTransactionArray [][]byte
-			var merkleRootReceiptArray [][]byte
-
+			stringMRTransaction := ""
+			stringMRReceipt := ""
 			// -3 becuase it's after 3 turn from sending GenerateParameter
 			for i := int64(cs.shardChain.CurrentBlock) - 3; i > int64(cs.shardChain.CurrentBlock)-33; i-- {
 				blockByte, err := cs.shardChain.GetBlock(uint64(i))
 				if err != nil {
 					log.Error(err)
+					continue
 				}
 				block := &protoBlockchain.Block{}
 				proto.Unmarshal(blockByte, block)
 
 				merkleRootTransaction := block.GetMerkleRootTransaction()
 				merkleRootReceipt := block.GetMerkleRootReceipt()
-				merkleRootTransactionArray = append(merkleRootTransactionArray, merkleRootTransaction)
-				merkleRootReceiptArray = append(merkleRootReceiptArray, merkleRootReceipt)
-
-				signTransaction := wallet.MakeSign(x, currentK, string(merkleRootTransaction), Rs, Ps)
-				signReceipt := wallet.MakeSign(x, currentK, string(merkleRootReceipt), Rs, Ps)
-
-				signMerkleRootTransactionArray = append(signMerkleRootTransactionArray, signTransaction)
-				signMerkleRootReceiptArray = append(signMerkleRootReceiptArray, signReceipt)
+				stringMRTransaction += string(merkleRootTransaction)
+				stringMRReceipt += string(merkleRootReceipt)
 			}
 
+			signTransaction := wallet.MakeSign(x, currentK, stringMRTransaction, Rs, Ps)
+			signReceipt := wallet.MakeSign(x, currentK, stringMRReceipt, Rs, Ps)
+
+			// devo mandare 1 messaggio broadcast, con scritto: shard, il mio P e R, e le due sign
+
+		}
+
+		if cs.shardChain.CurrentBlock%6 == 0 {
 			RsignatureTransaction, SsignatureTransaction, err := wallet.CreateSignature(Rs, myR, signMerkleRootTransactionArray)
 			if err != nil {
 				log.Error(err)
@@ -519,6 +523,24 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			RsignatureReceipt, SsignatureReceipt, err := wallet.CreateSignature(Rs, myR, signMerkleRootReceiptArray)
 			if err != nil {
 				log.Error(err)
+			}
+
+			currentP, err := cs.beaconChain.Validators.GetSchnorrPublicKey(wal)
+			if err != nil {
+				log.Error(err)
+			}
+			rSignedTransaction, err := wallet.ByteToPoint(RsignatureTransaction)
+			if err != nil {
+				log.Error(err)
+			}
+			sSignedTransaction, err := wallet.ByteToScalar(SsignatureTransaction)
+			if err != nil {
+				log.Error(err)
+			}
+			verify := wallet.VerifySignature(string(merkleRootTransactionArray[0]), rSignedTransaction, sSignedTransaction, Ps, currentP, Rs, myR)
+			log.Info("Verify ", verify)
+			if !verify {
+				log.Error("Not verify")
 			}
 
 			Rs = append(Rs, myR)

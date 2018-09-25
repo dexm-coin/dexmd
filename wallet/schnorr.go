@@ -170,7 +170,7 @@ func CreateSignature(Rs []kyber.Point, myR kyber.Point, Ss []kyber.Scalar) ([]by
 	}
 
 	S := Ss[0]
-	for _, s := range Ss {
+	for _, s := range Ss[1:] {
 		S = curve.Scalar().Add(S, s)
 	}
 

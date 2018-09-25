@@ -114,17 +114,87 @@ func PublicKey(m string, S Signature) kyber.Point {
 // 	return sG.Equal(sGv)
 // }
 
-func Verify(m string, S Signature, P kyber.Point, R kyber.Point) bool {
+// func Verify(m string, S Signature, P kyber.Point, R kyber.Point) bool {
+// 	// e = Hash(m || r || P)
+// 	e := Hash(m + P.String() + R.String())
+
+// 	// check R = s * G + H(m || P || R) * P
+// 	a := curve.Point().Add(curve.Point().Mul(S.s, g), curve.Point().Mul(e, P))
+// 	return R.Equal(a)
+// }
+
+// func (S Signature) String() string {
+// 	return fmt.Sprintf("(r=%s, s=%s)", S.r, S.s)
+// }
+
+func Verify(m string, rSignature kyber.Point, sSignature kyber.Scalar, P kyber.Point, R kyber.Point) bool {
 	// e = Hash(m || r || P)
 	e := Hash(m + P.String() + R.String())
 
 	// check R = s * G + H(m || P || R) * P
-	a := curve.Point().Add(curve.Point().Mul(S.s, g), curve.Point().Mul(e, P))
+	a := curve.Point().Add(curve.Point().Mul(sSignature, g), curve.Point().Mul(e, P))
 	return R.Equal(a)
 }
 
-func (S Signature) String() string {
-	return fmt.Sprintf("(r=%s, s=%s)", S.r, S.s)
+func CreateSignature(Rs []kyber.Point, Ss []kyber.Scalar) ([]byte, []byte, error) {
+	R := Rs[0]
+	for _, r := range Rs[1:] {
+		R = curve.Point().Add(R, r)
+	}
+
+	S := Ss[0]
+	for _, s := range Ss[1:] {
+		S = curve.Scalar().Add(S, s)
+	}
+
+	// signature := Signature{r: R, s: S}
+
+	// return signature, nil
+
+	byteR, err := R.MarshalBinary()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	byteS, err := S.MarshalBinary()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return byteR, byteS, nil
+}
+
+func VerifySignature(message string, rSignature kyber.Point, sSignature kyber.Scalar, otherP []kyber.Point, myP kyber.Point, otherR []kyber.Point, myR kyber.Point) bool {
+	P := myP
+	for _, p := range otherP {
+		P = curve.Point().Add(P, p)
+	}
+
+	R := myR
+	for _, r := range otherR {
+		R = curve.Point().Add(R, r)
+	}
+
+	v := Verify(message, rSignature, sSignature, P, R)
+	return v
+}
+
+func ByteToPointSchnorr(b []byte) (kyber.Point, error) {
+	p := curve.Point()
+	err := p.UnmarshalBinary(b)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func ByteToScalarSchnorr(b []byte) (kyber.Scalar, error) {
+	p := curve.Scalar()
+	err := p.UnmarshalBinary(b)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 func TestSchnorr(t *testing.T) {
@@ -145,16 +215,28 @@ func TestSchnorr(t *testing.T) {
 	s2 := Sign(message, x2, []kyber.Point{R1}, []kyber.Point{publicKey1}, k2)
 	fmt.Printf("Signature2 %s\n\n", s2)
 
+	rSigned, sSigned, err := CreateSignature([]kyber.Point{R1, R2}, []kyber.Scalar{s1, s2})
+	fmt.Println(err)
+	rSignedTransaction, err := ByteToPointSchnorr(rSigned)
+	fmt.Println(err)
+	sSignedTransaction, err := ByteToScalarSchnorr(sSigned)
+	fmt.Println(err)
+	fmt.Printf("Is the signature valid %t\n\n", VerifySignature(message, rSignedTransaction, sSignedTransaction, []kyber.Point{publicKey2}, publicKey1, []kyber.Point{R2}, R1))
+
 	R := R1
 	for _, r := range []kyber.Point{R2} {
 		R = curve.Point().Add(R, r)
 	}
-	S := curve.Scalar().Add(s1, s2)
+	S := s1
+	for _, s := range []kyber.Scalar{s2} {
+		S = curve.Scalar().Add(S, s)
+	}
 	signature := Signature{r: R, s: S}
 
 	P := publicKey1
 	for _, p := range []kyber.Point{publicKey2} {
 		P = curve.Point().Add(P, p)
 	}
-	fmt.Printf("Is the signature valid %t\n\n", Verify(message, signature, P, R))
+	fmt.Printf("Is the signature valid %t\n\n", Verify(message, signature.r, signature.s, P, R))
+	fmt.Printf("Is the signature valid %t\n\n", VerifySignature(message, signature.r, signature.s, []kyber.Point{publicKey2}, publicKey1, []kyber.Point{R2}, R1))
 }

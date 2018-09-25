@@ -116,7 +116,8 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 		transactions := mr.GetMerkleRootsTransaction()
 		receipts := mr.GetMerkleRootsReceipt()
 		validators := mr.GetValidators()
-		for i := 0; i < len(transactions); i++ {
+		// TODO change 2
+		for i := 0; i < 2; i++ {
 			// rValidators contain all the Rs except for 1, that is currentR
 			// also get the public key of R
 			var currentR kyber.Point

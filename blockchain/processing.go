@@ -25,6 +25,8 @@ type Blockchain struct {
 	Mempool *mempool
 
 	Schnorr map[string][]byte
+	MTTrasaction [][]byte
+	MTReceipt [][]byte
 
 	GenesisTimestamp uint64
 
