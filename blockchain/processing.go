@@ -112,8 +112,14 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		StateDb:       sdb,
 		CasperVotesDb: cvdb,
 
-		Mempool: mp,
-		Schnorr: make(map[string][]byte),
+		Mempool:             mp,
+		Schnorr:             make(map[string][]byte),
+		MTTrasaction:        [][]byte{},
+		MTReceipt:           [][]byte{},
+		RSchnorr:            [][]byte{},
+		PSchnorr:            [][]byte{},
+		MessagesTransaction: []string{},
+		MessagesReceipt:     []string{},
 
 		CurrentBlock:      index,
 		CurrentCheckpoint: 0,
@@ -132,6 +138,16 @@ func (bc *Blockchain) GetWalletState(wallet string) (protobufs.AccountState, err
 	proto.Unmarshal(raw, &state)
 
 	return state, nil
+}
+
+func (bc *BeaconChain) SaveMerkleRoots(mr *protobufs.MerkleRootsSigned) error {
+	res, _ := proto.Marshal(mr)
+	currShard := mr.GetShard()
+	return bc.MerkleRootsDb[currShard].Put([]byte(strconv.Itoa(int(bc.CurrentBlock[currShard]))), res, nil)
+}
+
+func (bc *BeaconChain) GetMerkleRoots(index uint64, shard int64) ([]byte, error) {
+	return bc.MerkleRootsDb[shard].Get([]byte(strconv.Itoa(int(index))), nil)
 }
 
 // SaveBlockBeacon saves a block into the BeaconChain in a specific shard and index

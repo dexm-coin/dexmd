@@ -23,13 +23,15 @@ import (
 )
 
 const (
-	PORT              = 3141
-	PUBLIC_PEERSERVER = false
+	PORT = 3141
 )
 
 var (
-	TS = uint64(1537809073)
-)
+	// -- start
+    PUBLIC_PEERSERVER = false
+    TS                = uint64(1537975909)
+    // -- start
+        )
 
 func main() {
 	app := cli.NewApp()
@@ -109,7 +111,7 @@ func main() {
 				genesisBlock := &bp.Block{
 					Index:     0,
 					Timestamp: TS,
-					Miner:     "Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683",
+					Miner:     "Dexm47uWHm9vgEoxG1pD18ZufbMkmAqEl6a50b03a",
 				}
 				b.SaveBlock(genesisBlock)
 

@@ -122,17 +122,18 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 			Nonce:   0,
 		}
 
-		cs.shardChain.SetState("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", state)
-		cs.beaconChain.Validators.AddValidator("Dexm3ENiLVMNwaeRswEbV1PT7UEpDNwwlbef2e683", 20000, -300, []byte{})
+		satoshi, _ := wallet.ImportWallet("satoshi3")
+		cs.shardChain.SetState("Dexm47uWHm9vgEoxG1pD18ZufbMkmAqEl6a50b03a", state)
+		cs.beaconChain.Validators.AddValidator("Dexm47uWHm9vgEoxG1pD18ZufbMkmAqEl6a50b03a", 20000, -300, satoshi.GetPublicKeySchnorrByte())
 
 		state = &protobufs.AccountState{
 			Balance: 10000,
 			Nonce:   0,
 		}
 
-		cs.shardChain.SetState("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", state)
-		//TODO change []byte{}
-		cs.beaconChain.Validators.AddValidator("Dexm25g6YbMNWpu9LHqCTP7S8r2PHBMHla441f087", 10000, -300, []byte{})
+		w, _ := wallet.ImportWallet("w3")
+		cs.shardChain.SetState("Dexm3igqMwrCxXvnDMsx3GqM8o9JB535l15b5eb2f", state)
+		cs.beaconChain.Validators.AddValidator("Dexm3igqMwrCxXvnDMsx3GqM8o9JB535l15b5eb2f", 10000, -300, w.GetPublicKeySchnorrByte())
 
 		cs.shardChain.GenesisTimestamp = block.GetTimestamp()
 

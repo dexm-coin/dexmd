@@ -42,8 +42,8 @@ type file struct {
 	Address              string
 	Nonce                int
 	Balance              int
-	PrivKeySchnorrString string
-	PubKeySchnorrString  string
+	PrivKeySchnorrString []byte
+	PubKeySchnorrString  []byte
 }
 
 // GenerateWallet generates a new random wallet with a 0 balance and nonce
@@ -76,7 +76,17 @@ func GenerateWallet() (*Wallet, error) {
 
 // GetPrivateKeySchnorr return the private schnorr key to the wallet
 func (w *Wallet) GetPrivateKeySchnorr() (kyber.Scalar, error) {
-	return ByteToScalar(w.PubKeySchnorr)
+	return ByteToScalar(w.PrivKeySchnorr)
+}
+
+// GetPrivateKeySchnorr return the private schnorr key to the wallet
+func (w *Wallet) GetPublicKeySchnorr() (kyber.Point, error) {
+	return ByteToPoint(w.PubKeySchnorr)
+}
+
+// GetPrivateKeySchnorr return the private schnorr key to the wallet
+func (w *Wallet) GetPublicKeySchnorrByte() []byte {
+	return w.PubKeySchnorr
 }
 
 // JSWallet returns a gopherjs wrapper to the wallet
@@ -114,8 +124,8 @@ func jsonKeyToStruct(walletJSON []byte) (*Wallet, error) {
 		PrivKey:        key,
 		Nonce:          walletfile.Nonce,
 		Balance:        walletfile.Balance,
-		PrivKeySchnorr: []byte(walletfile.PrivKeySchnorrString),
-		PubKeySchnorr:  []byte(walletfile.PubKeySchnorrString),
+		PrivKeySchnorr: walletfile.PrivKeySchnorrString,
+		PubKeySchnorr:  walletfile.PubKeySchnorrString,
 	}, nil
 }
 
@@ -142,24 +152,24 @@ func (w *Wallet) GetEncodedWallet() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	x, err := ByteToScalar(w.PrivKeySchnorr)
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
-	p, err := ByteToPoint(w.PubKeySchnorr)
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
+	// x, err := ByteToScalar(w.PrivKeySchnorr)
+	// if err != nil {
+	// 	log.Error(err)
+	// 	return nil, err
+	// }
+	// p, err := ByteToPoint(w.PubKeySchnorr)
+	// if err != nil {
+	// 	log.Error(err)
+	// 	return nil, err
+	// }
 
 	walletfile := file{
 		Address:              add,
 		PrivKeyString:        string(pemEncoded),
 		Nonce:                w.Nonce,
 		Balance:              w.Balance,
-		PrivKeySchnorrString: x.String(),
-		PubKeySchnorrString:  p.String(),
+		PrivKeySchnorrString: w.PrivKeySchnorr,
+		PubKeySchnorrString:  w.PubKeySchnorr,
 	}
 
 	return json.Marshal(walletfile)
