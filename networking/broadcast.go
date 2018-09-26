@@ -71,6 +71,8 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			return err
 		}
 
+		log.Info("Save block ", block.Index)
+
 	case protoNetwork.Broadcast_CHECKPOINT_VOTE:
 		log.Printf("New CasperVote: %x", broadcastEnvelope.GetData())
 
