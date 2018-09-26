@@ -11,11 +11,7 @@ import (
 	"reflect"
 	"time"
 
-	// "bytes"
-	// "encoding/gob"
-
 	"gopkg.in/dedis/kyber.v2"
-	// "gopkg.in/dedis/kyber.v2/group/edwards25519"
 
 	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
@@ -335,6 +331,8 @@ func (cs *ConnectionStore) ValidatorLoop() {
 	}
 
 	var currentK kyber.Scalar
+	countTurn := false
+	turnAfterSchnorr := 1
 
 	for {
 		// The validator changes every time the unix timestamp is a multiple of 5
@@ -369,6 +367,11 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			}
 		}
 
+		// for the schnorr broadcast i can't do %n for the sequence of operation, must be after every k turn, so i count it manually
+		if countTurn {
+			turnAfterSchnorr++
+		}
+
 		cs.shardChain.CurrentBlock++
 		log.Info("Current block ", cs.shardChain.CurrentBlock)
 
@@ -377,8 +380,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			// calulate the hash of the previous 100 blocks from current block - 1
 			var hashBlocks []byte
 			latestBlock := true
-
-			for i := cs.shardChain.CurrentBlock - 1; i > cs.shardChain.CurrentBlock-10; i-- {
+			for i := cs.shardChain.CurrentBlock - 1; i > cs.shardChain.CurrentBlock-100; i-- {
 				currentBlockByte, err := cs.shardChain.GetBlock(i)
 				if err != nil {
 					log.Error(err)
@@ -417,7 +419,8 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		}
 
 		// every 30 blocks do the merkle root signature
-		if cs.shardChain.CurrentBlock%6 == 0 {
+		if cs.shardChain.CurrentBlock%30 == 0 {
+			countTurn = true
 			cs.beaconChain.CurrentSign = cs.beaconChain.Validators.ChooseSignSequence(int64(cs.shardChain.CurrentBlock))
 
 			// generate k and caluate r
@@ -452,7 +455,8 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		}
 
 		// after 3 turn, make the sign and broadcast it
-		if cs.shardChain.CurrentBlock%8 == 0 {
+		if turnAfterSchnorr == 4 {
+			// get the private schnorr key
 			x, err := cs.identity.GetPrivateKeySchnorr()
 			if err != nil {
 				log.Error(err)
@@ -466,11 +470,13 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			// 25 is the total number of validator that should sign
 			for i := int64(0); i < 25; i++ {
 				if _, ok := cs.beaconChain.CurrentSign[i]; ok {
+					// check if the validator exist and if so get its R and P
 					if _, ok := cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]]; ok {
 						r, err := wallet.ByteToPoint(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]])
 						if err != nil {
 							log.Error("r ByteToPoint ", err)
 						}
+						// i should't myself in the sign, so i save it in difference variable
 						if cs.beaconChain.CurrentSign[i] == wal {
 							myR, err = r.MarshalBinary()
 							if err != nil {
@@ -504,7 +510,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			for i := int64(cs.shardChain.CurrentBlock) - 3; i > int64(cs.shardChain.CurrentBlock)-33; i-- {
 				blockByte, err := cs.shardChain.GetBlock(uint64(i))
 				if err != nil {
-					log.Error(err)
 					continue
 				}
 				block := &protoBlockchain.Block{}
@@ -516,6 +521,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				stringMRReceipt += string(merkleRootReceipt)
 			}
 
+			// make the signature of the merkle roots transactions and receipts
 			signTransaction := wallet.MakeSign(x, currentK, stringMRTransaction, Rs, Ps)
 			signReceipt := wallet.MakeSign(x, currentK, stringMRReceipt, Rs, Ps)
 
@@ -550,14 +556,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		}
 
 		// after another 3 turn make the final signature, from sign of the chosen validator, and verify it
-		if cs.shardChain.CurrentBlock%10 == 0 {
-			// cs.shardChain.MTTrasaction
-			// cs.shardChain.MTReceipt
-			// cs.shardChain.RSchnorr
-			// cs.shardChain.PSchnorr
-			// cs.shardChain.MessagesTransaction
-			// cs.shardChain.MessagesReceipt
-
+		if turnAfterSchnorr == 7 {
 			var Rs []kyber.Point
 			var Ps []kyber.Point
 			var SsTransaction []kyber.Scalar
@@ -565,6 +564,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			var MessagesTransaction []string
 			var MessagesReceipt []string
 
+			// from all validator choosen get R, P and the signature of transaction and receipt
 			for i := 0; i < len(cs.shardChain.RSchnorr); i++ {
 				r, err := wallet.ByteToPoint(cs.shardChain.RSchnorr[i])
 				if err != nil {
@@ -596,6 +596,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			log.Info("SsTransaction ", SsTransaction)
 			log.Info("MessagesTransaction ", MessagesTransaction)
 
+			// generate the final signature
 			RsignatureTransaction, SsignatureTransaction, err := wallet.CreateSignature(Rs, SsTransaction)
 			if err != nil {
 				log.Error(err)
@@ -605,23 +606,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				log.Error(err)
 			}
 
-			// rSignedTransaction, err := wallet.ByteToPoint(RsignatureTransaction)
-			// if err != nil {
-			// 	log.Error(err)
-			// }
-			// sSignedTransaction, err := wallet.ByteToScalar(SsignatureTransaction)
-			// if err != nil {
-			// 	log.Error(err)
-			// }
-			// for _, message := range MessagesTransaction {
-			// 	verify := wallet.VerifySignature(message, rSignedTransaction, sSignedTransaction, Ps, Rs)
-			// 	if !verify {
-			// 		log.Error("Not verify")
-			// 	} else {
-			// 		log.Info("VERIFYYYYYY")
-			// 	}
-			// }
-
+			// send the final signature
 			mr := &protoBlockchain.MerkleRootsSigned{
 				Shard: currentShard,
 				MerkleRootsTransaction:        MessagesTransaction,
@@ -651,7 +636,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			data, _ := proto.Marshal(env)
 			cs.broadcast <- data
 
-			// reset everything for schnorr
+			// reset everything about schnorr for the next message
 			for k := range cs.beaconChain.CurrentSign {
 				delete(cs.beaconChain.CurrentSign, k)
 			}
@@ -664,6 +649,9 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			cs.shardChain.PSchnorr = [][]byte{}
 			cs.shardChain.MessagesTransaction = []string{}
 			cs.shardChain.MessagesReceipt = []string{}
+
+			countTurn = false
+			turnAfterSchnorr = 1
 		}
 
 		// Checkpoint Agreement
@@ -692,13 +680,13 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				bhash2 := sha256.Sum256(targetBlockByte)
 				hashTarget := bhash2[:]
 
+				// create the casper vote for the agreement of checkpoint
 				vote := CreateVote(hashSource, hashTarget, cs.shardChain.CurrentCheckpoint, cs.shardChain.CurrentBlock-1, cs.identity)
 
-				// read all the incoming vote and store it, after 1 minut call CheckpointAgreement
+				// read all the incoming vote and store it, after 15 second call CheckpointAgreement
 				go func() {
 					currentBlockCheckpoint := cs.shardChain.CurrentBlock - 1
-					time.Sleep(1 * time.Minute)
-					// time.Sleep(15 * time.Second)
+					time.Sleep(15 * time.Second)
 					check := cs.CheckpointAgreement(cs.shardChain.CurrentCheckpoint, currentBlockCheckpoint)
 					log.Info("CheckpointAgreement ", check)
 				}()
@@ -736,11 +724,11 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				}
 
 				data, _ := proto.Marshal(env)
-
 				cs.broadcast <- data
 			}
 		}
 
+		// chose a validator based on stake
 		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardChain.CurrentBlock))
 		if err != nil {
 			log.Fatal(err)
@@ -794,7 +782,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			}
 
 			data, _ := proto.Marshal(env)
-
 			cs.broadcast <- data
 		}
 	}

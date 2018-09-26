@@ -99,16 +99,12 @@ func IsJustified(b *blockchain.Blockchain, index uint64) bool {
 
 // IsVoteValid check if s is an ancestor of t in the chain
 func IsVoteValid(b *blockchain.Blockchain, sourceHash, targetHash []byte, TargetHeight uint64) bool {
-	// if len(b.Validators.valsArray) < 1 {
-	// 	log.Error("No validators")
-	// 	return false
-	// }
-
 	targetByte, _ := b.GetBlock(TargetHeight)
 	target := &protobufs.Block{}
 	proto.Unmarshal(targetByte, target)
 	prevHash := target.GetPrevHash()
 
+	// from TargetHeight to the nearest checkpoint, check if the hash of source is beflow the hash of target
 	for i := TargetHeight - 1; i >= 0; i-- {
 		byteBlock, _ := b.GetBlock(i)
 		block := &protobufs.Block{}
@@ -126,45 +122,13 @@ func IsVoteValid(b *blockchain.Blockchain, sourceHash, targetHash []byte, Target
 				continue
 			}
 		}
-		// check untill the fist checkpoint
+		// check untill the first checkpoint
 		if IsJustified(b, i) {
 			return false
 		}
 	}
 	return false
 }
-
-/*
-// CheckUserVote check that a validator must not vote within the span of its other votes
-// return if its valid and if the signature are right
-func CheckUserVote(vote1, vote2 *protobufs.CasperVote) (bool, bool) {
-	// check the signature of the votes
-	dataVote1 := []byte(string(vote1.Source) + string(vote1.Target) + fmt.Sprintf("%v", vote1.SourceHeight) + fmt.Sprintf("%v", vote1.TargetHeight) + string(vote1.PublicKey))
-	bhash1 := sha256.Sum256(dataVote1)
-	hash1 := bhash1[:]
-	dataVote2 := []byte(string(vote2.Source) + string(vote2.Target) + fmt.Sprintf("%v", vote2.SourceHeight) + fmt.Sprintf("%v", vote2.TargetHeight) + string(vote2.PublicKey))
-	bhash2 := sha256.Sum256(dataVote2)
-	hash2 := bhash2[:]
-
-	verifyVote1, err1 := wallet.SignatureValid(vote1.GetPublicKey(), vote1.GetR(), vote1.GetS(), hash1)
-	verifyVote2, err2 := wallet.SignatureValid(vote2.GetPublicKey(), vote2.GetR(), vote2.GetS(), hash2)
-	if err1 != nil || err2 != nil {
-		log.Error("Check SignatureValid failed")
-		return false, false
-	}
-	if string(vote1.PublicKey) != string(vote2.PublicKey) || !verifyVote1 || !verifyVote2 {
-		log.Warning("slashing to the client that have request the CheckUserVote becuase the votes are fake")
-		return false, true
-	}
-
-	// h(s1) < h(s2) < h(t2) < h(t1)
-	if vote1.GetSourceHeight() < vote2.GetSourceHeight() &&
-		vote2.GetSourceHeight() < vote2.GetTargetHeight() &&
-		vote2.GetTargetHeight() < vote1.GetTargetHeight() {
-		return false, false
-	}
-	return true, false
-}*/
 
 // AddVote add a vote in receivedVotes and put it on the db
 func (cs *ConnectionStore) AddVote(vote *protobufs.CasperVote) error {

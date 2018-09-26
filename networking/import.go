@@ -122,6 +122,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 			Nonce:   0,
 		}
 
+		// TODO cange this import wallet because we don't want that people know the private key of thouse 2 wallet
 		satoshi, _ := wallet.ImportWallet("satoshi3")
 		cs.shardChain.SetState("Dexm47uWHm9vgEoxG1pD18ZufbMkmAqEl6a50b03a", state)
 		cs.beaconChain.Validators.AddValidator("Dexm47uWHm9vgEoxG1pD18ZufbMkmAqEl6a50b03a", 20000, -300, satoshi.GetPublicKeySchnorrByte())

@@ -1,10 +1,10 @@
 timestamp=$(date +%s)
 timestamp=$((timestamp+60))
 echo $timestamp
-python timestampServer.py $timestamp
+python timestamp.py $timestamp 1
 scp main.go antoniogroza@35.211.241.218:/home/antoniogroza/go/src/github.com/dexm-coin/dexmd/
-python timestampHere.py $timestamp
-echo "SLEEP 1 minute"
+python timestamp.py $timestamp 2
+echo "SLEEP"
 sleep 45
 
 sudo rm -rf .dexm*

@@ -142,25 +142,28 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 		transactions := mr.GetMerkleRootsTransaction()
 		receipts := mr.GetMerkleRootsReceipt()
 		pValidatorsByte := mr.GetPValidators()
-		for i := 0; i < len(transactions); i++ {
-			var rValidators []kyber.Point
-			var pValidators []kyber.Point
-			for j, valByte := range mr.GetRValidators() {
-				r, err := wallet.ByteToPoint(valByte)
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-				rValidators = append(rValidators, r)
 
-				p, err := wallet.ByteToPoint(pValidatorsByte[j])
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-				pValidators = append(pValidators, p)
+		// get all P and R from the validator that signed the merkle roots
+		var rValidators []kyber.Point
+		var pValidators []kyber.Point
+		for j, valByte := range mr.GetRValidators() {
+			r, err := wallet.ByteToPoint(valByte)
+			if err != nil {
+				log.Error(err)
+				return err
 			}
+			rValidators = append(rValidators, r)
 
+			p, err := wallet.ByteToPoint(pValidatorsByte[j])
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			pValidators = append(pValidators, p)
+		}
+
+		// over all signed merkle roots check if they are verified
+		for i := 0; i < len(transactions); i++ {
 			rSignedTransaction, err := wallet.ByteToPoint(mr.GetRSignedMerkleRootsTransaction())
 			if err != nil {
 				log.Error(err)
@@ -194,6 +197,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			}
 		}
 
+		// if everything is verified save the signature inside the MerkleRootsDb
 		cs.beaconChain.SaveMerkleRoots(mr)
 
 	}
