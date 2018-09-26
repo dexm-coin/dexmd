@@ -15,13 +15,13 @@ $ ./init.sh
 1) First of all you have to create your identity (wallet) in the network.
 
     ```sh
-    $ ./dexm mw myWallet
+    $ ./dexmd mw myWallet
     ```
 
 2) Now start your node to receive the message from the network.
 
     ```sh
-    $ ./dexm sn myWallet
+    $ ./dexmd sn myWallet
     ```
 
 3) Ones you done that you are in! 
@@ -33,5 +33,5 @@ $ ./init.sh
 * [Wallet](https://github.com/dexm-coin/dexmd/wiki/Functionality) - Create a wallet
 * [Vanity Wallet](https://github.com/dexm-coin/dexmd/wiki/Functionality) - Create a vanity wallet with a word that you want in your address
 * [Node](https://github.com/dexm-coin/dexmd/wiki/Functionality) - Start your node to be in the network
-* [Transaction](https://github.com/dexm-coin/dexmd/wiki/Functionality) - Make a transaction to someone else
+* [Transaction](https://github.com/dexm-coin/dexmd/wiki/Functionality) - Send money to someone else
 * [Smart Contract](https://github.com/dexm-coin/dexmd/wiki/Functionality) - Create and interact with a smart contract
