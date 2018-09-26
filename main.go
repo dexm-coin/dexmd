@@ -29,7 +29,7 @@ const (
 var (
 	// -- start
 	PUBLIC_PEERSERVER = false
-	TS                = uint64(1537975909)
+	TS                = uint64(1537989036)
 	// -- start
 )
 
@@ -81,12 +81,6 @@ func main() {
 						log.Fatal(err)
 					}
 				}
-
-				// Find the home folder of the current user
-				// user, err := user.Current()
-				// if err != nil {
-				// 	log.Fatal("user", err)
-				// }
 
 				// Create the dexm folder in case it's not there
 				os.MkdirAll(".dexm.shard", os.ModePerm)
@@ -208,12 +202,6 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-
-				// Find the home folder of the current user
-				// user, err := user.Current()
-				// if err != nil {
-				// 	log.Fatal(err)
-				// }
 
 				b, err := blockchain.NewBlockchain(".dexm.shard/", 0)
 				if err != nil {

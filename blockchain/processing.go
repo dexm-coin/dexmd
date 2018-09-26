@@ -55,13 +55,13 @@ func NewBeaconChain(dbPath string) (*BeaconChain, error) {
 	cb := make(map[int64]uint64)
 	cs := make(map[int64]string)
 
-	for i := 1; i < 11; i++ {
-		db, err := leveldb.OpenFile(dbPath+".merkleroots"+strconv.Itoa(i), nil)
+	for i := int64(1); i < 11; i++ {
+		db, err := leveldb.OpenFile(dbPath+".merkleroots"+strconv.Itoa(int(i)), nil)
 		if err != nil {
 			return nil, err
 		}
-		mrdb[int64(i)] = db
-		cb[int64(i)] = 0
+		mrdb[i] = db
+		cb[i] = 0
 	}
 
 	vd := NewValidatorsBook()

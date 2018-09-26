@@ -501,8 +501,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 					}
 				}
 			}
-			log.Info("Rs ", Rs)
-			log.Info("Ps ", Ps)
 
 			stringMRTransaction := ""
 			stringMRReceipt := ""
@@ -510,6 +508,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			for i := int64(cs.shardChain.CurrentBlock) - 3; i > int64(cs.shardChain.CurrentBlock)-33; i-- {
 				blockByte, err := cs.shardChain.GetBlock(uint64(i))
 				if err != nil {
+					log.Error(err)
 					continue
 				}
 				block := &protoBlockchain.Block{}
@@ -591,10 +590,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				MessagesTransaction = append(MessagesTransaction, cs.shardChain.MessagesTransaction[i])
 				MessagesReceipt = append(MessagesReceipt, cs.shardChain.MessagesReceipt[i])
 			}
-			log.Info("Rs ", Rs)
-			log.Info("Ps ", Ps)
-			log.Info("SsTransaction ", SsTransaction)
-			log.Info("MessagesTransaction ", MessagesTransaction)
 
 			// generate the final signature
 			RsignatureTransaction, SsignatureTransaction, err := wallet.CreateSignature(Rs, SsTransaction)

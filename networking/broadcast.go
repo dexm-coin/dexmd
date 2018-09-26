@@ -197,7 +197,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			}
 		}
 
-		// if everything is verified save the signature inside the MerkleRootsDb
+		// if everything is verified then save the signature inside the MerkleRootsDb
 		cs.beaconChain.SaveMerkleRoots(mr)
 
 	}
