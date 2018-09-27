@@ -29,8 +29,8 @@ type Blockchain struct {
 	MTReceipt           [][]byte
 	RSchnorr            [][]byte
 	PSchnorr            [][]byte
-	MessagesTransaction []string
-	MessagesReceipt     []string
+	MessagesTransaction [][]byte
+	MessagesReceipt     [][]byte
 
 	GenesisTimestamp uint64
 
@@ -118,8 +118,8 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		MTReceipt:           [][]byte{},
 		RSchnorr:            [][]byte{},
 		PSchnorr:            [][]byte{},
-		MessagesTransaction: []string{},
-		MessagesReceipt:     []string{},
+		MessagesTransaction: [][]byte{},
+		MessagesReceipt:     [][]byte{},
 
 		CurrentBlock:      index,
 		CurrentCheckpoint: 0,
