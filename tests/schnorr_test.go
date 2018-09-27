@@ -9,7 +9,7 @@ import (
 )
 
 var curve = edwards25519.NewBlakeSHA256Ed25519()
-var sha256 = curve.Hash()
+var sha256Curve = curve.Hash()
 var g = curve.Point().Base()
 
 type Signature struct {
@@ -18,10 +18,9 @@ type Signature struct {
 }
 
 func Hash(s string) kyber.Scalar {
-	sha256.Reset()
-	sha256.Write([]byte(s))
-
-	return curve.Scalar().SetBytes(sha256.Sum(nil))
+	sha256Curve.Reset()
+	sha256Curve.Write([]byte(s))
+	return curve.Scalar().SetBytes(sha256Curve.Sum(nil))
 }
 
 /*

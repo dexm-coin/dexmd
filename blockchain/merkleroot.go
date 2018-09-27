@@ -1,13 +1,10 @@
-package tests
+package blockchain
 
 import (
-	// "fmt"
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"testing"
 
-	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 )
@@ -104,28 +101,12 @@ func calculateHashTransaction(t *protobufs.Transaction) []byte {
 	return bhash[:]
 }
 
-func TestMerkeTree(t *testing.T) {
-	w1, _ := wallet.GenerateWallet()
-	w2, _ := wallet.GenerateWallet()
-
-	recipient, _ := w2.GetWallet()
-
-	w1.Balance = 10000
-	transaction1, _ := w1.NewTransaction(recipient, 100, 1, []byte{})
-	transaction2, _ := w1.NewTransaction(recipient, 200, 1, []byte{})
-	transaction3, _ := w1.NewTransaction(recipient, 300, 1, []byte{})
-	transaction4, _ := w1.NewTransaction(recipient, 400, 1, []byte{})
-	transaction5, _ := w1.NewTransaction(recipient, 500, 1, []byte{})
-	transaction6, _ := w1.NewTransaction(recipient, 600, 1, []byte{})
-
-	transactionsByte := [][]byte{transaction1, transaction2, transaction3, transaction4, transaction5, transaction6}
-
-	var transactions []*protobufs.Transaction
-	for _, bTransaction := range transactionsByte {
-		transaction := protobufs.Transaction{}
-		proto.Unmarshal(bTransaction, &transaction)
-		transactions = append(transactions, &transaction)
-	}
+func CreateMerkleTree(transactions []*protobufs.Transaction) {
+	// for _, bTransaction := range transactionsByte {
+	// 	transaction := protobufs.Transaction{}
+	// 	proto.Unmarshal(bTransaction, &transaction)
+	// 	transactions = append(transactions, &transaction)
+	// }
 
 	var cs []*Node
 	for _, t := range transactions {
@@ -135,3 +116,43 @@ func TestMerkeTree(t *testing.T) {
 	merkleTree, _ := NewTree(cs)
 	fmt.Println(merkleTree)
 }
+
+// // CreateMerkleTrees create 2 merkle trees, one for the transaction and one for the receipt of the transaction
+// func CreateMerkleTrees(transactions []*protobufs.Transaction) ([]byte, []byte, error) {
+// 	if len(transactions) == 0 {
+// 		return []byte{}, []byte{}, nil
+// 	}
+// 	var listTransaction []merkletree.Content
+// 	var listReceipt []merkletree.Content
+// 	for _, t := range transactions {
+// 		listTransaction = append(listTransaction, TransactionContent{x: t})
+// 		receipt := &protobufs.Receipt{
+// 			Sender:    string(wallet.BytesToAddress(t.GetSender())),
+// 			Recipient: t.GetRecipient(),
+// 			Amount:    t.GetAmount(),
+// 			Nonce:     t.GetNonce(),
+// 		}
+// 		listReceipt = append(listReceipt, ReceiptContent{x: receipt})
+// 	}
+// 	MerkleTreeTransaction, err := merkletree.NewTree(listTransaction)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 		return nil, nil, err
+// 	}
+// 	vt, err := MerkleTreeTransaction.VerifyTree()
+// 	if err != nil || !vt {
+// 		log.Fatal(err)
+// 		return nil, nil, err
+// 	}
+// 	MerkleTreeReceipt, err := merkletree.NewTree(listReceipt)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 		return nil, nil, err
+// 	}
+// 	vt, err = MerkleTreeReceipt.VerifyTree()
+// 	if err != nil || !vt {
+// 		log.Fatal(err)
+// 		return nil, nil, err
+// 	}
+// 	return MerkleTreeTransaction.MerkleRoot(), MerkleTreeReceipt.MerkleRoot(), nil
+// }
