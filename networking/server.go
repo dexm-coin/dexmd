@@ -502,8 +502,8 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				}
 			}
 
-			var stringMRTransaction []byte
-			var stringMRReceipt []byte
+			var MRTransaction []byte
+			var MRReceipt []byte
 			// -3 becuase it's after 3 turn from sending GenerateParameter
 			for i := int64(cs.shardChain.CurrentBlock) - 3; i > int64(cs.shardChain.CurrentBlock)-33; i-- {
 				blockByte, err := cs.shardChain.GetBlock(uint64(i))
@@ -516,13 +516,13 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 				merkleRootTransaction := block.GetMerkleRootTransaction()
 				merkleRootReceipt := block.GetMerkleRootReceipt()
-				stringMRTransaction = append(stringMRTransaction, merkleRootTransaction...)
-				stringMRReceipt = append(stringMRReceipt, merkleRootReceipt...)
+				MRTransaction = append(MRTransaction, merkleRootTransaction...)
+				MRReceipt = append(MRReceipt, merkleRootReceipt...)
 			}
 
 			// make the signature of the merkle roots transactions and receipts
-			signTransaction := wallet.MakeSign(x, currentK, string(stringMRTransaction), Rs, Ps)
-			signReceipt := wallet.MakeSign(x, currentK, string(stringMRReceipt), Rs, Ps)
+			signTransaction := wallet.MakeSign(x, currentK, string(MRTransaction), Rs, Ps)
+			signReceipt := wallet.MakeSign(x, currentK, string(MRReceipt), Rs, Ps)
 
 			// send the signed transaction and receipt
 			signSchorrP := &protoBlockchain.SignSchnorr{
@@ -532,8 +532,8 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				PSchnorr:               myP,
 				SignTransaction:        signTransaction,
 				SignReceipt:            signReceipt,
-				MessageSignTransaction: stringMRTransaction,
-				MessageSignReceipt:     stringMRReceipt,
+				MessageSignTransaction: MRTransaction,
+				MessageSignReceipt:     MRReceipt,
 			}
 			signSchorrByte, _ := proto.Marshal(signSchorrP)
 

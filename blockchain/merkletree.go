@@ -1,110 +1,134 @@
 package blockchain
 
 import (
+	"bytes"
 	"crypto/sha256"
-	"log"
-	"reflect"
+	"fmt"
 
-	"github.com/cbergoon/merkletree"
 	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
+	"github.com/onrik/gomerkle"
 )
 
-type TransactionContent struct {
-	x *protobufs.Transaction
-}
-
-func (t TransactionContent) CalculateHash() ([]byte, error) {
+func hash(data []byte) []byte {
 	h := sha256.New()
-	result, err := proto.Marshal(t.x)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := h.Write([]byte(result)); err != nil {
-		return nil, err
-	}
-	return h.Sum(nil), nil
-}
-func (t TransactionContent) Equals(other merkletree.Content) (bool, error) {
-	return reflect.DeepEqual(t.x, other.(TransactionContent).x), nil
+	h.Write(data)
+	return h.Sum(nil)
 }
 
-type ReceiptContent struct {
-	x *protobufs.Receipt
+func VerifyProof(merkleProofByte []byte) {
+	var mp protobufs.MerkleProof
+	proto.Unmarshal(merkleProofByte, &mp)
+
+	hashes := mp.GetMapHash()
+	var mapProof []map[string][]byte
+	for i, key := range mp.GetMapLeaf() {
+		m := make(map[string][]byte)
+		m[key] = hashes[i]
+		mapProof = append(mapProof, m)
+	}
+
+	fmt.Println(VerifyMerkleProof(mapProof, mp.GetRoot(), mp.GetLeaf()))
 }
 
-func (t ReceiptContent) CalculateHash() ([]byte, error) {
-	h := sha256.New()
-	result, err := proto.Marshal(t.x)
-	if err != nil {
-		return nil, err
+// VerifyProof verify proof for value
+func VerifyMerkleProof(proof []map[string][]byte, root, value []byte) bool {
+	proofHash := value
+	for _, p := range proof {
+		if sibling, exist := p["left"]; exist {
+			proofHash = hash(append(sibling, proofHash...))
+		} else if sibling, exist := p["right"]; exist {
+			proofHash = hash(append(proofHash, sibling...))
+		} else {
+			return false
+		}
 	}
-	if _, err := h.Write([]byte(result)); err != nil {
-		return nil, err
-	}
-	return h.Sum(nil), nil
-}
-func (t ReceiptContent) Equals(other merkletree.Content) (bool, error) {
-	return reflect.DeepEqual(t.x, other.(ReceiptContent).x), nil
-}
-
-// CreateMerkleTreeFromBytes take an array of bytes array, convert in transaction and add them all in a Content list to create a MerkleTree
-func CreateMerkleTreeFromBytes(bytesTransaction [][]byte) (*merkletree.MerkleTree, error) {
-	var list []merkletree.Content
-	for _, bTransaction := range bytesTransaction {
-		transaction := protobufs.Transaction{}
-		proto.Unmarshal(bTransaction, &transaction)
-		list = append(list, TransactionContent{x: &transaction})
-	}
-
-	t, err := merkletree.NewTree(list)
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
-	return t, err
+	return bytes.Equal(root, proofHash)
 }
 
-// CreateMerkleTrees create 2 merkle trees, one for the transaction and one for the receipt of the transaction
-func CreateMerkleTrees(transactions []*protobufs.Transaction) ([]byte, []byte, error) {
-	if len(transactions) == 0 {
-		return []byte{}, []byte{}, nil
-	}
+// func calculateHashTransaction(t *protobufs.Transaction) []byte {
+// 	data, _ := proto.Marshal(t)
+// 	bhash := sha256.Sum256(data)
+// 	return bhash[:]
+// }
 
-	var listTransaction []merkletree.Content
-	var listReceipt []merkletree.Content
+func GenerateMerkleTree(transactions []*protobufs.Transaction) ([]byte, []byte, error) {
+	var dataTransaction [][]byte
+	var dataReceipt [][]byte
 	for _, t := range transactions {
-		listTransaction = append(listTransaction, TransactionContent{x: t})
-		receipt := &protobufs.Receipt{
-			Sender:    string(wallet.BytesToAddress(t.GetSender())),
+		r := &protobufs.Receipt{
+			Sender:    wallet.BytesToAddress(t.GetSender()),
 			Recipient: t.GetRecipient(),
 			Amount:    t.GetAmount(),
+			Nonce:     t.GetNonce(),
 		}
-		listReceipt = append(listReceipt, ReceiptContent{x: receipt})
+		rByte, _ := proto.Marshal(r)
+		tByte, _ := proto.Marshal(t)
+		dataTransaction = append(dataTransaction, tByte)
+		dataReceipt = append(dataReceipt, rByte)
 	}
 
-	MerkleTreeTransaction, err := merkletree.NewTree(listTransaction)
+	treeTransaction := gomerkle.NewTree(sha256.New())
+	treeTransaction.AddData(dataTransaction...)
+	err := treeTransaction.Generate()
 	if err != nil {
-		log.Fatal(err)
 		return nil, nil, err
 	}
-	vt, err := MerkleTreeTransaction.VerifyTree()
-	if err != nil || !vt {
-		log.Fatal(err)
-		return nil, nil, err
-	}
+	merkleRootTransaction := treeTransaction.Root()
 
-	MerkleTreeReceipt, err := merkletree.NewTree(listReceipt)
+	treeReceipt := gomerkle.NewTree(sha256.New())
+	treeReceipt.AddData(dataReceipt...)
+	err = treeReceipt.Generate()
 	if err != nil {
-		log.Fatal(err)
 		return nil, nil, err
 	}
-	vt, err = MerkleTreeReceipt.VerifyTree()
-	if err != nil || !vt {
-		log.Fatal(err)
-		return nil, nil, err
+	merkleRootReceipt := treeReceipt.Root()
+
+	return merkleRootTransaction, merkleRootReceipt, nil
+}
+
+func GenerateMerkleProof(transactions []*protobufs.Transaction, indexProof int) []byte {
+	// var transactions []*protobufs.Transaction
+	// for _, bTransaction := range transactionsByte {
+	// 	transaction := protobufs.Transaction{}
+	// 	proto.Unmarshal(bTransaction, &transaction)
+	// 	transactions = append(transactions, &transaction)
+	// }
+
+	var data [][]byte
+	for _, t := range transactions {
+		tByte, _ := proto.Marshal(t)
+		data = append(data, tByte)
 	}
 
-	return MerkleTreeTransaction.MerkleRoot(), MerkleTreeReceipt.MerkleRoot(), nil
+	tree := gomerkle.NewTree(sha256.New())
+	tree.AddData(data...)
+
+	err := tree.Generate()
+	if err != nil {
+		panic(err)
+	}
+	merkleRoot := tree.Root()
+
+	proof := tree.GetProof(indexProof)
+	leaf := tree.GetLeaf(indexProof)
+
+	var listLeaf []string
+	var listHash [][]byte
+	for _, p := range proof {
+		for key, value := range p {
+			listLeaf = append(listLeaf, key)
+			listHash = append(listHash, value)
+		}
+	}
+
+	merkleProof := &protobufs.MerkleProof{
+		MapLeaf: listLeaf,
+		MapHash: listHash,
+		Root:    merkleRoot,
+		Leaf:    leaf,
+	}
+	merkleProofByte, _ := proto.Marshal(merkleProof)
+	return merkleProofByte
 }

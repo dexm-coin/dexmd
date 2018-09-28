@@ -104,7 +104,7 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 
 	block.Transactions = transactions
 
-	merkleRootTransaction, merkleRootReceipt, err := CreateMerkleTrees(transactions)
+	merkleRootTransaction, merkleRootReceipt, err := GenerateMerkleTree(transactions)
 	if err != nil {
 		return nil, err
 	}
