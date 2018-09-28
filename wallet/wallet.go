@@ -16,8 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"strings"
-
 	"gopkg.in/dedis/kyber.v2"
 
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
@@ -30,6 +28,7 @@ import (
 // Wallet is an internal representation of a private key
 type Wallet struct {
 	PrivKey        *ecdsa.PrivateKey
+	Shard          uint8
 	Nonce          int
 	Balance        int
 	PrivKeySchnorr []byte
@@ -42,6 +41,7 @@ type file struct {
 	Address              string
 	Nonce                int
 	Balance              int
+	Shard                int
 	PrivKeySchnorrString []byte
 	PubKeySchnorrString  []byte
 }
@@ -59,14 +59,19 @@ func GenerateWallet() (*Wallet, error) {
 		log.Error(err)
 		return nil, err
 	}
+
 	pByte, err := p.MarshalBinary()
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
 
+	shardA := make([]byte, 1)
+	rand.Read(shardA)
+
 	return &Wallet{
 		PrivKey:        priv,
+		Shard:          uint8(shardA[0]),
 		Nonce:          0,
 		Balance:        0,
 		PrivKeySchnorr: xByte,
@@ -182,7 +187,7 @@ func (w *Wallet) GetWallet() (string, error) {
 		return "", err
 	}
 
-	return BytesToAddress(x509Encoded), nil
+	return BytesToAddress(x509Encoded, w.Shard), nil
 }
 
 // GetPubKey returns a x509 encoded public key for the wallet
@@ -196,22 +201,17 @@ func IsWalletValid(wallet string) bool {
 		return true
 	}
 
-	parts := strings.Split(wallet, "l")
-	if len(parts) != 2 {
+	if len(wallet) < 30 {
 		return false
 	}
 
-	// len("Dexm") + 1
-	if len(parts[0]) < 5 {
-		return false
-	}
-
-	sum := crc32.ChecksumIEEE([]byte(parts[0][4:]))
-	return fmt.Sprintf("%x", sum) == parts[1]
+	// Make a crc of the wallet excluding the header and shard
+	sum := crc32.ChecksumIEEE([]byte(wallet[4 : len(wallet)-8]))
+	return fmt.Sprintf("%x", sum) == wallet[:8]
 }
 
 // BytesToAddress converts the bytes of the PublicKey into a wallet address
-func BytesToAddress(data []byte) string {
+func BytesToAddress(data []byte, shard uint8) string {
 	hash := sha256.Sum256(data)
 
 	h := ripemd160.New()
@@ -220,20 +220,9 @@ func BytesToAddress(data []byte) string {
 	mainWal := base58Encoding(h.Sum(nil))
 	sum := crc32.ChecksumIEEE([]byte(mainWal))
 
-	wal := fmt.Sprintf("Dexm%sl%x", mainWal, sum)
+	wal := fmt.Sprintf("Dexm%02X%s%08X", shard, mainWal, sum)
 
 	return wal
-}
-
-// StrippedBytesToAddr converts the bytes of the PublicKey into a wallet address
-// without the Dexm header and the checksum
-func StrippedBytesToAddr(data []byte) []byte {
-	hash := sha256.Sum256(data)
-
-	h := ripemd160.New()
-	h.Write(hash[:])
-
-	return h.Sum(nil)
 }
 
 // Sign signs the bytes passed to it with ECDSA

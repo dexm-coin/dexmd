@@ -2,6 +2,7 @@ package networking
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -124,8 +125,8 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 
 		// TODO cange this import wallet because we don't want that people know the private key of thouse 2 wallet
 		satoshi, _ := wallet.ImportWallet("satoshi3")
-		cs.shardChain.SetState("Dexm47uWHm9vgEoxG1pD18ZufbMkmAqEl6a50b03a", state)
-		cs.beaconChain.Validators.AddValidator("Dexm47uWHm9vgEoxG1pD18ZufbMkmAqEl6a50b03a", 20000, -300, satoshi.GetPublicKeySchnorrByte())
+		cs.shardChain.SetState("Dexm47uWHm9vgEoxG1pD18ZufbMkmAqE6a50b03a", state)
+		cs.beaconChain.Validators.AddValidator("Dexm47uWHm9vgEoxG1pD18ZufbMkmAqE6a50b03a", 20000, -300, satoshi.GetPublicKeySchnorrByte())
 
 		state = &protobufs.AccountState{
 			Balance: 10000,
@@ -134,7 +135,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 
 		w, _ := wallet.ImportWallet("w3")
 		cs.shardChain.SetState("Dexm3igqMwrCxXvnDMsx3GqM8o9JB535l15b5eb2f", state)
-		cs.beaconChain.Validators.AddValidator("Dexm3igqMwrCxXvnDMsx3GqM8o9JB535l15b5eb2f", 10000, -300, w.GetPublicKeySchnorrByte())
+		cs.beaconChain.Validators.AddValidator("Dexm3igqMwrCxXvnDMsx3GqM8o9JB53515b5eb2f", 10000, -300, w.GetPublicKeySchnorrByte())
 
 		cs.shardChain.GenesisTimestamp = block.GetTimestamp()
 
@@ -144,7 +145,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 	totalGas := uint32(0)
 
 	for _, t := range block.GetTransactions() {
-		sender := wallet.BytesToAddress(t.GetSender())
+		sender := wallet.BytesToAddress(t.GetSender(), block.Shard)
 
 		log.Info("Sender:", sender)
 		log.Info("Recipient:", t.GetRecipient())
@@ -191,10 +192,8 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		}
 
 		if t.GetContractCreation() {
-			// Use the code, sender and prev hash to decide contract address
-			contractAddrSource := append(t.GetData(), t.GetSender()...)
-			contractAddrSource = append(contractAddrSource, block.PrevHash...)
-			contractAddr := wallet.BytesToAddress(contractAddrSource)
+			// Use sender a nonce to find contract address
+			contractAddr := wallet.BytesToAddress([]byte(fmt.Sprintf("%s%d", sender, senderBalance.Nonce)))
 
 			// Save it on a separate db
 			log.Info("New contract at ", contractAddr)
