@@ -3,6 +3,7 @@ package blockchain
 import (
 	"crypto/sha256"
 	"errors"
+	"reflect"
 	"time"
 
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
@@ -96,6 +97,21 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 		rawTx, err := proto.Marshal(rtx)
 		if err != nil {
 			break
+		}
+
+		// check if the hash of this transaction is inside bc.TransactionArrived that contain all the hash of the prev n transaction
+		bhash := sha256.Sum256(rawTx)
+		hash := bhash[:]
+		alreadyReceived := false
+		for _, h := range bc.TransactionArrived {
+			equal := reflect.DeepEqual(h, hash)
+			if equal {
+				alreadyReceived = true
+				break
+			}
+		}
+		if alreadyReceived {
+			continue
 		}
 
 		transactions = append(transactions, rtx)

@@ -3,7 +3,7 @@ package blockchain
 import (
 	"bytes"
 	"crypto/sha256"
-	"fmt"
+	"reflect"
 
 	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
@@ -17,13 +17,20 @@ func hash(data []byte) []byte {
 	return h.Sum(nil)
 }
 
-func VerifyProof(mp *protobufs.MerkleProof) bool{
+func VerifyProof(mp *protobufs.MerkleProof) bool {
 	hashes := mp.GetMapHash()
 	var mapProof []map[string][]byte
 	for i, key := range mp.GetMapLeaf() {
 		m := make(map[string][]byte)
 		m[key] = hashes[i]
 		mapProof = append(mapProof, m)
+	}
+	t, _ := proto.Marshal(mp.GetTransaction())
+
+	equal := reflect.DeepEqual(hash(t), mp.GetLeaf())
+	// check if the transaction and Leaf ( hash of the transaction for the proof ) are equal
+	if !equal {
+		return false
 	}
 
 	return verifyMerkleProof(mapProof, mp.GetRoot(), mp.GetLeaf())
@@ -43,12 +50,6 @@ func verifyMerkleProof(proof []map[string][]byte, root, value []byte) bool {
 	}
 	return bytes.Equal(root, proofHash)
 }
-
-// func calculateHashTransaction(t *protobufs.Transaction) []byte {
-// 	data, _ := proto.Marshal(t)
-// 	bhash := sha256.Sum256(data)
-// 	return bhash[:]
-// }
 
 func GenerateMerkleTree(transactions []*protobufs.Transaction) ([]byte, []byte, error) {
 	var dataTransaction [][]byte
@@ -121,10 +122,11 @@ func GenerateMerkleProof(transactions []*protobufs.Transaction, indexProof int) 
 	}
 
 	merkleProof := &protobufs.MerkleProof{
-		MapLeaf: listLeaf,
-		MapHash: listHash,
-		Root:    merkleRoot,
-		Leaf:    leaf,
+		MapLeaf:     listLeaf,
+		MapHash:     listHash,
+		Root:        merkleRoot,
+		Leaf:        leaf,
+		Transaction: transactions[indexProof],
 	}
 	merkleProofByte, _ := proto.Marshal(merkleProof)
 	return merkleProofByte

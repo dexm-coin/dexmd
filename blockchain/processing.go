@@ -22,7 +22,8 @@ type Blockchain struct {
 	StateDb       *leveldb.DB
 	CasperVotesDb *leveldb.DB
 
-	Mempool *mempool
+	Mempool            *mempool
+	TransactionArrived [][]byte
 
 	Schnorr             map[string][]byte
 	MTTrasaction        [][]byte
@@ -112,7 +113,9 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		StateDb:       sdb,
 		CasperVotesDb: cvdb,
 
-		Mempool:             mp,
+		Mempool:            mp,
+		TransactionArrived: [][]byte{},
+
 		Schnorr:             make(map[string][]byte),
 		MTTrasaction:        [][]byte{},
 		MTReceipt:           [][]byte{},

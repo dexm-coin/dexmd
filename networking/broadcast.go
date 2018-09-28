@@ -3,7 +3,6 @@ package networking
 import (
 	"errors"
 
-	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
 	bcp "github.com/dexm-coin/protobufs/build/blockchain"
 	protoBlockchain "github.com/dexm-coin/protobufs/build/blockchain"
@@ -213,9 +212,13 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 			return err
 		}
 
-		if blockchain.VerifyProof(merkleProof) {
-			// brucia lo scontrino
+		ok, err := cs.CheckMerkleProof(merkleProof)
+		if err != nil || !ok {
+			log.Error("Proof not verifed")
+			log.Error(err)
+			return err
 		}
+		log.Info("Proof verifed")
 
 	}
 	return nil
