@@ -17,10 +17,7 @@ func hash(data []byte) []byte {
 	return h.Sum(nil)
 }
 
-func VerifyProof(merkleProofByte []byte) {
-	var mp protobufs.MerkleProof
-	proto.Unmarshal(merkleProofByte, &mp)
-
+func VerifyProof(mp *protobufs.MerkleProof) bool{
 	hashes := mp.GetMapHash()
 	var mapProof []map[string][]byte
 	for i, key := range mp.GetMapLeaf() {
@@ -29,11 +26,11 @@ func VerifyProof(merkleProofByte []byte) {
 		mapProof = append(mapProof, m)
 	}
 
-	fmt.Println(VerifyMerkleProof(mapProof, mp.GetRoot(), mp.GetLeaf()))
+	return verifyMerkleProof(mapProof, mp.GetRoot(), mp.GetLeaf())
 }
 
 // VerifyProof verify proof for value
-func VerifyMerkleProof(proof []map[string][]byte, root, value []byte) bool {
+func verifyMerkleProof(proof []map[string][]byte, root, value []byte) bool {
 	proofHash := value
 	for _, p := range proof {
 		if sibling, exist := p["left"]; exist {

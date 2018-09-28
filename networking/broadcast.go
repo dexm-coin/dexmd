@@ -3,6 +3,7 @@ package networking
 import (
 	"errors"
 
+	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
 	bcp "github.com/dexm-coin/protobufs/build/blockchain"
 	protoBlockchain "github.com/dexm-coin/protobufs/build/blockchain"
@@ -201,6 +202,20 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 
 		// if everything is verified then save the signature inside the MerkleRootsDb
 		cs.beaconChain.SaveMerkleRoots(mr)
+
+	case protoNetwork.Broadcast_MERKLE_PROOF:
+		log.Printf("New Merkle Proof: %x", broadcastEnvelope.GetData())
+
+		merkleProof := &protoBlockchain.MerkleProof{}
+		err := proto.Unmarshal(broadcastEnvelope.GetData(), merkleProof)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+
+		if blockchain.VerifyProof(merkleProof) {
+			// brucia lo scontrino
+		}
 
 	}
 	return nil
