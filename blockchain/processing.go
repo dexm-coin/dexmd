@@ -43,26 +43,26 @@ type Blockchain struct {
 
 // BeaconChain is an internal representation of a beacon chain
 type BeaconChain struct {
-	MerkleRootsDb map[int64]*leveldb.DB
+	MerkleRootsDb map[uint32]*leveldb.DB
 	Validators    *ValidatorsBook
 
-	CurrentBlock map[int64]uint64
-	CurrentSign  map[int64]string
+	CurrentBlock map[uint32]uint64
+	// CurrentSign  map[int64]string
 }
 
 // NewBeaconChain create a new beacon chain
 func NewBeaconChain(dbPath string) (*BeaconChain, error) {
-	mrdb := make(map[int64]*leveldb.DB)
-	cb := make(map[int64]uint64)
-	cs := make(map[int64]string)
+	mrdb := make(map[uint32]*leveldb.DB)
+	cb := make(map[uint32]uint64)
+	// cs := make(map[int64]string)
 
-	for i := int64(1); i < 11; i++ {
+	for i := uint32(1); i < 11; i++ {
 		db, err := leveldb.OpenFile(dbPath+".merkleroots"+strconv.Itoa(int(i)), nil)
 		if err != nil {
 			return nil, err
 		}
 		mrdb[i] = db
-		cb[i] = 0
+		// cb[i] = 0
 	}
 
 	vd := NewValidatorsBook()
@@ -70,7 +70,7 @@ func NewBeaconChain(dbPath string) (*BeaconChain, error) {
 		MerkleRootsDb: mrdb,
 		Validators:    vd,
 		CurrentBlock:  cb,
-		CurrentSign:   cs,
+		// CurrentSign:   cs,
 	}, nil
 }
 
@@ -149,18 +149,18 @@ func (bc *BeaconChain) SaveMerkleRoots(mr *protobufs.MerkleRootsSigned) error {
 	return bc.MerkleRootsDb[currShard].Put([]byte(strconv.Itoa(int(bc.CurrentBlock[currShard]))), res, nil)
 }
 
-func (bc *BeaconChain) GetMerkleRoots(index uint64, shard int64) ([]byte, error) {
+func (bc *BeaconChain) GetMerkleRoots(index uint64, shard uint32) ([]byte, error) {
 	return bc.MerkleRootsDb[shard].Get([]byte(strconv.Itoa(int(index))), nil)
 }
 
 // SaveBlockBeacon saves a block into the BeaconChain in a specific shard and index
-func (bc *BeaconChain) SaveBlockBeacon(block *protobufs.MerkleRootsSigned, shard, index int64) error {
+func (bc *BeaconChain) SaveBlockBeacon(block *protobufs.MerkleRootsSigned, shard uint32, index int64) error {
 	res, _ := proto.Marshal(block)
 	return bc.MerkleRootsDb[shard].Put([]byte(strconv.Itoa(int(index))), res, nil)
 }
 
 // GetBlockBeacon returns the array of blocks at an index and at a specific shard
-func (bc *BeaconChain) GetBlockBeacon(index, shard int64) ([]byte, error) {
+func (bc *BeaconChain) GetBlockBeacon(index int64, shard uint32) ([]byte, error) {
 	return bc.MerkleRootsDb[shard].Get([]byte(strconv.Itoa(int(index))), nil)
 }
 

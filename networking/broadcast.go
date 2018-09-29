@@ -12,7 +12,28 @@ import (
 	kyber "gopkg.in/dedis/kyber.v2"
 )
 
-func (cs *ConnectionStore) handleBroadcast(data []byte) error {
+func (cs *ConnectionStore) checkShard(shard int64) bool {
+	if shard != -1 {
+		wallet, err := cs.identity.GetWallet()
+		if err != nil {
+			log.Error(err)
+			return false
+		}
+		currentShard, err := cs.beaconChain.Validators.GetShard(wallet)
+		if err != nil {
+			log.Error(err)
+			return false
+		}
+		if shard != currentShard {
+			log.Info("Not your shard")
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (cs *ConnectionStore) handleBroadcast(data []byte, shard int64) error {
 	broadcastEnvelope := &protoNetwork.Broadcast{}
 	err := proto.Unmarshal(data, broadcastEnvelope)
 	if err != nil {
@@ -29,6 +50,10 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 
 	// Save a block proposed by a validator
 	case protoNetwork.Broadcast_BLOCK_PROPOSAL:
+		if !cs.checkShard(shard) {
+			return nil
+		}
+
 		log.Printf("New Block: %x", broadcastEnvelope.GetData())
 
 		block := &bcp.Block{}
@@ -74,6 +99,10 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 		log.Info("Save block ", block.Index)
 
 	case protoNetwork.Broadcast_CHECKPOINT_VOTE:
+		if !cs.checkShard(shard) {
+			return nil
+		}
+
 		log.Printf("New CasperVote: %x", broadcastEnvelope.GetData())
 
 		vote := &protoBlockchain.CasperVote{}
@@ -104,6 +133,10 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 		cs.beaconChain.Validators.WithdrawValidator(withdrawVal.GetPublicKey(), withdrawVal.GetR(), withdrawVal.GetS(), int64(cs.shardChain.CurrentBlock))
 
 	case protoNetwork.Broadcast_SCHNORR:
+		if !cs.checkShard(shard) {
+			return nil
+		}
+
 		log.Printf("New Schnorr: %x", broadcastEnvelope.GetData())
 
 		schnorr := &protoBlockchain.Schnorr{}
@@ -115,6 +148,10 @@ func (cs *ConnectionStore) handleBroadcast(data []byte) error {
 		cs.shardChain.Schnorr[schnorr.P] = schnorr.R
 
 	case protoNetwork.Broadcast_SIGN_SCHNORR:
+		if !cs.checkShard(shard) {
+			return nil
+		}
+
 		log.Printf("New Sign Schnorr: %x", broadcastEnvelope.GetData())
 
 		signSchnorr := &protoBlockchain.SignSchnorr{}

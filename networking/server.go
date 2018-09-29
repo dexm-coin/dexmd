@@ -254,7 +254,7 @@ func (c *client) read() {
 				continue
 			}
 
-			go c.store.handleBroadcast(pb.GetData())
+			go c.store.handleBroadcast(pb.GetData(), pb.GetShard())
 			c.store.broadcast <- msg
 
 		// If the ContentType is a request then try to parse it as such and handle it
@@ -285,12 +285,12 @@ func (c *client) read() {
 
 			// Free up the goroutine to recive multi part messages
 			go func() {
-				env := protoNetwork.Envelope{}
 				rawMsg := c.store.handleMessage(&request, c)
-
-				env.Type = protoNetwork.Envelope_OTHER
-				env.Data = rawMsg
-				env.Shard = -1
+				env := protoNetwork.Envelope{
+					Type:  protoNetwork.Envelope_OTHER,
+					Data:  rawMsg,
+					Shard: -1,
+				}
 
 				toSend, err := proto.Marshal(&env)
 				if err != nil {
@@ -421,7 +421,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		// every 30 blocks do the merkle root signature
 		if cs.shardChain.CurrentBlock%30 == 0 {
 			countTurn = true
-			cs.beaconChain.CurrentSign = cs.beaconChain.Validators.ChooseSignSequence(int64(cs.shardChain.CurrentBlock))
+			// cs.beaconChain.CurrentSign = cs.beaconChain.Validators.ChooseSignSequence(int64(cs.shardChain.CurrentBlock))
 
 			// generate k and caluate r
 			k, rByte, err := wallet.GenerateParameter()
@@ -468,39 +468,70 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			var Ps []kyber.Point
 
 			// 25 is the total number of validator that should sign
-			for i := int64(0); i < 25; i++ {
-				if _, ok := cs.beaconChain.CurrentSign[i]; ok {
-					// check if the validator exist and if so get its R and P
-					if _, ok := cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]]; ok {
-						r, err := wallet.ByteToPoint(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]])
-						if err != nil {
-							log.Error("r ByteToPoint ", err)
-						}
-						// i should't myself in the sign, so i save it in difference variable
-						if cs.beaconChain.CurrentSign[i] == wal {
-							myR, err = r.MarshalBinary()
-							if err != nil {
-								log.Error("r marshal ", err)
-							}
-							p, err := cs.identity.GetPublicKeySchnorr()
-							if err != nil {
-								log.Error("GetSchnorrPublicKey ", err)
-							}
-							myP, err = p.MarshalBinary()
-							if err != nil {
-								log.Error("p marshal ", err)
-							}
-							continue
-						}
-						Rs = append(Rs, r)
-						p, err := cs.beaconChain.Validators.GetSchnorrPublicKey(cs.beaconChain.CurrentSign[i])
-						if err != nil {
-							log.Error("GetSchnorrPublicKey ", err)
-						}
-						Ps = append(Ps, p)
-					}
+			// for i := int64(0); i < 25; i++ {
+			// 	if _, ok := cs.beaconChain.CurrentSign[i]; ok {
+
+
+			for key, value := range cs.shardChain.Schnorr {
+				r, err := wallet.ByteToPoint(value)
+				if err != nil {
+					log.Error("r ByteToPoint ", err)
 				}
+				// i should't myself in the sign, so i save it in difference variable
+				if key == wal {
+					myR, err = r.MarshalBinary()
+					if err != nil {
+						log.Error("r marshal ", err)
+					}
+					p, err := cs.identity.GetPublicKeySchnorr()
+					if err != nil {
+						log.Error("GetSchnorrPublicKey ", err)
+					}
+					myP, err = p.MarshalBinary()
+					if err != nil {
+						log.Error("p marshal ", err)
+					}
+					continue
+				}
+				Rs = append(Rs, r)
+				p, err := cs.beaconChain.Validators.GetSchnorrPublicKey(key)
+				if err != nil {
+					log.Error("GetSchnorrPublicKey ", err)
+				}
+				Ps = append(Ps, p)
 			}
+
+
+			// 		if _, ok := cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]]; ok {
+			// 			r, err := wallet.ByteToPoint(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]])
+			// 			if err != nil {
+			// 				log.Error("r ByteToPoint ", err)
+			// 			}
+			// 			// i should't myself in the sign, so i save it in difference variable
+			// 			if cs.beaconChain.CurrentSign[i] == wal {
+			// 				myR, err = r.MarshalBinary()
+			// 				if err != nil {
+			// 					log.Error("r marshal ", err)
+			// 				}
+			// 				p, err := cs.identity.GetPublicKeySchnorr()
+			// 				if err != nil {
+			// 					log.Error("GetSchnorrPublicKey ", err)
+			// 				}
+			// 				myP, err = p.MarshalBinary()
+			// 				if err != nil {
+			// 					log.Error("p marshal ", err)
+			// 				}
+			// 				continue
+			// 			}
+			// 			Rs = append(Rs, r)
+			// 			p, err := cs.beaconChain.Validators.GetSchnorrPublicKey(cs.beaconChain.CurrentSign[i])
+			// 			if err != nil {
+			// 				log.Error("GetSchnorrPublicKey ", err)
+			// 			}
+			// 			Ps = append(Ps, p)
+			// 		}
+			// 	}
+			// }
 
 			var MRTransaction []byte
 			var MRReceipt []byte
@@ -636,9 +667,9 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			}
 
 			// reset everything about schnorr for the next message
-			for k := range cs.beaconChain.CurrentSign {
-				delete(cs.beaconChain.CurrentSign, k)
-			}
+			// for k := range cs.beaconChain.CurrentSign {
+			// 	delete(cs.beaconChain.CurrentSign, k)
+			// }
 			for k := range cs.shardChain.Schnorr {
 				delete(cs.shardChain.Schnorr, k)
 			}

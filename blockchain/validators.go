@@ -25,7 +25,7 @@ type Validator struct {
 	startDynasty int64
 	endDynasty   int64
 
-	shard            int64
+	shard            uint32
 	schnorrPublicKey kyber.Point
 }
 
@@ -171,7 +171,7 @@ func (v *ValidatorsBook) GetStake(wallet string) (uint64, error) {
 }
 
 // SetShard is used to update the validator's shard when it changes.
-func (v *ValidatorsBook) SetShard(wallet string, shard int64) error {
+func (v *ValidatorsBook) SetShard(wallet string, shard uint32) error {
 	if _, ok := v.valsArray[wallet]; ok {
 		v.valsArray[wallet].shard = shard
 		return nil
@@ -180,7 +180,7 @@ func (v *ValidatorsBook) SetShard(wallet string, shard int64) error {
 }
 
 // GetShard is used to get the validator's shard
-func (v *ValidatorsBook) GetShard(wallet string) (int64, error) {
+func (v *ValidatorsBook) GetShard(wallet string) (uint32, error) {
 	if _, ok := v.valsArray[wallet]; ok {
 		return v.valsArray[wallet].shard, nil
 	}
@@ -236,7 +236,7 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64) (string, error) {
 
 // ChooseShard calulate the shard for every validators
 // return the shard for a specific wallet
-func (v *ValidatorsBook) ChooseShard(seed int64, wallet string) (int64, error) {
+func (v *ValidatorsBook) ChooseShard(seed int64, wallet string) (uint32, error) {
 	rand.Seed(seed)
 
 	var ss []simpleValidator
@@ -248,11 +248,11 @@ func (v *ValidatorsBook) ChooseShard(seed int64, wallet string) (int64, error) {
 	}
 
 	// suffle the validator with a seed
-	shardWallet := int64(-1)
+	shardWallet := uint32(0)
 	r := rand.New(rand.NewSource(seed))
 	perm := r.Perm(len(ss))
 	for _, randIndex := range perm {
-		shard := rand.Int63n(10)
+		shard := uint32(rand.Int31n(10) + 1)
 		randValidator := ss[randIndex]
 		if randValidator.wallet == wallet {
 			shardWallet = shard
@@ -260,33 +260,38 @@ func (v *ValidatorsBook) ChooseShard(seed int64, wallet string) (int64, error) {
 		// for each validator set the choosen shard
 		v.SetShard(randValidator.wallet, shard)
 	}
-	if shardWallet == -1 {
+	if shardWallet == 0 {
 		return 0, errors.New(wallet + " is not a validator")
 	}
 	return shardWallet, nil
 }
 
-// ChooseSignSequence return the sequence in which order the signature of a merkle root should be
-func (v *ValidatorsBook) ChooseSignSequence(currentBlock int64) map[int64]string {
-	rand.Seed(currentBlock)
+// // ChooseSignSequence return the sequence in which order the signature of a merkle root should be
+// func (v *ValidatorsBook) ChooseSignSequence(currentBlock int64) map[int64]string {
+// 	rand.Seed(currentBlock)
 
-	var ss []simpleValidator
-	for k, val := range v.valsArray {
-		if !v.CheckDynasty(val.wallet, uint64(currentBlock)) {
-			continue
-		}
-		ss = append(ss, simpleValidator{k, val.stake})
-	}
+// 	var ss []simpleValidator
+// 	for k, val := range v.valsArray {
+// 		if !v.CheckDynasty(val.wallet, uint64(currentBlock)) {
+// 			continue
+// 		}
+// 		ss = append(ss, simpleValidator{k, val.stake})
+// 	}
 
-	// suffle the validator with a seed
-	r := rand.New(rand.NewSource(currentBlock))
-	perm := r.Perm(len(ss))
-	signSequence := make(map[int64]string)
-	for i, randIndex := range perm {
-		if i > 24 {
-			break
-		}
-		signSequence[int64(i)] = ss[randIndex].wallet
-	}
-	return signSequence
-}
+// 	// suffle the validator with a seed
+// 	r := rand.New(rand.NewSource(currentBlock))
+// 	perm := r.Perm(len(ss))
+// 	signSequence := make(map[int64]string)
+// 	for i, randIndex := range perm {
+// 		if i > 24 {
+// 			break
+// 		}
+// 		signSequence[int64(i)] = ss[randIndex].wallet
+// 	}
+// 	return signSequence
+// }
+
+/*
+modificare tutte le call ai protobuf transaction e block
+togliere shard: -1 perche' sono tutti unsigned, metti 0 di default
+*/
