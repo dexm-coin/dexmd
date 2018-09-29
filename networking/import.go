@@ -25,7 +25,7 @@ const (
 // UpdateChain asks all connected nodes for their chain lenght, if any of them
 // has a chain longer than the current one it will import
 // TODO Drop client if err != nil
-func (cs *ConnectionStore) UpdateChain(nextShard int64) error {
+func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 	// No need to sync before genesis
 	for cs.shardChain.GetNetworkIndex() < 0 {
 		return nil
@@ -143,10 +143,8 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		return nil
 	}
 
-	totalGas := uint32(0)
-
 	for _, t := range block.GetTransactions() {
-		sender := wallet.BytesToAddress(t.GetSender(), block.Shard)
+		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
 
 		log.Info("Sender:", sender)
 		log.Info("Recipient:", t.GetRecipient())
@@ -179,8 +177,6 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		log.Info("Sender nonce: ", senderBalance.Nonce)
 		log.Info("Reciver balance:", reciverBalance.Balance)
 
-		totalGas += t.GetGas()
-
 		err = cs.shardChain.SetState(sender, &senderBalance)
 		if err != nil {
 			log.Error(err)
@@ -194,7 +190,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 
 		if t.GetContractCreation() {
 			// Use sender a nonce to find contract address
-			contractAddr := wallet.BytesToAddress([]byte(fmt.Sprintf("%s%d", sender, senderBalance.Nonce)))
+			contractAddr := wallet.BytesToAddress([]byte(fmt.Sprintf("%s%d", sender, senderBalance.Nonce)), t.GetShard())
 
 			// Save it on a separate db
 			log.Info("New contract at ", contractAddr)
@@ -237,7 +233,7 @@ func (c *client) GetResponse(timeout time.Duration) ([]byte, error) {
 	}
 }
 
-func makeReqEnvelope(req *network.Request, currentShard int64) ([]byte, error) {
+func makeReqEnvelope(req *network.Request, currentShard uint32) ([]byte, error) {
 	d, err := proto.Marshal(req)
 	if err != nil {
 		return nil, err

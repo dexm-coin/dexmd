@@ -184,7 +184,7 @@ func main() {
 
 				ccreation := len(cdata) == 0
 
-				networking.SendTransaction(senderWallet, recipient, "", amount, uint64(gas), cdata, ccreation)
+				networking.SendTransaction(senderWallet, recipient, "", amount, uint64(gas), cdata, ccreation, uint32(senderWallet.GetShardWallet()))
 
 				return nil
 			},
@@ -247,7 +247,7 @@ func main() {
 							log.Fatal(err)
 						}
 
-						networking.SendTransaction(senderWallet, address, entries[choice], amount, uint64(gas), []byte{}, false)
+						networking.SendTransaction(senderWallet, address, entries[choice], amount, uint64(gas), []byte{}, false, uint32(senderWallet.GetShardWallet()))
 					},
 				})
 

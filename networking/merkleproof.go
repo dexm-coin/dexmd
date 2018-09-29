@@ -2,7 +2,6 @@ package networking
 
 import (
 	"errors"
-	"strconv"
 
 	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/util"
@@ -16,7 +15,7 @@ var ReceiptBurned = make(map[string]bool)
 
 func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) (bool, error) {
 	// check if the proof has already be done
-	if val, ok := ReceiptBurned[string(merkleProof.GetLeaf())]; ok {
+	if val, ok := ReceiptBurned[string(merkleProof.GetLeaf())]; ok && val {
 		log.Error("Double spend!")
 		return false, nil
 	}
@@ -28,7 +27,7 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) 
 
 		t := merkleProof.GetTransaction()
 		result, _ := proto.Marshal(t)
-		sender := wallet.BytesToAddress(t.GetSender())
+		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
 
 		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), result)
 		if !valid || err != nil {
@@ -36,7 +35,7 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) 
 			return false, err
 		}
 
-		senderBalance, err = cs.shardChain.GetWalletState(sender)
+		senderBalance, err := cs.shardChain.GetWalletState(sender)
 		if err != nil {
 			log.Error(err)
 			return false, err
@@ -44,12 +43,12 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) 
 		// Check if balance is sufficient
 		requiredBal, ok := util.AddU64O(t.GetAmount(), uint64(t.GetGas()))
 		if requiredBal > senderBalance.GetBalance() && ok {
-			return false, errors.New("Balance is insufficient in transaction " + strconv.Itoa(i))
+			return false, errors.New("Balance is insufficient in transaction")
 		}
 		// Check if nonce is correct
 		newNonce, ok := util.AddU32O(senderBalance.GetNonce(), uint32(1))
 		if t.GetNonce() != newNonce || !ok {
-			return false, errors.New("Invalid nonce in transaction " + strconv.Itoa(i))
+			return false, errors.New("Invalid nonce in transaction")
 		}
 
 		receiver := t.GetRecipient()
@@ -71,7 +70,7 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) 
 			log.Error(err)
 			return false, err
 		}
-		
+
 		return true, nil
 	}
 	return false, nil

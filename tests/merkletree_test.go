@@ -1,7 +1,6 @@
 package tests
 
 import (
-	// "fmt"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -117,8 +116,10 @@ func TestMerkeTree(t *testing.T) {
 	transaction4, _ := w1.NewTransaction(recipient, 400, 1, []byte{})
 	transaction5, _ := w1.NewTransaction(recipient, 500, 1, []byte{})
 	transaction6, _ := w1.NewTransaction(recipient, 600, 1, []byte{})
+	transaction7, _ := w1.NewTransaction(recipient, 700, 1, []byte{})
+	transaction8, _ := w1.NewTransaction(recipient, 800, 1, []byte{})
 
-	transactionsByte := [][]byte{transaction1, transaction2, transaction3, transaction4, transaction5, transaction6}
+	transactionsByte := [][]byte{transaction1, transaction2, transaction3, transaction4, transaction5, transaction6, transaction7, transaction8}
 
 	var transactions []*protobufs.Transaction
 	for _, bTransaction := range transactionsByte {

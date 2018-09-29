@@ -15,7 +15,7 @@ import (
 )
 
 // SendTransaction generates a transaction and broadcasts it
-func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amount, gas uint64, cdata []byte, ccreation bool) error {
+func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amount, gas uint64, cdata []byte, ccreation bool, shard uint32) error {
 	ips, err := GetPeerList("hackney")
 	if err != nil {
 		log.Error("peer", err)
@@ -44,7 +44,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 		env := &network.Envelope{
 			Type:  network.Envelope_REQUEST,
 			Data:  reqD,
-			Shard: -1,
+			Shard: 0,
 		}
 
 		// GET_WALLET_STATUS requires to first send a request and then the address
@@ -62,7 +62,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 		senderEnv := &network.Envelope{
 			Type:  network.Envelope_OTHER,
 			Data:  []byte(senderAddr),
-			Shard: -1,
+			Shard: 0,
 		}
 
 		senderAddrD, _ := proto.Marshal(senderEnv)
@@ -95,7 +95,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 		senderWallet.Nonce = int(walletStatus.Nonce)
 		senderWallet.Balance = int(walletStatus.Balance)
 
-		trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata)
+		trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata, shard)
 		if err != nil {
 			log.Fatal(err)
 			continue
@@ -121,11 +121,10 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 		// 	log.Error(err)
 		// 	continue
 		// }
-		// currentShard, err := c.store.beaconChain.Validators.GetShard(wal)
 		trEnv := &network.Envelope{
 			Type: network.Envelope_BROADCAST,
 			Data: brD,
-			// Shard: ,
+			Shard: 0,
 		}
 
 		finalD, _ := proto.Marshal(trEnv)

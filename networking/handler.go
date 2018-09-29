@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client) []byte {
+func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard uint32) []byte {
 	switch pb.GetType() {
 	// GET_BLOCKCHAIN_LEN returns the current block index
 	case protobufs.Request_GET_BLOCKCHAIN_LEN:
@@ -37,6 +37,10 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client) []byt
 
 	// GET_BLOCK returns a block at the passed index and shard
 	case protobufs.Request_GET_BLOCK:
+		if !cs.CheckShard(shard) {
+			return []byte("Error")
+		}
+
 		block, err := cs.shardChain.GetBlock(pb.GetIndex())
 		if err != nil {
 			return []byte("Error")

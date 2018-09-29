@@ -195,7 +195,7 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	}
 
 	for i, t := range block.GetTransactions() {
-		sender := wallet.BytesToAddress(t.GetSender())
+		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
 
 		result, _ := proto.Marshal(t)
 
@@ -266,7 +266,7 @@ func (bc *Blockchain) SetState(wallet string, newState *protobufs.AccountState) 
 // Different from ValidateBlock because that has to verify for double spends
 // inside the same block.
 func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
-	sender := wallet.BytesToAddress(t.GetSender())
+	sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
 
 	if !wallet.IsWalletValid(t.GetRecipient()) {
 		return errors.New("Invalid recipient")

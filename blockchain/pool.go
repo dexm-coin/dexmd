@@ -49,7 +49,7 @@ func (bc *Blockchain) AddMempoolTransaction(rawTx []byte) error {
 }
 
 // GenerateBlock generates a valid unsigned block with transactions from the mempool
-func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
+func (bc *Blockchain) GenerateBlock(miner string, shard uint32) (*protobufs.Block, error) {
 	hash := []byte{}
 
 	if bc.CurrentBlock != 0 {
@@ -72,6 +72,7 @@ func (bc *Blockchain) GenerateBlock(miner string) (*protobufs.Block, error) {
 		Timestamp: uint64(time.Now().Unix()),
 		Miner:     miner,
 		PrevHash:  hash,
+		Shard:     shard,
 	}
 
 	blockHeader, err := proto.Marshal(&block)

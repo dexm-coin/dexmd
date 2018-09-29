@@ -12,8 +12,8 @@ import (
 	kyber "gopkg.in/dedis/kyber.v2"
 )
 
-func (cs *ConnectionStore) checkShard(shard int64) bool {
-	if shard != -1 {
+func (cs *ConnectionStore) CheckShard(shard uint32) bool {
+	if shard != 0 {
 		wallet, err := cs.identity.GetWallet()
 		if err != nil {
 			log.Error(err)
@@ -33,7 +33,7 @@ func (cs *ConnectionStore) checkShard(shard int64) bool {
 	return false
 }
 
-func (cs *ConnectionStore) handleBroadcast(data []byte, shard int64) error {
+func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 	broadcastEnvelope := &protoNetwork.Broadcast{}
 	err := proto.Unmarshal(data, broadcastEnvelope)
 	if err != nil {
@@ -50,7 +50,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard int64) error {
 
 	// Save a block proposed by a validator
 	case protoNetwork.Broadcast_BLOCK_PROPOSAL:
-		if !cs.checkShard(shard) {
+		if !cs.CheckShard(shard) {
 			return nil
 		}
 
@@ -99,7 +99,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard int64) error {
 		log.Info("Save block ", block.Index)
 
 	case protoNetwork.Broadcast_CHECKPOINT_VOTE:
-		if !cs.checkShard(shard) {
+		if !cs.CheckShard(shard) {
 			return nil
 		}
 
@@ -133,7 +133,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard int64) error {
 		cs.beaconChain.Validators.WithdrawValidator(withdrawVal.GetPublicKey(), withdrawVal.GetR(), withdrawVal.GetS(), int64(cs.shardChain.CurrentBlock))
 
 	case protoNetwork.Broadcast_SCHNORR:
-		if !cs.checkShard(shard) {
+		if !cs.CheckShard(shard) {
 			return nil
 		}
 
@@ -148,7 +148,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard int64) error {
 		cs.shardChain.Schnorr[schnorr.P] = schnorr.R
 
 	case protoNetwork.Broadcast_SIGN_SCHNORR:
-		if !cs.checkShard(shard) {
+		if !cs.CheckShard(shard) {
 			return nil
 		}
 

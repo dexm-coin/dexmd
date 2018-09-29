@@ -66,6 +66,7 @@ func GenerateWallet() (*Wallet, error) {
 		return nil, err
 	}
 
+	// shard := uint8(rand.Int31n(10) + 1)
 	shardA := make([]byte, 1)
 	rand.Read(shardA)
 
@@ -92,6 +93,11 @@ func (w *Wallet) GetPublicKeySchnorr() (kyber.Point, error) {
 // GetPrivateKeySchnorr return the private schnorr key to the wallet
 func (w *Wallet) GetPublicKeySchnorrByte() []byte {
 	return w.PubKeySchnorr
+}
+
+// GetShardWallet return the shard to the wallet
+func (w *Wallet) GetShardWallet() uint8 {
+	return w.Shard
 }
 
 // JSWallet returns a gopherjs wrapper to the wallet
@@ -187,7 +193,7 @@ func (w *Wallet) GetWallet() (string, error) {
 		return "", err
 	}
 
-	return BytesToAddress(x509Encoded, w.Shard), nil
+	return BytesToAddress(x509Encoded, uint32(w.Shard)), nil
 }
 
 // GetPubKey returns a x509 encoded public key for the wallet
@@ -211,7 +217,7 @@ func IsWalletValid(wallet string) bool {
 }
 
 // BytesToAddress converts the bytes of the PublicKey into a wallet address
-func BytesToAddress(data []byte, shard uint8) string {
+func BytesToAddress(data []byte, shard uint32) string {
 	hash := sha256.Sum256(data)
 
 	h := ripemd160.New()
@@ -220,7 +226,7 @@ func BytesToAddress(data []byte, shard uint8) string {
 	mainWal := base58Encoding(h.Sum(nil))
 	sum := crc32.ChecksumIEEE([]byte(mainWal))
 
-	wal := fmt.Sprintf("Dexm%02X%s%08X", shard, mainWal, sum)
+	wal := fmt.Sprintf("Dexm%02X%s%08X", uint8(shard), mainWal, sum)
 
 	return wal
 }
@@ -281,7 +287,7 @@ func base58Encoding(bin []byte) string {
 
 // RawTransaction returns a struct with a transaction. Used in GopherJS to avoid
 // protobuf which uses the unsupported unsafe
-func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32, data []byte) (*protobufs.Transaction, error) {
+func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32, data []byte, shard uint32) (*protobufs.Transaction, error) {
 	if !IsWalletValid(recipient) {
 		return nil, errors.New("Invalid recipient")
 	}
@@ -307,6 +313,7 @@ func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32, dat
 		Gas:       gas,
 		Timestamp: uint64(time.Now().Unix()),
 		Data:      data,
+		Shard:     shard,
 	}
 
 	if len(data) != 0 {
@@ -331,8 +338,8 @@ func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32, dat
 
 // NewTransaction generates a signed transaction for the given arguments without
 // broadcasting it to the newtwork
-func (w *Wallet) NewTransaction(recipient string, amount uint64, gas uint32, data []byte) ([]byte, error) {
-	newT, err := w.RawTransaction(recipient, amount, gas, data)
+func (w *Wallet) NewTransaction(recipient string, amount uint64, gas uint32, data []byte, shard uint32) ([]byte, error) {
+	newT, err := w.RawTransaction(recipient, amount, gas, data, shard)
 	if err != nil {
 		return nil, err
 	}

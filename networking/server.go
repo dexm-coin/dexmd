@@ -259,23 +259,6 @@ func (c *client) read() {
 
 		// If the ContentType is a request then try to parse it as such and handle it
 		case protoNetwork.Envelope_REQUEST:
-			if pb.GetShard() != -1 {
-				wallet, err := c.store.identity.GetWallet()
-				if err != nil {
-					log.Error(err)
-					continue
-				}
-				currentShard, err := c.store.beaconChain.Validators.GetShard(wallet)
-				if err != nil {
-					log.Error(err)
-					continue
-				}
-				if pb.GetShard() != currentShard {
-					log.Info("Not your shard")
-					continue
-				}
-			}
-
 			request := protoNetwork.Request{}
 			err = proto.Unmarshal(pb.GetData(), &request)
 			if err != nil {
@@ -285,11 +268,11 @@ func (c *client) read() {
 
 			// Free up the goroutine to recive multi part messages
 			go func() {
-				rawMsg := c.store.handleMessage(&request, c)
+				rawMsg := c.store.handleMessage(&request, c, pb.GetShard())
 				env := protoNetwork.Envelope{
 					Type:  protoNetwork.Envelope_OTHER,
 					Data:  rawMsg,
-					Shard: -1,
+					Shard: 0,
 				}
 
 				toSend, err := proto.Marshal(&env)
@@ -355,6 +338,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				Timestamp: uint64(time.Now().Unix()),
 				Miner:     "",
 				PrevHash:  hash,
+				Shard:     currentShard,
 			}
 
 			err = cs.shardChain.SaveBlock(block)
@@ -471,7 +455,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			// for i := int64(0); i < 25; i++ {
 			// 	if _, ok := cs.beaconChain.CurrentSign[i]; ok {
 
-
 			for key, value := range cs.shardChain.Schnorr {
 				r, err := wallet.ByteToPoint(value)
 				if err != nil {
@@ -500,7 +483,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				}
 				Ps = append(Ps, p)
 			}
-
 
 			// 		if _, ok := cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]]; ok {
 			// 			r, err := wallet.ByteToPoint(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]])
@@ -557,7 +539,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 			// send the signed transaction and receipt
 			signSchorrP := &protoBlockchain.SignSchnorr{
-				Shard:                  currentShard,
 				Wallet:                 wal,
 				RSchnorr:               myR,
 				PSchnorr:               myP,
@@ -769,7 +750,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 		// If this node is the validator then generate a block and sign it
 		if wal == validator {
-			block, err := cs.shardChain.GenerateBlock(wal)
+			block, err := cs.shardChain.GenerateBlock(wal, currentShard)
 			if err != nil {
 				log.Fatal(err)
 				return

@@ -58,7 +58,7 @@ func GenerateMerkleTree(transactions []*protobufs.Transaction) ([]byte, []byte, 
 	var dataReceipt [][]byte
 	for _, t := range transactions {
 		r := &protobufs.Receipt{
-			Sender:    wallet.BytesToAddress(t.GetSender()),
+			Sender:    wallet.BytesToAddress(t.GetSender(), t.GetShard()),
 			Recipient: t.GetRecipient(),
 			Amount:    t.GetAmount(),
 			Nonce:     t.GetNonce(),
