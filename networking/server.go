@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"sync"
 	"time"
 
 	"gopkg.in/dedis/kyber.v2"
@@ -47,6 +48,7 @@ type client struct {
 	send      chan []byte
 	readOther chan []byte
 	store     *ConnectionStore
+	wg        sync.WaitGroup
 }
 
 var upgrader = websocket.Upgrader{
@@ -140,6 +142,10 @@ func (cs *ConnectionStore) run() {
 		case client := <-cs.unregister:
 			if _, ok := cs.clients[client]; ok {
 				delete(cs.clients, client)
+
+				// Don't close the channel till we're done responding to avoid panics
+				client.wg.Wait()
+
 				close(client.send)
 			}
 
@@ -268,6 +274,8 @@ func (c *client) read() {
 
 			// Free up the goroutine to recive multi part messages
 			go func() {
+				// Increment the waitgroup to avoid panics
+				c.wg.Add(1)
 				rawMsg := c.store.handleMessage(&request, c, pb.GetShard())
 				env := protoNetwork.Envelope{
 					Type:  protoNetwork.Envelope_OTHER,
@@ -282,6 +290,8 @@ func (c *client) read() {
 				}
 
 				c.send <- toSend
+				// Once we are done using the channel decrement the group
+				c.wg.Done()
 			}()
 
 		// Other data can be channeled so other parts of code can use it
