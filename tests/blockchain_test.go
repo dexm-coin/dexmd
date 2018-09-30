@@ -23,7 +23,7 @@ func TestBlockValidation(t *testing.T) {
 
 	// This will get your transaction rejected by the network on the real chain
 	w1.Balance = 1337
-	transaction, _ := w1.NewTransaction(recipient, 1000, 50, []byte{})
+	transaction, _ := w1.NewTransaction(recipient, 1000, 50, []byte{}, 0)
 
 	parsed := &protobufs.Transaction{}
 	err = proto.Unmarshal(transaction, parsed)

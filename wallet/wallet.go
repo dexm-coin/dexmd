@@ -212,8 +212,8 @@ func IsWalletValid(wallet string) bool {
 	}
 
 	// Make a crc of the wallet excluding the header and shard
-	sum := crc32.ChecksumIEEE([]byte(wallet[4 : len(wallet)-8]))
-	return fmt.Sprintf("%x", sum) == wallet[:8]
+	sum := crc32.ChecksumIEEE([]byte(wallet[6 : len(wallet)-8]))
+	return fmt.Sprintf("%08X", sum) == wallet[len(wallet)-8:len(wallet)]
 }
 
 // BytesToAddress converts the bytes of the PublicKey into a wallet address

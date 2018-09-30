@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"log"
 	"testing"
 
 	"github.com/dexm-coin/dexmd/wallet"
@@ -29,7 +30,10 @@ func TestWalletGeneration(t *testing.T) {
 		t.Error(err)
 	}
 
+	log.Println(addr2)
+
 	if !wallet.IsWalletValid(addr2) {
+		log.Printf("%s", ([]byte(addr2[6 : len(addr2)-8])))
 		t.Error("Generated wallet is invalid")
 	}
 
@@ -46,7 +50,7 @@ func TestTransaction(t *testing.T) {
 
 	// Don't do this, it will get rejected by the network
 	w.Balance = 1337
-	res, err := w.NewTransaction("DexmPoS", 10, 10, []byte{})
+	res, err := w.NewTransaction("DexmPoS", 10, 10, []byte{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -107,7 +111,7 @@ func TestAddress(t *testing.T) {
 		t.Error("Corrupted wallet is valid")
 	}
 
-	if r != "Dexm33QctNiKudtzSNoxXztqUXMYpUxql5313d274" {
+	if r != "Dexm0033QctNiKudtzSNoxXztqUXMYpUxq5313D274" {
 		t.Error("Wallet format changed", r)
 	}
 }
