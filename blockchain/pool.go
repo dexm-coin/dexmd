@@ -121,9 +121,13 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32) (*protobufs.Bloc
 
 	block.Transactions = transactions
 
-	merkleRootTransaction, merkleRootReceipt, err := GenerateMerkleTree(transactions)
-	if err != nil {
-		return nil, err
+	merkleRootTransaction := []byte{}
+	merkleRootReceipt := []byte{}
+	if len(transactions) != 0 {
+		merkleRootTransaction, merkleRootReceipt, err = GenerateMerkleTree(transactions)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	block.MerkleRootTransaction = merkleRootTransaction

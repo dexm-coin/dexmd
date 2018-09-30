@@ -28,10 +28,10 @@ const (
 
 var (
 	// -- start
-	PUBLIC_PEERSERVER = false
-	TS                = uint64(1538252156)
-	// -- start
-)
+        PUBLIC_PEERSERVER = false
+        TS                = uint64(1538303221)
+        // -- start
+                                )
 
 func main() {
 	app := cli.NewApp()

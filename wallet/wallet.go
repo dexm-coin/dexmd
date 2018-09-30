@@ -193,8 +193,6 @@ func (w *Wallet) GetWallet() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	log.Info("GetWallet shard ", w.Shard)
-
 	return BytesToAddress(x509Encoded, uint32(w.Shard)), nil
 }
 
