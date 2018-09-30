@@ -49,6 +49,10 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 
 	// GET_WALLET_STATUS returns the current balance and nonce of a wallet
 	case protobufs.Request_GET_WALLET_STATUS:
+		if !cs.CheckShard(shard) {
+			return []byte("Error")
+		}
+
 		walletAddr, err := c.GetResponse(100 * time.Millisecond)
 		if err != nil {
 			log.Error(err)
@@ -72,6 +76,10 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 
 	// GET_CONTRACT_CODE returns the code of a contract
 	case protobufs.Request_GET_CONTRACT_CODE:
+		if !cs.CheckShard(shard) {
+			return []byte("Error")
+		}
+
 		contractAddr, err := c.GetResponse(100 * time.Millisecond)
 		if err != nil {
 			log.Error(err)

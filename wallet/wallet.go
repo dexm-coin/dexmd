@@ -138,6 +138,7 @@ func jsonKeyToStruct(walletJSON []byte) (*Wallet, error) {
 		Balance:        walletfile.Balance,
 		PrivKeySchnorr: walletfile.PrivKeySchnorrString,
 		PubKeySchnorr:  walletfile.PubKeySchnorrString,
+		Shard:          walletfile.Shard,
 	}, nil
 }
 

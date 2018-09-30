@@ -11,7 +11,7 @@ import (
 	"github.com/onrik/gomerkle"
 )
 
-// TODO maybe there is a problem with data and foglie
+// TODO maybe there is a problem with data and leaf
 
 func hash(data []byte) []byte {
 	h := sha256.New()

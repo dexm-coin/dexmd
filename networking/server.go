@@ -322,6 +322,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Info("myWallet ", wal)
 
 	var currentK kyber.Scalar
 	countTurn := false

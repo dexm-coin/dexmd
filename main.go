@@ -29,9 +29,9 @@ const (
 var (
 	// -- start
         PUBLIC_PEERSERVER = false
-        TS                = uint64(1538303221)
+        TS                = uint64(1538337451)
         // -- start
-                                )
+                                                )
 
 func main() {
 	app := cli.NewApp()
@@ -74,7 +74,6 @@ func main() {
 				if err != nil {
 					log.Fatal("import", err)
 				}
-				w.Shard = uint8(1)
 
 				if genesisTimestamp != "" {
 					TS, err = strconv.ParseUint(genesisTimestamp, 10, 64)
