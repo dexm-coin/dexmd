@@ -29,7 +29,7 @@ const (
 var (
 	// -- start
 	PUBLIC_PEERSERVER = false
-	TS                = uint64(1537995321)
+	TS                = uint64(1538252156)
 	// -- start
 )
 
@@ -74,6 +74,7 @@ func main() {
 				if err != nil {
 					log.Fatal("import", err)
 				}
+				w.Shard = uint8(1)
 
 				if genesisTimestamp != "" {
 					TS, err = strconv.ParseUint(genesisTimestamp, 10, 64)
@@ -105,7 +106,7 @@ func main() {
 				genesisBlock := &bp.Block{
 					Index:     0,
 					Timestamp: TS,
-					Miner:     "Dexm47uWHm9vgEoxG1pD18ZufbMkmAqEl6a50b03a",
+					Miner:     "Dexm01aCR946Biyo98t55dqgJSb9NTpVn877EF9F5",
 				}
 				b.SaveBlock(genesisBlock)
 
