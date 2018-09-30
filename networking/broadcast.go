@@ -201,6 +201,8 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			pValidators = append(pValidators, p)
 		}
 
+		// TODO check 2/3 validator signed correctly
+
 		// over all signed merkle roots check if they are verified
 		for i := 0; i < len(transactions); i++ {
 			rSignedTransaction, err := wallet.ByteToPoint(mr.GetRSignedMerkleRootsTransaction())

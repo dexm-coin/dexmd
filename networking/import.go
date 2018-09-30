@@ -126,8 +126,8 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 
 		// TODO cange this import wallet because we don't want that people know the private key of thouse 2 wallet
 		satoshi, _ := wallet.ImportWallet("satoshi3")
-		cs.shardChain.SetState("Dexm47uWHm9vgEoxG1pD18ZufbMkmAqE6a50b03a", state)
-		cs.beaconChain.Validators.AddValidator("Dexm47uWHm9vgEoxG1pD18ZufbMkmAqE6a50b03a", 20000, -300, satoshi.GetPublicKeySchnorrByte())
+		cs.shardChain.SetState("Dexm01aCR946Biyo98t55dqgJSb9NTpVn877EF9F5", state)
+		cs.beaconChain.Validators.AddValidator("Dexm01aCR946Biyo98t55dqgJSb9NTpVn877EF9F5", 20000, -300, satoshi.GetPublicKeySchnorrByte())
 
 		state = &protobufs.AccountState{
 			Balance: 10000,
@@ -135,8 +135,8 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		}
 
 		w, _ := wallet.ImportWallet("w3")
-		cs.shardChain.SetState("Dexm3igqMwrCxXvnDMsx3GqM8o9JB535l15b5eb2f", state)
-		cs.beaconChain.Validators.AddValidator("Dexm3igqMwrCxXvnDMsx3GqM8o9JB53515b5eb2f", 10000, -300, w.GetPublicKeySchnorrByte())
+		cs.shardChain.SetState("Dexm01AXxMYVnzKmrekmjx6mUdTarC3xLB1984853", state)
+		cs.beaconChain.Validators.AddValidator("Dexm01AXxMYVnzKmrekmjx6mUdTarC3xLB1984853", 10000, -300, w.GetPublicKeySchnorrByte())
 
 		cs.shardChain.GenesisTimestamp = block.GetTimestamp()
 

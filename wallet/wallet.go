@@ -41,7 +41,7 @@ type file struct {
 	Address              string
 	Nonce                int
 	Balance              int
-	Shard                int
+	Shard                uint8
 	PrivKeySchnorrString []byte
 	PubKeySchnorrString  []byte
 }
@@ -67,12 +67,13 @@ func GenerateWallet() (*Wallet, error) {
 	}
 
 	// shard := uint8(rand.Int31n(10) + 1)
-	shardA := make([]byte, 1)
-	rand.Read(shardA)
+	// shardA := make([]byte, 1)
+	// rand.Read(shardA)
 
 	return &Wallet{
-		PrivKey:        priv,
-		Shard:          uint8(shardA[0]),
+		PrivKey: priv,
+		// Shard:          uint8(shardA[0]),
+		Shard:          1,
 		Nonce:          0,
 		Balance:        0,
 		PrivKeySchnorr: xByte,
@@ -192,7 +193,6 @@ func (w *Wallet) GetWallet() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return BytesToAddress(x509Encoded, uint32(w.Shard)), nil
 }
 

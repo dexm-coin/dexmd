@@ -451,10 +451,6 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			var Rs []kyber.Point
 			var Ps []kyber.Point
 
-			// 25 is the total number of validator that should sign
-			// for i := int64(0); i < 25; i++ {
-			// 	if _, ok := cs.beaconChain.CurrentSign[i]; ok {
-
 			for key, value := range cs.shardChain.Schnorr {
 				r, err := wallet.ByteToPoint(value)
 				if err != nil {
@@ -484,6 +480,9 @@ func (cs *ConnectionStore) ValidatorLoop() {
 				Ps = append(Ps, p)
 			}
 
+			// 25 is the total number of validator that should sign
+			// for i := int64(0); i < 25; i++ {
+			// 	if _, ok := cs.beaconChain.CurrentSign[i]; ok {
 			// 		if _, ok := cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]]; ok {
 			// 			r, err := wallet.ByteToPoint(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]])
 			// 			if err != nil {

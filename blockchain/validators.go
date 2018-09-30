@@ -122,7 +122,7 @@ func (v *ValidatorsBook) AddValidator(wallet string, stake uint64, dynasty int64
 	if err != nil {
 		log.Error("addvalidator ", err)
 	}
-	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1, 0, publicKey}
+	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1, 1, publicKey}
 	return false
 }
 
