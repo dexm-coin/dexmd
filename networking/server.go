@@ -306,7 +306,7 @@ func (c *client) write() {
 	for {
 		toWrite := <-c.send
 
-		c.conn.WriteMessage(websocket.BinaryMessage, toWrite)
+		_ = c.conn.WriteMessage(websocket.BinaryMessage, toWrite)
 	}
 }
 
