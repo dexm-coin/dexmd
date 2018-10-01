@@ -181,6 +181,7 @@ func (w *Wallet) GetEncodedWallet() ([]byte, error) {
 		PrivKeyString:        string(pemEncoded),
 		Nonce:                w.Nonce,
 		Balance:              w.Balance,
+		Shard:                w.Shard,
 		PrivKeySchnorrString: w.PrivKeySchnorr,
 		PubKeySchnorrString:  w.PubKeySchnorr,
 	}
