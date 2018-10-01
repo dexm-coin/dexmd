@@ -92,6 +92,10 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 		}
 
 		return code
+
+	case protobufs.Request_GET_INTERESTS:
+		return []byte("")
+
 	}
 
 	return []byte{}

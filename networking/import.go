@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/dexm-coin/dexmd/contracts"
 	"github.com/dexm-coin/dexmd/wallet"
 	"github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/dexm-coin/protobufs/build/network"
@@ -86,7 +85,7 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 					break
 				}
 
-				b := &blockchain.Block{}
+				b := &protobufs.Block{}
 				err = proto.Unmarshal(block, b)
 				if err != nil {
 					break
@@ -199,7 +198,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 
 		// If a function identifier is specified then fetch the contract and execute
 		if t.GetFunction() != "" {
-			c, err := contracts.GetContract(t.GetRecipient(), cs.shardChain.ContractDb, cs.shardChain.StateDb)
+			c, err := blockchain.GetContract(t.GetRecipient(), cs.shardChain.ContractDb, cs.shardChain.StateDb)
 			if err != nil {
 				return err
 			}

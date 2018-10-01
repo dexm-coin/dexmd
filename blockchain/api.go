@@ -1,4 +1,4 @@
-package contracts
+package blockchain
 
 import (
 	"strings"
@@ -11,8 +11,8 @@ func revert(proc *exec.Process) {
 	proc.Terminate()
 }
 
-func time(proc *exec.Process) int64 {
-	return 1337
+func timestamp(proc *exec.Process) int64 {
+	return int64(currentContract.Block.Timestamp)
 }
 
 func balance(proc *exec.Process) int64 {

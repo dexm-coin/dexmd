@@ -14,7 +14,6 @@ import (
 	"github.com/dexm-coin/dexmd/networking"
 
 	"github.com/dexm-coin/dexmd/blockchain"
-	"github.com/dexm-coin/dexmd/contracts"
 	"github.com/dexm-coin/dexmd/wallet"
 	bp "github.com/dexm-coin/protobufs/build/blockchain"
 

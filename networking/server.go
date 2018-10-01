@@ -39,8 +39,9 @@ type ConnectionStore struct {
 	beaconChain *blockchain.BeaconChain
 	shardChain  *blockchain.Blockchain
 
-	identity *wallet.Wallet
-	network  string
+	identity  *wallet.Wallet
+	network   string
+	interests map[string]bool
 }
 
 type client struct {
@@ -67,6 +68,7 @@ func StartServer(port, network string, shardChain *blockchain.Blockchain, beacon
 		shardChain:  shardChain,
 		identity:    idn,
 		network:     network,
+		interests:   make(map[string]bool),
 	}
 
 	// Hub that handles registration and unregistrations of clients
@@ -97,6 +99,12 @@ func StartServer(port, network string, shardChain *blockchain.Blockchain, beacon
 	go http.ListenAndServe(port, nil)
 
 	return store, nil
+}
+
+// AddInterest adds an interest, this is used as a filter to have more efficient
+// broadcasts and avoid sending everything to everyone
+func (cs *ConnectionStore) AddInterest(key string) {
+	cs.interests[key] = true
 }
 
 // Connect connects to a server and adds it to the connectionStore
