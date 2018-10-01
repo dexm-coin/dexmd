@@ -371,7 +371,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		log.Info("Current block ", cs.shardChain.CurrentBlock)
 
 		// Change shard
-		if cs.shardChain.CurrentBlock%10001 == 0 {
+		if cs.shardChain.CurrentBlock%10000 == 0 {
 			// calulate the hash of the previous 100 blocks from current block - 1
 			var hashBlocks []byte
 			latestBlock := true
@@ -676,7 +676,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		}
 
 		// Checkpoint Agreement
-		if cs.shardChain.CurrentBlock%101 == 0 && cs.shardChain.CurrentBlock%10001 != 0 {
+		if cs.shardChain.CurrentBlock%100 == 0 && cs.shardChain.CurrentBlock%10000 != 0 {
 			// check if it is a validator, also check that the dynasty are correct
 			if cs.beaconChain.Validators.CheckDynasty(wal, cs.shardChain.CurrentBlock) {
 				// get source and target block in the blockchain
@@ -749,7 +749,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 		}
 
 		// chose a validator based on stake
-		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardChain.CurrentBlock))
+		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardChain.CurrentBlock), currentShard)
 		if err != nil {
 			log.Fatal(err)
 			continue

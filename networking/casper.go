@@ -46,6 +46,7 @@ func CreateVote(sVote, tVote []byte, hsVote, htVote uint64, w *wallet.Wallet) pr
 func (cs *ConnectionStore) CheckpointAgreement(SourceHeight, TargetHeight uint64) bool {
 	mapVote := make(map[string]bool)
 	var userToRemove []string
+	currentShard := uint32(cs.identity.GetShardWallet())
 	for _, vote := range receivedVotes {
 		if vote.GetSourceHeight() != SourceHeight {
 			continue
@@ -56,6 +57,16 @@ func (cs *ConnectionStore) CheckpointAgreement(SourceHeight, TargetHeight uint64
 		}
 
 		pubKey := vote.PublicKey
+		shardSender, err := cs.beaconChain.Validators.GetShard(pubKey)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		if shardSender != currentShard {
+			log.Error("Validator is from a different shard")
+			continue
+		}
 		if !cs.beaconChain.Validators.CheckDynasty(pubKey, cs.shardChain.CurrentBlock) {
 			log.Error("Vote not valid based on dynasty of validator")
 			continue
@@ -78,7 +89,7 @@ func (cs *ConnectionStore) CheckpointAgreement(SourceHeight, TargetHeight uint64
 		delete(mapVote, user)
 	}
 
-	if len(mapVote) > 2*cs.beaconChain.Validators.LenValidators()/3 {
+	if float64(len(mapVote)) > float64(2*cs.beaconChain.Validators.LenValidators(currentShard)/3) {
 		// delete all the votes only if 2/3 of validators agree
 		// so h(s1) < h(s2) < h(t2) < h(t1) is valid
 		receivedVotes = []*protobufs.CasperVote{}

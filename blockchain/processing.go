@@ -47,14 +47,12 @@ type BeaconChain struct {
 	Validators    *ValidatorsBook
 
 	CurrentBlock map[uint32]uint64
-	// CurrentSign  map[int64]string
 }
 
 // NewBeaconChain create a new beacon chain
 func NewBeaconChain(dbPath string) (*BeaconChain, error) {
 	mrdb := make(map[uint32]*leveldb.DB)
 	cb := make(map[uint32]uint64)
-	// cs := make(map[int64]string)
 
 	for i := uint32(1); i < 11; i++ {
 		db, err := leveldb.OpenFile(dbPath+".merkleroots"+strconv.Itoa(int(i)), nil)
@@ -62,7 +60,6 @@ func NewBeaconChain(dbPath string) (*BeaconChain, error) {
 			return nil, err
 		}
 		mrdb[i] = db
-		// cb[i] = 0
 	}
 
 	vd := NewValidatorsBook()
@@ -70,7 +67,6 @@ func NewBeaconChain(dbPath string) (*BeaconChain, error) {
 		MerkleRootsDb: mrdb,
 		Validators:    vd,
 		CurrentBlock:  cb,
-		// CurrentSign:   cs,
 	}, nil
 }
 
@@ -103,8 +99,6 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 
 	// 1MB blocks
 	mp := newMempool(1000000, 100)
-
-	// vd := NewValidatorsBook()
 
 	return &Blockchain{
 		balancesDb:    db,
@@ -258,7 +252,6 @@ func (bc *Blockchain) SetState(wallet string, newState *protobufs.AccountState) 
 	if err != nil {
 		return err
 	}
-
 	return bc.balancesDb.Put([]byte(wallet), stateBytes, nil)
 }
 

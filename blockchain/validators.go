@@ -1,11 +1,8 @@
 package blockchain
 
 import (
-	// "encoding/binary"
 	"errors"
-	// "fmt"
 	"math/rand"
-
 	"sort"
 
 	wal "github.com/dexm-coin/dexmd/wallet"
@@ -107,8 +104,14 @@ func (v *ValidatorsBook) ExportValidatorsBook(dbPath string) error {
 }
 */
 
-func (v *ValidatorsBook) LenValidators() int {
-	return len(v.valsArray)
+func (v *ValidatorsBook) LenValidators(currentShard uint32) int {
+	countValidator := 0
+	for _, val := range v.valsArray {
+		if val.shard == currentShard {
+			countValidator++
+		}
+	}
+	return countValidator
 }
 
 // AddValidator adds a new validator to the book. If the validator is already
@@ -194,13 +197,17 @@ type simpleValidator struct {
 
 // ChooseValidator returns a validator's wallet, chosen randomly
 // and proportionally to the stake
-func (v *ValidatorsBook) ChooseValidator(currentBlock int64) (string, error) {
+func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32) (string, error) {
 	rand.Seed(currentBlock)
 
 	totalstake := uint64(0)
 	var ss []simpleValidator
 	for k, val := range v.valsArray {
 		if !v.CheckDynasty(val.wallet, uint64(currentBlock)) {
+			continue
+		}
+		// check if the validator is in the current shard
+		if val.shard != currentShard {
 			continue
 		}
 		ss = append(ss, simpleValidator{k, val.stake})

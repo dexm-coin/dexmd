@@ -34,25 +34,25 @@ func TraverseNat(port uint16, desc string) (string, error) {
 
 // FindPeers tries to find all peers for the selected network
 func (cs *ConnectionStore) FindPeers() error {
-	ipsDuplicate, err := GetPeerList(cs.network)
+	ips, err := GetPeerList(cs.network)
 	if err != nil {
 		return err
 	}
 
-	var ips []string
-	for _, ip1 := range ipsDuplicate {
-		duplicate := false
-		for _, ip2 := range ips {
-			if ip2 == ip1 {
-				duplicate = true
-				break
-			}
-		}
-		if duplicate {
-			continue
-		}
-		ips = append(ips, ip1)
-	}
+	// var ips []string
+	// for _, ip1 := range ipsDuplicate {
+	// 	duplicate := false
+	// 	for _, ip2 := range ips {
+	// 		if ip2 == ip1 {
+	// 			duplicate = true
+	// 			break
+	// 		}
+	// 	}
+	// 	if duplicate {
+	// 		continue
+	// 	}
+	// 	ips = append(ips, ip1)
+	// }
 
 	for _, i := range ips {
 		cs.Connect(i)

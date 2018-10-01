@@ -45,6 +45,10 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 	switch broadcastEnvelope.GetType() {
 	// Register a new transaction to the mempool
 	case protoNetwork.Broadcast_TRANSACTION:
+		if !cs.CheckShard(shard) {
+			return nil
+		}
+
 		log.Printf("New Transaction: %x", broadcastEnvelope.GetData())
 		cs.shardChain.AddMempoolTransaction(broadcastEnvelope.GetData())
 
