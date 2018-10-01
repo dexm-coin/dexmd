@@ -208,7 +208,7 @@ func main() {
 					return nil
 				}
 
-				contract, err := contracts.GetContract(address, b.ContractDb, b.StateDb)
+				contract, err := blockchain.GetContract(address, b.ContractDb, b.StateDb)
 				if err != nil {
 					log.Fatal(err)
 					return nil

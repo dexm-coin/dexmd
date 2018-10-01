@@ -188,6 +188,8 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 		return true, nil
 	}
 
+	// TODO do a check that the signature of the block should match with the validator choosen for that index
+
 	for i, t := range block.GetTransactions() {
 		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
 

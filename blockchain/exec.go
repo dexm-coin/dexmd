@@ -13,6 +13,8 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
+var currentContract *Contract
+
 // Contract is the struct that saves the state of a contract
 type Contract struct {
 	ContractDb *leveldb.DB
@@ -28,7 +30,7 @@ type Contract struct {
 
 // GetContract loads the code and state from the DB and returns an error if there
 // is no code. In case there is no state an empty one will be generated
-func GetContract(address string, contractDb, stateDb *leveldb.DB, block *bp.Block) (*Contract, error) {
+func GetContract(address string, contractDb, stateDb *leveldb.DB) (*Contract, error) {
 	code, err := contractDb.Get([]byte(address), nil)
 	if err != nil {
 		return nil, err
@@ -74,7 +76,7 @@ func (c *Contract) ExecuteContract(exportName string, arguments []uint64) error 
 	// Set the VM state before executing
 	c.VM.SetMemory(c.State.Memory)
 	c.VM.SetGlobal(c.State.Globals)
- 	// Set the current contract struct for the proc apis
+	// Set the current contract struct for the proc apis
 	currentContract = c
 
 	// Check if the passed function exists

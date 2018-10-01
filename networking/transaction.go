@@ -18,7 +18,7 @@ import (
 func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amount, gas uint64, cdata []byte, ccreation bool, shard uint32) error {
 	ips, err := GetPeerList("hackney")
 	if err != nil {
-		log.Error("peer", err)
+		log.Error("peer ", err)
 		return nil
 	}
 

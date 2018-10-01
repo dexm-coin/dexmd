@@ -18,10 +18,6 @@ func getPeers(w http.ResponseWriter, r *http.Request) {
 
 		ip := strings.Split(fullIP, ":")[0]
 		peers = append(peers, ip)
-
-		if len(peers) > 100 {
-			break
-		}
 	}
 
 	resp, _ := json.Marshal(peers)

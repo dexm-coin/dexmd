@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
-	"github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
 
@@ -92,7 +92,7 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 				}
 
 				res, err := cs.shardChain.ValidateBlock(b)
-				if res {
+				if res && err == nil {
 					cs.ImportBlock(b)
 					cs.shardChain.CurrentBlock++
 				} else {

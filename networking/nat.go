@@ -39,21 +39,6 @@ func (cs *ConnectionStore) FindPeers() error {
 		return err
 	}
 
-	// var ips []string
-	// for _, ip1 := range ipsDuplicate {
-	// 	duplicate := false
-	// 	for _, ip2 := range ips {
-	// 		if ip2 == ip1 {
-	// 			duplicate = true
-	// 			break
-	// 		}
-	// 	}
-	// 	if duplicate {
-	// 		continue
-	// 	}
-	// 	ips = append(ips, ip1)
-	// }
-
 	for _, i := range ips {
 		cs.Connect(i)
 	}
