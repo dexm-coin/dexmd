@@ -54,6 +54,7 @@ type client struct {
 	store     *ConnectionStore
 	wg        sync.WaitGroup
 	interest  []string
+	isOpen    bool
 }
 
 var upgrader = websocket.Upgrader{
@@ -92,6 +93,7 @@ func StartServer(port, network string, shardChain *blockchain.Blockchain, beacon
 			send:      make(chan []byte, 256),
 			readOther: make(chan []byte, 256),
 			store:     store,
+			isOpen:    true,
 		}
 
 		store.register <- &c
@@ -171,7 +173,9 @@ func (cs *ConnectionStore) run() {
 
 			ed, _ := proto.Marshal(e)
 
-			client.send <- ed
+			if client.isOpen {
+				client.send <- ed
+			}
 
 			// Unlock the send channel so we can kill the goroutine
 			client.wg.Done()
@@ -233,7 +237,9 @@ func (cs *ConnectionStore) run() {
 				if rand.Float64() > y {
 					continue
 				}
-				k.send <- data
+				if k.isOpen {
+					k.send <- data
+				}
 			}
 		}
 	}
@@ -276,6 +282,7 @@ func (c *client) read() {
 	defer func() {
 		log.Info("Client died")
 		c.store.unregister <- c
+		c.isOpen = false
 		c.conn.Close()
 	}()
 
@@ -334,7 +341,9 @@ func (c *client) read() {
 					return
 				}
 
-				c.send <- toSend
+				if c.isOpen {
+					c.send <- toSend
+				}
 				// Once we are done using the channel decrement the group
 				c.wg.Done()
 			}()
