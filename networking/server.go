@@ -364,6 +364,7 @@ func (c *client) read() {
 			for _, v := range intr.Keys {
 				c.interest = append(c.interest, v)
 				c.store.interestedClients[v][c] = true
+				log.Info("interestedClients ", c.store.interestedClients)
 			}
 		}
 	}
@@ -822,6 +823,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 			log.Fatal(err)
 			continue
 		}
+		log.Info("ChooseValidator ", validator)
 
 		// Start accepting the block from the new validator
 		cs.shardChain.CurrentValidator = validator

@@ -104,6 +104,7 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 		p := &protobufs.Interests{
 			Keys: keys,
 		}
+		log.Info("Request_GET_INTERESTS ", p)
 
 		d, _ := proto.Marshal(p)
 		return d
