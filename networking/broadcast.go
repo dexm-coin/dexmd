@@ -1,7 +1,6 @@
 package networking
 
 import (
-	"crypto/sha256"
 	"errors"
 
 	"github.com/dexm-coin/dexmd/wallet"
