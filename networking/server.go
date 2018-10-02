@@ -42,6 +42,9 @@ type ConnectionStore struct {
 	identity  *wallet.Wallet
 	network   string
 	interests map[string]bool
+
+	// This is a very ugly hack to make it easy to delete clients
+	interestedClients map[string]map[*client]bool
 }
 
 type client struct {
@@ -50,6 +53,7 @@ type client struct {
 	readOther chan []byte
 	store     *ConnectionStore
 	wg        sync.WaitGroup
+	interest  []string
 }
 
 var upgrader = websocket.Upgrader{
@@ -60,15 +64,16 @@ var upgrader = websocket.Upgrader{
 // StartServer creates a new ConnectionStore, which handles network peers
 func StartServer(port, network string, shardChain *blockchain.Blockchain, beaconChain *blockchain.BeaconChain, idn *wallet.Wallet) (*ConnectionStore, error) {
 	store := &ConnectionStore{
-		clients:     make(map[*client]bool),
-		broadcast:   make(chan []byte),
-		register:    make(chan *client),
-		unregister:  make(chan *client),
-		beaconChain: beaconChain,
-		shardChain:  shardChain,
-		identity:    idn,
-		network:     network,
-		interests:   make(map[string]bool),
+		clients:           make(map[*client]bool),
+		broadcast:         make(chan []byte),
+		register:          make(chan *client),
+		unregister:        make(chan *client),
+		beaconChain:       beaconChain,
+		shardChain:        shardChain,
+		identity:          idn,
+		network:           network,
+		interests:         make(map[string]bool),
+		interestedClients: make(map[string]map[*client]bool),
 	}
 
 	// Hub that handles registration and unregistrations of clients
@@ -144,6 +149,26 @@ func (cs *ConnectionStore) run() {
 		select {
 		// A new client has registered
 		case client := <-cs.register:
+			// Ask the connected client for the interests he has
+			client.wg.Add(1)
+			req := &network.Request{
+				Type: network.Request_GET_INTERESTS,
+			}
+
+			reqD, _ := proto.Marshal(req)
+
+			env := &network.Envelope{
+				Type: network.Envelope_REQUEST,
+				Data: reqD,
+			}
+
+			reqE, _ := proto.Marshal(env)
+
+			client.send <- reqE
+
+			// Unlock the send channel so we can kill the goroutine
+			client.wg.Done()
+
 			cs.clients[client] = true
 
 		// A client has quit, check if it exisited and delete it

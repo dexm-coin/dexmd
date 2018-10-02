@@ -93,9 +93,20 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 
 		return code
 
+	// GET_INTERESTS returns the type of broadcasts the client is interested in
 	case protobufs.Request_GET_INTERESTS:
-		return []byte("")
+		keys := []string{}
 
+		for k := range cs.interests {
+			keys = append(keys, k)
+		}
+
+		p := &protobufs.Interests{
+			Keys: keys,
+		}
+
+		d, _ := proto.Marshal(p)
+		return d
 	}
 
 	return []byte{}
