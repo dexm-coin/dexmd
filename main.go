@@ -29,9 +29,13 @@ const (
 var (
 	// -- start
         PUBLIC_PEERSERVER = false
-        TS                = uint64(1538494196)
+        TS                = uint64(1538505808)
         // -- start
-                                                                )
+                                                                                                                                                )
+
+/*
+	optimize everything with pprof
+*/
 
 func main() {
 	app := cli.NewApp()
@@ -125,7 +129,7 @@ func main() {
 				// 	genesisBlock := &bp.Block{
 				// 		Index:     0,
 				// 		Timestamp: TS,
-				// 		Miner:     "Dexm01aCR946Biyo98t55dqgJSb9NTpVn877EF9F5",
+				// 		Miner:     "Dexm02aCR946Biyo98t55dqgJSb9NTpVn877EF9F5",
 				// 		Shard: 	   uint32(sInt)
 				// 	}
 				// 	b.SaveBlock(genesisBlock)
@@ -149,7 +153,7 @@ func main() {
 				genesisBlock := &bp.Block{
 					Index:     0,
 					Timestamp: TS,
-					Miner:     "Dexm01aCR946Biyo98t55dqgJSb9NTpVn877EF9F5",
+					Miner:     "Dexm02aCR946Biyo98t55dqgJSb9NTpVn877EF9F5",
 				}
 				b.SaveBlock(genesisBlock)
 
