@@ -181,14 +181,15 @@ func (cs *ConnectionStore) run() {
 		// A client has quit, check if it exisited and delete it
 		case client := <-cs.unregister:
 			if _, ok := cs.clients[client]; ok {
+				// Don't close the channel till we're done responding to avoid panics
+				client.wg.Wait()
+
 				delete(cs.clients, client)
+
 				// Delete the client from all his interests
 				for _, v := range client.interest {
 					delete(cs.interestedClients[v], client)
 				}
-
-				// Don't close the channel till we're done responding to avoid panics
-				client.wg.Wait()
 
 				close(client.send)
 			}
