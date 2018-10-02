@@ -151,20 +151,27 @@ func (cs *ConnectionStore) run() {
 		case client := <-cs.register:
 			// Ask the connected client for the interests he has
 			client.wg.Add(1)
-			req := &network.Request{
-				Type: network.Request_GET_INTERESTS,
+
+			keys := []string{}
+
+			for k := range cs.interests {
+				keys = append(keys, k)
 			}
 
-			reqD, _ := proto.Marshal(req)
-
-			env := &network.Envelope{
-				Type: network.Envelope_REQUEST,
-				Data: reqD,
+			p := &network.Interests{
+				Keys: keys,
 			}
 
-			reqE, _ := proto.Marshal(env)
+			d, _ := proto.Marshal(p)
 
-			client.send <- reqE
+			e := &network.Envelope{
+				Type: network.Envelope_INTERESTS,
+				Data: d,
+			}
+
+			ed, _ := proto.Marshal(e)
+
+			client.send <- ed
 
 			// Unlock the send channel so we can kill the goroutine
 			client.wg.Done()
@@ -175,6 +182,10 @@ func (cs *ConnectionStore) run() {
 		case client := <-cs.unregister:
 			if _, ok := cs.clients[client]; ok {
 				delete(cs.clients, client)
+				// Delete the client from all his interests
+				for _, v := range client.interest {
+					delete(cs.interestedClients[v], client)
+				}
 
 				// Don't close the channel till we're done responding to avoid panics
 				client.wg.Wait()
@@ -330,6 +341,20 @@ func (c *client) read() {
 		// Other data can be channeled so other parts of code can use it
 		case protoNetwork.Envelope_OTHER:
 			c.readOther <- pb.GetData()
+
+		case protoNetwork.Envelope_INTERESTS:
+			intr := &protoNetwork.Interests{}
+
+			err := proto.Unmarshal(pb.Data, intr)
+			if err != nil {
+				continue
+			}
+
+			// Save the interests of the clients
+			for _, v := range intr.Keys {
+				c.interest = append(c.interest, v)
+				c.store.interestedClients[v][c] = true
+			}
 		}
 	}
 }
