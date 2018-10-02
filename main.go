@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -27,10 +28,10 @@ const (
 
 var (
 	// -- start
-	PUBLIC_PEERSERVER = false
-	TS                = uint64(1538337451)
-	// -- start
-)
+        PUBLIC_PEERSERVER = false
+        TS                = uint64(1538494196)
+        // -- start
+                                                                )
 
 func main() {
 	app := cli.NewApp()
@@ -81,25 +82,69 @@ func main() {
 					}
 				}
 
-				// Create the dexm folder in case it's not there
-				os.MkdirAll(".dexm.shard", os.ModePerm)
-				os.MkdirAll(".dexm.beacon", os.ModePerm)
+				// create and read config.json
+				jsonFile, err := os.Open("config.json")
+				defer jsonFile.Close()
+				if err != nil {
+					log.Fatal(err)
+				}
+				data, err := ioutil.ReadAll(jsonFile)
+				if err != nil {
+					log.Fatal(err)
+				}
 
+				var shardInterest []string
+				// if the file is empty write the config
+				if len(data) == 0 {
+					shardInterest = []string{fmt.Sprint(w.GetShardWallet())}
+					resp, _ := json.Marshal(shardInterest)
+					err = ioutil.WriteFile("config.json", resp, 0644)
+					if err != nil {
+						log.Fatal(err)
+					}
+				} else {
+					// otherwise read the config
+					err = json.Unmarshal(data, &shardInterest)
+					if err != nil {
+						log.Fatal(err)
+					}
+				}
+
+				log.Info(time.Now().Unix())
+
+				// allInterestBlockchain := make(map[uint32]*blockchain.Blockchain)
+				// // Create the dexm folder in case it's not there
+				// for _, s := range shardInterest {
+				// 	os.MkdirAll(".dexm.shard"+s, os.ModePerm)
+				// 	// Create the blockchain database
+				// 	b, err := blockchain.NewBlockchain(".dexm.shard"+s+"/", 0)
+				// 	if err != nil {
+				// 		log.Fatal("blockchain", err)
+				// 	}
+				// 	sInt, err := strconv.ParseUint(s, 10, 32)
+				// 	genesisBlock := &bp.Block{
+				// 		Index:     0,
+				// 		Timestamp: TS,
+				// 		Miner:     "Dexm01aCR946Biyo98t55dqgJSb9NTpVn877EF9F5",
+				// 		Shard: 	   uint32(sInt)
+				// 	}
+				// 	b.SaveBlock(genesisBlock)
+				// 	allInterestBlockchain[uint32(sInt)] = b
+				// }
+
+				os.MkdirAll(".dexm.shard", os.ModePerm)
 				// Create the blockchain database
 				b, err := blockchain.NewBlockchain(".dexm.shard/", 0)
 				if err != nil {
 					log.Fatal("blockchain", err)
 				}
 
-				// Create the blockchain database
+				os.MkdirAll(".dexm.beacon", os.ModePerm)
+				// Create the beacon chain database
 				beacon, err := blockchain.NewBeaconChain(".dexm.beacon/")
 				if err != nil {
 					log.Fatal("blockchain", err)
 				}
-
-				log.Info("Adding genesis block...")
-
-				log.Info(time.Now().Unix())
 
 				genesisBlock := &bp.Block{
 					Index:     0,

@@ -73,22 +73,22 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// 	log.Error("The index of the block is wrong")
 		// }
 		// check if the signature of the block that should be cs.shardChain.CurrentValidator
-		if block.Miner != cs.shardChain.CurrentValidator {
-			log.Error("The miner is wrong")
-		}
-		blockBytes, _ := proto.Marshal(block)
-		bhash := sha256.Sum256(blockBytes)
-		hash := bhash[:]
-		r, s, err := cs.identity.Sign(hash)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		verifyBlock, err := wallet.SignatureValid([]byte(cs.shardChain.CurrentValidator), r.Bytes(), s.Bytes(), hash)
-		if !verifyBlock || err != nil {
-			log.Error("SignatureValid ", err)
-			return err
-		}
+		// if block.Miner != cs.shardChain.CurrentValidator {
+		// 	log.Error("The miner is wrong")
+		// }
+		// blockBytes, _ := proto.Marshal(block)
+		// bhash := sha256.Sum256(blockBytes)
+		// hash := bhash[:]
+		// r, s, err := cs.identity.Sign(hash)
+		// if err != nil {
+		// 	log.Error(err)
+		// 	return err
+		// }
+		// verifyBlock, err := wallet.SignatureValid([]byte(cs.shardChain.CurrentValidator), r.Bytes(), s.Bytes(), hash)
+		// if !verifyBlock || err != nil {
+		// 	log.Error("SignatureValid ", err)
+		// 	return err
+		// }
 
 		err = cs.shardChain.SaveBlock(block)
 		if err != nil {
