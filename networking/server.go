@@ -768,7 +768,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 		// If this node is the validator then generate a block and sign it
 		if wal == validator {
-			block, err := cs.shardChain.GenerateBlock(wal, currentShard)
+			block, err := cs.shardChain.GenerateBlock(wal, currentShard, cs.beaconChain.Validators)
 			if err != nil {
 				log.Fatal(err)
 				return

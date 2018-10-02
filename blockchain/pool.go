@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 	pq "github.com/jupp0r/go-priority-queue"
@@ -49,7 +50,7 @@ func (bc *Blockchain) AddMempoolTransaction(rawTx []byte) error {
 }
 
 // GenerateBlock generates a valid unsigned block with transactions from the mempool
-func (bc *Blockchain) GenerateBlock(miner string, shard uint32) (*protobufs.Block, error) {
+func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *ValidatorsBook) (*protobufs.Block, error) {
 	hash := []byte{}
 
 	if bc.CurrentBlock != 0 {
@@ -94,6 +95,22 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32) (*protobufs.Bloc
 		}
 
 		rtx := interface{}(tx).(*protobufs.Transaction)
+
+		// check if the transazion is form my shard
+		senderWallet := wallet.BytesToAddress(rtx.GetSender(), rtx.GetShard())
+		shardSender, err := validators.GetShard(senderWallet)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		currentShard, err := validators.GetShard(miner)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		if shardSender != currentShard {
+			continue
+		}
 
 		rawTx, err := proto.Marshal(rtx)
 		if err != nil {
