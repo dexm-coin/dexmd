@@ -28,8 +28,8 @@ const (
 
 var (
 	// -- start
-	PUBLIC_PEERSERVER = false
-	TS                = uint64(1538582542)
+	PUBLIC_PEERSERVER = true
+	TS                = uint64(1538583029)
 	// -- start
 )
 

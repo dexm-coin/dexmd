@@ -1,6 +1,6 @@
 if [ "$1" != "" ]; then
     sudo rm -rf .dexm*
-    # go build
+    go build
     sudo ./dexmd sn $1
 else
     echo "Wallet empty"
