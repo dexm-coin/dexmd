@@ -64,8 +64,11 @@ var upgrader = websocket.Upgrader{
 
 // Loop start ValidatorLoop for every interest
 func (cs *ConnectionStore) Loop() {
+	log.Info("your interest ", cs.interests)
 	for interest := range cs.interests {
-		go cs.ValidatorLoop(interest)
+		// TODO do go routine and delete break
+		cs.ValidatorLoop(interest)
+		break
 	}
 }
 

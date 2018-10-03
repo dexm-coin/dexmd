@@ -29,7 +29,7 @@ const (
 var (
 	// -- start
         PUBLIC_PEERSERVER = false
-        TS                = uint64(1538578079)
+        TS                = uint64(1538578944)
         // -- start
                 )
 
@@ -172,6 +172,14 @@ func main() {
 					log.Fatal("start", err)
 				}
 
+				for _, shard := range shardInterest {
+					shardUint, err := strconv.ParseUint(shard, 10, 32)
+					if err != nil {
+						log.Fatal(err)
+					}
+					cs.AddInterest(uint32(shardUint))
+				}
+
 				cs.ImportBlock(genesisBlock)
 
 				// This is only supposed to be one for nodes that are
@@ -189,7 +197,7 @@ func main() {
 				// cs.UpdateChain()
 
 				log.Info("Done importing")
-				
+
 				cs.Loop()
 
 				return nil
