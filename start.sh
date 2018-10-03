@@ -1,7 +1,7 @@
 sudo rm -rf .dexm*
 # generate TS
 timestamp=$(date +%s)
-timestamp=$((timestamp+80))
+timestamp=$((timestamp+90))
 echo $timestamp
 python timestamp.py $timestamp 1
 # git pull if i did some changes
