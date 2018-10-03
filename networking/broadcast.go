@@ -30,7 +30,7 @@ func (cs *ConnectionStore) CheckShard(shard uint32) bool {
 		}
 		return true
 	}
-	return false
+	return true
 }
 
 func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {

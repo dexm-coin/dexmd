@@ -873,6 +873,7 @@ func (cs *ConnectionStore) ValidatorLoop() {
 
 			data, _ := proto.Marshal(env)
 			cs.broadcast <- data
+			log.Info("Block generated")
 		}
 	}
 }

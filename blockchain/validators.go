@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/rand"
 	"sort"
+	"strconv"
 
 	wal "github.com/dexm-coin/dexmd/wallet"
 	log "github.com/sirupsen/logrus"
@@ -124,8 +125,18 @@ func (v *ValidatorsBook) AddValidator(wallet string, stake uint64, dynasty int64
 	publicKey, err := wal.ByteToPoint(pubSchnorrKey)
 	if err != nil {
 		log.Error("addvalidator ", err)
+		return false
 	}
-	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1, 1, publicKey}
+	if !wal.IsWalletValid(wallet) {
+		log.Error("Not IsWalletValid")
+		return false
+	}
+	shard, err := strconv.ParseUint(wallet[4:6], 10, 32)
+	if err != nil {
+		log.Error("addvalidator ", err)
+		return false
+	}
+	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1, uint32(shard), publicKey}
 	return false
 }
 
