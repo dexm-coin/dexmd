@@ -29,7 +29,7 @@ const (
 var (
 	// -- start
 	PUBLIC_PEERSERVER = false
-	TS                = uint64(1538509910)
+	TS                = uint64(1538568995)
 	// -- start
 )
 
@@ -189,8 +189,9 @@ func main() {
 				// cs.UpdateChain()
 
 				log.Info("Done importing")
+				
+				cs.Loop()
 
-				cs.ValidatorLoop()
 				return nil
 			},
 		},

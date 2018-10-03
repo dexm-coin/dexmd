@@ -12,23 +12,16 @@ import (
 	kyber "gopkg.in/dedis/kyber.v2"
 )
 
+// CheckShard check if the message arrived is from your interests (shards)
 func (cs *ConnectionStore) CheckShard(shard uint32) bool {
 	if shard != 0 {
-		wallet, err := cs.identity.GetWallet()
-		if err != nil {
-			log.Error(err)
-			return false
+		for interest := range cs.interests {
+			if shard == interest {
+				return true
+			}
 		}
-		currentShard, err := cs.beaconChain.Validators.GetShard(wallet)
-		if err != nil {
-			log.Error(err)
-			return false
-		}
-		if shard != currentShard {
-			log.Info("Not your shard")
-			return false
-		}
-		return true
+		log.Info("Not you shard")
+		return false
 	}
 	return true
 }

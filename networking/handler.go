@@ -98,7 +98,7 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 		keys := []string{}
 
 		for k := range cs.interests {
-			keys = append(keys, k)
+			keys = append(keys, fmt.Sprint(k))
 		}
 
 		p := &protobufs.Interests{
