@@ -382,7 +382,6 @@ func (c *client) read() {
 					c.store.interestedClients[v] = make(map[*client]bool)
 				}
 				c.store.interestedClients[v][c] = true
-				log.Info("interestedClients ", c.store.interestedClients)
 			}
 		}
 	}
