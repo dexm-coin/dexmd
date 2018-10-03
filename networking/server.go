@@ -382,6 +382,14 @@ func (c *client) read() {
 				}
 				c.store.interestedClients[v][c] = true
 			}
+
+		case protoNetwork.Envelope_NEIGHBOUR_INTERESTS:
+			peers := &protoNetwork.Peers{}
+
+			for _, i := range peers.GetIp() {
+				c.store.Connect(i)
+			}
+
 		}
 	}
 }
@@ -457,6 +465,29 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		// TODO multishard
 		cs.shardChain.CurrentBlock++
 		log.Info("Current block ", cs.shardChain.CurrentBlock)
+
+		// after around 80 round send all your list of ips to every client that you know
+		if int(rand.Float64()*100) > 150-int(cs.shardChain.CurrentBlock%150) {
+			ips := []string{}
+			for k := range cs.clients {
+				ips = append(ips, k.conn.RemoteAddr().String())
+			}
+
+			peers := &network.Peers{
+				Ip: ips,
+			}
+			peersByte, _ := proto.Marshal(peers)
+			env := &network.Envelope{
+				Type:  network.Envelope_NEIGHBOUR_INTERESTS,
+				Data:  peersByte,
+				Shard: 0,
+			}
+			data, _ := proto.Marshal(env)
+
+			for k := range cs.clients {
+				k.send <- data
+			}
+		}
 
 		// Change shard
 		if cs.shardChain.CurrentBlock%10000 == 0 {
