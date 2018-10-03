@@ -485,8 +485,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		log.Info("Current block ", cs.shardChain.CurrentBlock)
 
 		// after around 80 round send all your list of ips to every client that you know
-		// TODO change 20 with 150
-		if int(rand.Float64()*100) > 20-int(cs.shardChain.CurrentBlock%20) {
+		if int(rand.Float64()*100) > 150-int(cs.shardChain.CurrentBlock%150) {
 			ips := []string{}
 			for k := range cs.clients {
 				ips = append(ips, k.conn.RemoteAddr().String())
