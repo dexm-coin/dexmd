@@ -46,9 +46,9 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 	if _, ok := cs.interestedClients[fmt.Sprint(shard)]; ok {
 		// if so, send the message to the interest client
 		y := math.Exp(float64(20/len(cs.interestedClients[fmt.Sprint(shard)]))) - 0.5
-		log.Info("replay to other shard")
-		log.Info("on shard ", cs.interestedClients[fmt.Sprint(shard)])
-		log.Info("generic ", cs.interestedClients)
+		log.Info("interestedClients ", cs.interestedClients)
+		log.Info("interests ", cs.interests)
+
 		for k := range cs.interestedClients[fmt.Sprint(shard)] {
 
 			broadcastEnvelope.TTL--
