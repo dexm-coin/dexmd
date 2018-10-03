@@ -28,10 +28,10 @@ const (
 
 var (
 	// -- start
-        PUBLIC_PEERSERVER = false
-        TS                = uint64(1538578944)
-        // -- start
-                )
+	PUBLIC_PEERSERVER = false
+	TS                = uint64(1538579643)
+	// -- start
+)
 
 /*
 	optimize everything with pprof
@@ -173,11 +173,7 @@ func main() {
 				}
 
 				for _, shard := range shardInterest {
-					shardUint, err := strconv.ParseUint(shard, 10, 32)
-					if err != nil {
-						log.Fatal(err)
-					}
-					cs.AddInterest(uint32(shardUint))
+					cs.AddInterest(shard)
 				}
 
 				cs.ImportBlock(genesisBlock)

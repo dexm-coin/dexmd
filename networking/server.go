@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strconv"
 	"sync"
 	"time"
 
@@ -41,7 +42,7 @@ type ConnectionStore struct {
 
 	identity  *wallet.Wallet
 	network   string
-	interests map[uint32]bool
+	interests map[string]bool
 
 	// This is a very ugly hack to make it easy to delete clients
 	interestedClients map[string]map[*client]bool
@@ -66,8 +67,13 @@ var upgrader = websocket.Upgrader{
 func (cs *ConnectionStore) Loop() {
 	log.Info("your interest ", cs.interests)
 	for interest := range cs.interests {
+		interestInt, err := strconv.Atoi(interest)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
 		// TODO do go routine and delete break
-		cs.ValidatorLoop(interest)
+		cs.ValidatorLoop(uint32(interestInt))
 		break
 	}
 }
@@ -83,7 +89,7 @@ func StartServer(port, network string, shardChain *blockchain.Blockchain, beacon
 		shardChain:        shardChain,
 		identity:          idn,
 		network:           network,
-		interests:         make(map[uint32]bool),
+		interests:         make(map[string]bool),
 		interestedClients: make(map[string]map[*client]bool),
 	}
 
@@ -120,7 +126,7 @@ func StartServer(port, network string, shardChain *blockchain.Blockchain, beacon
 
 // AddInterest adds an interest, this is used as a filter to have more efficient
 // broadcasts and avoid sending everything to everyone
-func (cs *ConnectionStore) AddInterest(key uint32) {
+func (cs *ConnectionStore) AddInterest(key string) {
 	cs.interests[key] = true
 }
 
@@ -167,7 +173,7 @@ func (cs *ConnectionStore) run() {
 			keys := []string{}
 
 			for k := range cs.interests {
-				keys = append(keys, fmt.Sprint(k))
+				keys = append(keys, k)
 			}
 
 			p := &network.Interests{
@@ -414,6 +420,11 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 		// check if the block with index cs.shardChain.CurrentBlock have been saved, otherwise save an empty block
 		for interest := range cs.interests {
+			interestInt, err := strconv.Atoi(interest)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
 			// TODO multishard
 			selectedBlock, err := cs.shardChain.GetBlock(cs.shardChain.CurrentBlock)
 			if err != nil {
@@ -424,7 +435,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					Timestamp: uint64(time.Now().Unix()),
 					Miner:     "",
 					PrevHash:  hash,
-					Shard:     interest,
+					Shard:     uint32(interestInt),
 				}
 
 				err = cs.shardChain.SaveBlock(block)

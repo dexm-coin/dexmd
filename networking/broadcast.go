@@ -2,6 +2,7 @@ package networking
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/dexm-coin/dexmd/wallet"
 	bcp "github.com/dexm-coin/protobufs/build/blockchain"
@@ -16,7 +17,12 @@ import (
 func (cs *ConnectionStore) CheckShard(shard uint32) bool {
 	if shard != 0 {
 		for interest := range cs.interests {
-			if shard == interest {
+			interestInt, err := strconv.Atoi(interest)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			if shard == uint32(interestInt) {
 				return true
 			}
 		}
