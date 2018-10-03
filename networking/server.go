@@ -65,7 +65,6 @@ var upgrader = websocket.Upgrader{
 
 // Loop start ValidatorLoop for every interest
 func (cs *ConnectionStore) Loop() {
-	log.Info("your interest ", cs.interests)
 	for interest := range cs.interests {
 		interestInt, err := strconv.Atoi(interest)
 		if err != nil {
@@ -379,6 +378,9 @@ func (c *client) read() {
 			// Save the interests of the clients
 			for _, v := range intr.Keys {
 				c.interest = append(c.interest, v)
+				if _, ok := c.store.interestedClients[v]; !ok {
+					c.store.interestedClients[v] = make(map[*client]bool)
+				}
 				c.store.interestedClients[v][c] = true
 				log.Info("interestedClients ", c.store.interestedClients)
 			}
