@@ -29,7 +29,7 @@ const (
 var (
 	// -- start
 	PUBLIC_PEERSERVER = false
-	TS                = uint64(1538582341)
+	TS                = uint64(1538582542)
 	// -- start
 )
 
@@ -43,10 +43,15 @@ func main() {
 	app.Commands = []cli.Command{
 		{
 			Name:    "makewallet",
-			Usage:   "mw [filename]",
+			Usage:   "mw [filename] [shard]",
 			Aliases: []string{"genwallet", "mw", "gw"},
 			Action: func(c *cli.Context) error {
-				wal, _ := wallet.GenerateWallet()
+
+				shard, err := strconv.ParseUint(c.Args().Get(1), 10, 8)
+				if err != nil {
+					log.Fatal(err)
+				}
+				wal, _ := wallet.GenerateWallet(uint8(shard))
 				addr, _ := wal.GetWallet()
 				log.Info("Generated wallet ", addr)
 
@@ -330,13 +335,18 @@ func main() {
 
 		{
 			Name:    "makevanitywallet",
-			Usage:   "mvw [filename] [regex] [cores]",
+			Usage:   "mvw [filename] [regex] [cores] [shard]",
 			Aliases: []string{"mvw", "mv"},
 			Action: func(c *cli.Context) error {
 
 				userWallet := c.Args().Get(0)
 				vanity := c.Args().Get(1)
 				cores, err := strconv.Atoi(c.Args().Get(2))
+
+				shard, err := strconv.ParseUint(c.Args().Get(3), 10, 8)
+				if err != nil {
+					log.Fatal(err)
+				}
 
 				if err != nil {
 					log.Error(err)
@@ -366,7 +376,7 @@ func main() {
 
 				for i := 0; i < cores; i++ {
 					wg.Add(1)
-					go wallet.GenerateVanityWallet(vanity, userWallet, &vainityFound, &wg)
+					go wallet.GenerateVanityWallet(vanity, userWallet, uint8(shard), &vainityFound, &wg)
 				}
 				wg.Wait()
 

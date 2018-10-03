@@ -47,7 +47,7 @@ type file struct {
 }
 
 // GenerateWallet generates a new random wallet with a 0 balance and nonce
-func GenerateWallet() (*Wallet, error) {
+func GenerateWallet(shard uint8) (*Wallet, error) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, err
@@ -71,9 +71,8 @@ func GenerateWallet() (*Wallet, error) {
 	// rand.Read(shardA)
 
 	return &Wallet{
-		PrivKey: priv,
-		// Shard:          uint8(shardA[0]),
-		Shard:          1,
+		PrivKey:        priv,
+		Shard:          shard,
 		Nonce:          0,
 		Balance:        0,
 		PrivKeySchnorr: xByte,
@@ -102,8 +101,8 @@ func (w *Wallet) GetShardWallet() uint8 {
 }
 
 // JSWallet returns a gopherjs wrapper to the wallet
-func JSWallet() *js.Object {
-	wal, _ := GenerateWallet()
+func JSWallet(shard uint8) *js.Object {
+	wal, _ := GenerateWallet(shard)
 	return js.MakeWrapper(wal)
 }
 
@@ -350,7 +349,7 @@ func (w *Wallet) NewTransaction(recipient string, amount uint64, gas uint32, dat
 }
 
 // GenerateVanityWallet create a wallet that start with "Dexm" + your_word
-func GenerateVanityWallet(vanity string, userWallet string, vainityFound *bool, wg *sync.WaitGroup) error {
+func GenerateVanityWallet(vanity string, userWallet string, shard uint8, vainityFound *bool, wg *sync.WaitGroup) error {
 	for {
 
 		if *vainityFound == true {
@@ -358,7 +357,7 @@ func GenerateVanityWallet(vanity string, userWallet string, vainityFound *bool, 
 			return nil
 		}
 
-		wal, _ := GenerateWallet()
+		wal, _ := GenerateWallet(shard)
 		wallString, _ := wal.GetWallet()
 
 		if wallString[:4+len(vanity)] == "Dexm"+vanity {
