@@ -45,27 +45,23 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 	// check if the interest exist in interestedClients
 	if _, ok := cs.interestedClients[fmt.Sprint(shard)]; ok {
 		// if so, send the message to the interest client
-		y := math.Exp(float64(20/len(cs.clients))) - 0.5
+		y := math.Exp(float64(20/len(cs.interestedClients[fmt.Sprint(shard)]))) - 0.5
 		for k := range cs.interestedClients[fmt.Sprint(shard)] {
-			env := &protoNetwork.Envelope{}
-			broadcast := &protoNetwork.Broadcast{}
-			proto.Unmarshal(data, env)
-			proto.Unmarshal(env.Data, broadcast)
 
-			broadcast.TTL--
-			if broadcast.TTL < 1 || broadcast.TTL > 64 {
+			broadcastEnvelope.TTL--
+			if broadcastEnvelope.TTL < 1 || broadcastEnvelope.TTL > 64 {
 				continue
 			}
 
-			broadcastBytes, err := proto.Marshal(broadcast)
+			broadcastBytes, err := proto.Marshal(broadcastEnvelope)
 			if err != nil {
 				log.Error(err)
 				continue
 			}
 			newEnv := &protoNetwork.Envelope{
-				Type:  env.Type,
+				Type:  protoNetwork.Envelope_BROADCAST,
 				Data:  broadcastBytes,
-				Shard: env.Shard,
+				Shard: shard,
 			}
 			dataByte, err := proto.Marshal(newEnv)
 			if err != nil {
