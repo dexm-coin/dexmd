@@ -28,10 +28,10 @@ const (
 
 var (
 	// -- start
-        PUBLIC_PEERSERVER = false
-        TS                = uint64(1538596864)
-        // -- start
-                                                                                        )
+	PUBLIC_PEERSERVER = false
+	TS                = uint64(1538597284)
+	// -- start
+)
 
 /*
 	optimize everything with pprof
