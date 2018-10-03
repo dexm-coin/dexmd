@@ -146,9 +146,27 @@ func (cs *ConnectionStore) Connect(ip string) error {
 		send:      make(chan []byte, 256),
 		readOther: make(chan []byte, 256),
 		store:     cs,
+		isOpen:    true,
 	}
 
 	cs.register <- &c
+
+	keys := []string{}
+	for k := range cs.interests {
+		keys = append(keys, k)
+	}
+	p := &network.Interests{
+		Keys: keys,
+	}
+	d, _ := proto.Marshal(p)
+	e := &network.Envelope{
+		Type: network.Envelope_INTERESTS,
+		Data: d,
+	}
+	ed, _ := proto.Marshal(e)
+	if c.isOpen {
+		c.send <- ed
+	}
 
 	go c.read()
 	go c.write()
