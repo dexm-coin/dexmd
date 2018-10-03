@@ -216,7 +216,6 @@ func (cs *ConnectionStore) run() {
 		// Network wide broadcast. For now this uses a very simple and broken
 		// algorithm but it could be optimized using ASNs as an overlay network
 		case message := <-cs.broadcast:
-			// log.Info("Message arrived")
 			env := &network.Envelope{}
 			broadcast := &network.Broadcast{}
 			proto.Unmarshal(message, env)
@@ -253,6 +252,7 @@ func (cs *ConnectionStore) run() {
 					continue
 				}
 				if k.isOpen {
+					log.Info("Send to: ", k.conn.RemoteAddr().String())
 					k.send <- data
 				}
 			}

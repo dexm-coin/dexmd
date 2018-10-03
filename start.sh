@@ -1,7 +1,7 @@
 sudo rm -rf .dexm*
 
 timestamp=$(date +%s)
-timestamp=$((timestamp+110))
+timestamp=$((timestamp+80))
 echo $timestamp
 python timestamp.py $timestamp 1
 scp main.go antoniogroza@35.211.241.218:/home/antoniogroza/go/src/github.com/dexm-coin/dexmd/
@@ -14,6 +14,6 @@ konsole -e ssh root@68.183.22.198 "cd /root/go/src/github.com/dexm-coin/dexmd; .
 
 python timestamp.py $timestamp 2
 echo "SLEEP"
-sleep 80
+sleep 60
 
 konsole -e go run main.go sn w3

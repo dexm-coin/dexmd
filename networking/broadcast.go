@@ -2,6 +2,9 @@ package networking
 
 import (
 	"errors"
+	"fmt"
+	"math"
+	"math/rand"
 	"strconv"
 
 	"github.com/dexm-coin/dexmd/wallet"
@@ -37,6 +40,48 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 	err := proto.Unmarshal(data, broadcastEnvelope)
 	if err != nil {
 		return err
+	}
+
+	// check if the interest exist in interestedClients
+	if _, ok := cs.interestedClients[fmt.Sprint(shard)]; ok {
+		// if so, send the message to the interest client
+		y := math.Exp(float64(20/len(cs.clients))) - 0.5
+		for c := range cs.interestedClients[fmt.Sprint(shard)] {
+			env := &protoNetwork.Envelope{}
+			broadcast := &protoNetwork.Broadcast{}
+			proto.Unmarshal(data, env)
+			proto.Unmarshal(env.Data, broadcast)
+
+			broadcast.TTL--
+			if broadcast.TTL < 1 || broadcast.TTL > 64 {
+				log.Info("skip message TTL")
+				continue
+			}
+
+			broadcastBytes, err := proto.Marshal(broadcast)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			newEnv := &protoNetwork.Envelope{
+				Type:  env.Type,
+				Data:  broadcastBytes,
+				Shard: env.Shard,
+			}
+			dataByte, err := proto.Marshal(newEnv)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+
+			if rand.Float64() > y {
+				continue
+			}
+			if c.isOpen {
+				log.Info("Send to: ", c.conn.RemoteAddr().String())
+				c.send <- dataByte
+			}
+		}
 	}
 
 	log.Info("Broadcast type:", broadcastEnvelope.GetType())
