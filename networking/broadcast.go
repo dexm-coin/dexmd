@@ -46,7 +46,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 	if _, ok := cs.interestedClients[fmt.Sprint(shard)]; ok {
 		// if so, send the message to the interest client
 		y := math.Exp(float64(20/len(cs.clients))) - 0.5
-		for c := range cs.interestedClients[fmt.Sprint(shard)] {
+		for k := range cs.interestedClients[fmt.Sprint(shard)] {
 			env := &protoNetwork.Envelope{}
 			broadcast := &protoNetwork.Broadcast{}
 			proto.Unmarshal(data, env)
@@ -54,7 +54,6 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 
 			broadcast.TTL--
 			if broadcast.TTL < 1 || broadcast.TTL > 64 {
-				log.Info("skip message TTL")
 				continue
 			}
 
@@ -77,9 +76,8 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			if rand.Float64() > y {
 				continue
 			}
-			if c.isOpen {
-				log.Info("Send to: ", c.conn.RemoteAddr().String())
-				c.send <- dataByte
+			if k.isOpen {
+				k.send <- dataByte
 			}
 		}
 	}

@@ -223,7 +223,6 @@ func (cs *ConnectionStore) run() {
 
 			broadcast.TTL--
 			if broadcast.TTL < 1 || broadcast.TTL > 64 {
-				log.Info("skip message TTL")
 				continue
 			}
 
@@ -252,7 +251,6 @@ func (cs *ConnectionStore) run() {
 					continue
 				}
 				if k.isOpen {
-					log.Info("Send to: ", k.conn.RemoteAddr().String())
 					k.send <- data
 				}
 			}
@@ -328,7 +326,8 @@ func (c *client) read() {
 			}
 
 			go c.store.handleBroadcast(pb.GetData(), pb.GetShard())
-			c.store.broadcast <- msg
+			// TODO uncomment it, done only for test
+			// c.store.broadcast <- msg
 
 		// If the ContentType is a request then try to parse it as such and handle it
 		case protoNetwork.Envelope_REQUEST:
