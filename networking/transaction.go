@@ -31,7 +31,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 	for _, ip := range ips {
 		conn, _, err := dial.Dial(fmt.Sprintf("ws://%s/ws", ip+":3141"), nil)
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 			continue
 		}
 
@@ -51,13 +51,13 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 		envD, _ := proto.Marshal(env)
 		err = conn.WriteMessage(websocket.BinaryMessage, envD)
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 			continue
 		}
 
 		senderAddr, err := senderWallet.GetWallet()
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 		}
 		senderEnv := &network.Envelope{
 			Type:  network.Envelope_OTHER,
@@ -69,27 +69,34 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 
 		err = conn.WriteMessage(websocket.BinaryMessage, []byte(senderAddrD))
 		if err != nil {
-			log.Fatal(err)
-			continue
-		}
-
-		// Parse the message and save the new state
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			// log.Fatal(err)
+			log.Error(err)
 			continue
 		}
 
 		walletEnv := &network.Envelope{}
-		err = proto.Unmarshal(msg, walletEnv)
-		if err != nil {
-			log.Fatal(err)
+		for {
+			// Parse the message and save the new state
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				continue
+			}
+
+			err = proto.Unmarshal(msg, walletEnv)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+
+			if walletEnv.Type == network.Envelope_OTHER {
+				break
+			}
+			walletEnv = &network.Envelope{}
 		}
 
 		var walletStatus bp.AccountState
 		err = proto.Unmarshal(walletEnv.Data, &walletStatus)
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 		}
 		log.Info("walletStatus ", walletStatus)
 		senderWallet.Nonce = int(walletStatus.Nonce)
@@ -97,7 +104,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 
 		trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata, shard)
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 			continue
 		}
 

@@ -29,7 +29,6 @@ func (cs *ConnectionStore) CheckShard(shard uint32) bool {
 				return true
 			}
 		}
-		log.Info("Not you shard")
 		return false
 	}
 	return true

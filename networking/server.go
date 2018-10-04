@@ -621,20 +621,24 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				r, err := wallet.ByteToPoint(value)
 				if err != nil {
 					log.Error("r ByteToPoint ", err)
+					continue
 				}
 				// i should't myself in the sign, so i save it in difference variable
 				if key == wal {
 					myR, err = r.MarshalBinary()
 					if err != nil {
 						log.Error("r marshal ", err)
+						continue
 					}
 					p, err := cs.identity.GetPublicKeySchnorr()
 					if err != nil {
 						log.Error("GetSchnorrPublicKey ", err)
+						continue
 					}
 					myP, err = p.MarshalBinary()
 					if err != nil {
 						log.Error("p marshal ", err)
+						continue
 					}
 					continue
 				}
@@ -642,6 +646,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				p, err := cs.beaconChain.Validators.GetSchnorrPublicKey(key)
 				if err != nil {
 					log.Error("GetSchnorrPublicKey ", err)
+					continue
 				}
 				Ps = append(Ps, p)
 			}
@@ -743,19 +748,23 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				r, err := wallet.ByteToPoint(cs.shardChain.RSchnorr[i])
 				if err != nil {
 					log.Error(err)
+					continue
 				}
 				p, err := wallet.ByteToPoint(cs.shardChain.PSchnorr[i])
 				if err != nil {
 					log.Error(err)
+					continue
 				}
 
 				sTransaction, err := wallet.ByteToScalar(cs.shardChain.MTTrasaction[i])
 				if err != nil {
 					log.Error(err)
+					continue
 				}
 				sReceipt, err := wallet.ByteToScalar(cs.shardChain.MTReceipt[i])
 				if err != nil {
 					log.Error(err)
+					continue
 				}
 
 				Rs = append(Rs, r)
@@ -941,7 +950,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			log.Fatal(err)
 			continue
 		}
-		log.Info("ChooseValidator ", validator)
 
 		// Start accepting the block from the new validator
 		cs.shardChain.CurrentValidator = validator
