@@ -568,6 +568,21 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			cs.UpdateChain(newShard)
 		}
 
+		// chose a validator based on stake
+		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardChain.CurrentBlock), currentShard)
+		if err != nil {
+			log.Fatal(err)
+			continue
+		}
+
+		// Start accepting the block from the new validator
+		cs.shardChain.CurrentValidator = validator
+
+		// check if you are a validator or not, if not don't continue with the other messages
+		if !cs.beaconChain.Validators.CheckIsValidator(wal) {
+			continue
+		}
+
 		// every 30 blocks do the merkle root signature
 		if cs.shardChain.CurrentBlock%30 == 0 {
 			countTurn = true
@@ -642,48 +657,14 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					}
 					continue
 				}
-				Rs = append(Rs, r)
 				p, err := cs.beaconChain.Validators.GetSchnorrPublicKey(key)
 				if err != nil {
 					log.Error("GetSchnorrPublicKey ", err)
 					continue
 				}
+				Rs = append(Rs, r)
 				Ps = append(Ps, p)
 			}
-
-			// 25 is the total number of validator that should sign
-			// for i := int64(0); i < 25; i++ {
-			// 	if _, ok := cs.beaconChain.CurrentSign[i]; ok {
-			// 		if _, ok := cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]]; ok {
-			// 			r, err := wallet.ByteToPoint(cs.shardChain.Schnorr[cs.beaconChain.CurrentSign[i]])
-			// 			if err != nil {
-			// 				log.Error("r ByteToPoint ", err)
-			// 			}
-			// 			// i should't myself in the sign, so i save it in difference variable
-			// 			if cs.beaconChain.CurrentSign[i] == wal {
-			// 				myR, err = r.MarshalBinary()
-			// 				if err != nil {
-			// 					log.Error("r marshal ", err)
-			// 				}
-			// 				p, err := cs.identity.GetPublicKeySchnorr()
-			// 				if err != nil {
-			// 					log.Error("GetSchnorrPublicKey ", err)
-			// 				}
-			// 				myP, err = p.MarshalBinary()
-			// 				if err != nil {
-			// 					log.Error("p marshal ", err)
-			// 				}
-			// 				continue
-			// 			}
-			// 			Rs = append(Rs, r)
-			// 			p, err := cs.beaconChain.Validators.GetSchnorrPublicKey(cs.beaconChain.CurrentSign[i])
-			// 			if err != nil {
-			// 				log.Error("GetSchnorrPublicKey ", err)
-			// 			}
-			// 			Ps = append(Ps, p)
-			// 		}
-			// 	}
-			// }
 
 			var MRTransaction []byte
 			var MRReceipt []byte
@@ -943,16 +924,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				cs.broadcast <- data
 			}
 		}
-
-		// chose a validator based on stake
-		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardChain.CurrentBlock), currentShard)
-		if err != nil {
-			log.Fatal(err)
-			continue
-		}
-
-		// Start accepting the block from the new validator
-		cs.shardChain.CurrentValidator = validator
 
 		// If this node is the validator then generate a block and sign it
 		if wal == validator {
