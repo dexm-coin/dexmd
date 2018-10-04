@@ -127,7 +127,7 @@ func setupImport(name string) (*wasm.Module, error) {
 			{
 				Form:        1,
 				ParamTypes:  []wasm.ValueType{},
-				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI32},
+				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI64},
 			},
 
 			// pay(to_ptr: i64, amnt: i64, gas : i64)
