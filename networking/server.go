@@ -810,7 +810,9 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					// generate and send the merkle proof
 					transactions := block.GetTransactions()
 					for i, t := range transactions {
+						log.Info("Transaction to prove")
 						if t.GetShard() == currentShard {
+							log.Info("not your shard to merkleproof")
 							continue
 						}
 						merkleProofByte := blockchain.GenerateMerkleProof(transactions, i)
