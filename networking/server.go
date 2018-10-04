@@ -811,7 +811,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					transactions := block.GetTransactions()
 					for i, t := range transactions {
 						log.Info("Transaction to prove")
-						if t.GetShard() == currentShard {
+						if t.GetShard() != currentShard {
 							log.Info("not your shard to merkleproof")
 							continue
 						}
