@@ -20,6 +20,7 @@ func hash(data []byte) []byte {
 }
 
 func VerifyProof(mp *protobufs.MerkleProof) bool {
+	// TODO check that merkleproof.Root is inside the merklerootDB
 	hashes := mp.GetMapHash()
 	var mapProof []map[string][]byte
 	for i, key := range mp.GetMapLeaf() {

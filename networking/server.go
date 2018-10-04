@@ -830,6 +830,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 						dataMerkleProof, _ := proto.Marshal(envMerkleProof)
 						cs.broadcast <- dataMerkleProof
+
+						log.Info("Broadcast_MERKLE_PROOF sent")
 					}
 				}
 			}

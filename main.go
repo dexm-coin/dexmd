@@ -26,10 +26,10 @@ const (
 
 var (
 	// -- start
-        PUBLIC_PEERSERVER = false
-        TS                = uint64(1538682314)
-        // -- start
-                                                                                                                )
+	PUBLIC_PEERSERVER = false
+	TS                = uint64(1538683018)
+	// -- start
+)
 
 /*
 	optimize everything with pprof
@@ -240,7 +240,17 @@ func main() {
 
 				ccreation := len(cdata) == 0
 
-				networking.SendTransaction(senderWallet, recipient, "", amount, uint64(gas), cdata, ccreation, uint32(senderWallet.GetShardWallet()))
+				// check if the address of the recipient is right, and get it's shard
+				if !wallet.IsWalletValid(recipient) {
+					log.Fatal("Not IsWalletValid")
+				}
+				shard, err := strconv.ParseUint(recipient[4:6], 10, 32)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				// networking.SendTransaction(senderWallet, recipient, "", amount, uint64(gas), cdata, ccreation, uint32(senderWallet.GetShardWallet()))
+				networking.SendTransaction(senderWallet, recipient, "", amount, uint64(gas), cdata, ccreation, uint32(shard))
 
 				return nil
 			},
