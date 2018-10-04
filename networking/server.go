@@ -392,6 +392,7 @@ func (c *client) read() {
 				continue
 			}
 
+			c.interest = []string{}
 			// Save the interests of the clients
 			for _, v := range intr.Keys {
 				c.interest = append(c.interest, v)
@@ -402,10 +403,21 @@ func (c *client) read() {
 			}
 
 		case protoNetwork.Envelope_NEIGHBOUR_INTERESTS:
-			peers := &protoNetwork.Peers{}
+			peers := &protoNetwork.PeersAndInterests{}
 
-			for _, i := range peers.GetIp() {
+			// create a connection with the peers that my neighbour know
+			for _, i := range peers.GetIps() {
 				c.store.Connect(i)
+			}
+
+			// also save the interest that send this message
+			c.interest = []string{}
+			for _, v := range peers.GetKeys() {
+				c.interest = append(c.interest, v)
+				if _, ok := c.store.interestedClients[v]; !ok {
+					c.store.interestedClients[v] = make(map[*client]bool)
+				}
+				c.store.interestedClients[v][c] = true
 			}
 
 		}
@@ -491,8 +503,14 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				ips = append(ips, k.conn.RemoteAddr().String())
 			}
 
-			peers := &network.Peers{
-				Ip: ips,
+			keys := []string{}
+			for k := range cs.interests {
+				keys = append(keys, k)
+			}
+
+			peers := &network.PeersAndInterests{
+				Keys: keys,
+				Ips:  ips,
 			}
 			peersByte, _ := proto.Marshal(peers)
 			env := &network.Envelope{
