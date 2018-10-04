@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/abiosoft/ishell"
 	"github.com/dexm-coin/dexmd/networking"
 
 	"github.com/dexm-coin/dexmd/blockchain"
@@ -28,10 +26,10 @@ const (
 
 var (
 	// -- start
-        PUBLIC_PEERSERVER = false
-        TS                = uint64(1538634622)
-        // -- start
-                )
+	PUBLIC_PEERSERVER = false
+	TS                = uint64(1538674013)
+	// -- start
+)
 
 /*
 	optimize everything with pprof
@@ -253,81 +251,81 @@ func main() {
 			Usage:   "i [address]",
 			Aliases: []string{"i"},
 			Action: func(c *cli.Context) error {
-				walPath := c.Args().Get(0)
-				address := c.Args().Get(1)
+				// walPath := c.Args().Get(0)
+				// address := c.Args().Get(1)
 
-				senderWallet, err := wallet.ImportWallet(walPath)
-				if err != nil {
-					log.Fatal(err)
-				}
+				// senderWallet, err := wallet.ImportWallet(walPath)
+				// if err != nil {
+				// 	log.Fatal(err)
+				// }
 
-				b, err := blockchain.NewBlockchain(".dexm.shard/", 0)
-				if err != nil {
-					log.Fatal("nb", err)
-					return nil
-				}
+				// b, err := blockchain.NewBlockchain(".dexm.shard/", 0)
+				// if err != nil {
+				// 	log.Fatal("nb", err)
+				// 	return nil
+				// }
 
-				contract, err := blockchain.GetContract(address, b.ContractDb, b.StateDb)
-				if err != nil {
-					log.Fatal(err)
-					return nil
-				}
+				// contract, err := blockchain.GetContract(address, b.ContractDb, b.StateDb)
+				// if err != nil {
+				// 	log.Fatal(err)
+				// 	return nil
+				// }
 
-				log.Info("Inspecting ", address)
+				// log.Info("Inspecting ", address)
 
-				shell := ishell.New()
+				// shell := ishell.New()
 
-				var entries []string
-				for key := range contract.Module.Export.Entries {
-					entries = append(entries, key)
-				}
+				// var entries []string
+				// for key := range contract.Module.Export.Entries {
+				// 	entries = append(entries, key)
+				// }
 
-				var choice int
-				shell.AddCmd(&ishell.Cmd{
-					Name: "entries",
-					Help: "Function entries from the contract",
-					Func: func(c *ishell.Context) {
-						choice = c.MultiChoice(entries, "Which function do you want to use ?")
+				// var choice int
+				// shell.AddCmd(&ishell.Cmd{
+				// 	Name: "entries",
+				// 	Help: "Function entries from the contract",
+				// 	Func: func(c *ishell.Context) {
+				// 		choice = c.MultiChoice(entries, "Which function do you want to use ?")
 
-						c.Println("Insert the transaction value")
-						valS := c.ReadLine()
+				// 		c.Println("Insert the transaction value")
+				// 		valS := c.ReadLine()
 
-						c.Println("Insert gas cost")
-						gasS := c.ReadLine()
+				// 		c.Println("Insert gas cost")
+				// 		gasS := c.ReadLine()
 
-						amount, err := strconv.ParseUint(valS, 10, 64)
-						if err != nil {
-							log.Fatal(err)
-						}
+				// 		amount, err := strconv.ParseUint(valS, 10, 64)
+				// 		if err != nil {
+				// 			log.Fatal(err)
+				// 		}
 
-						gas, err := strconv.Atoi(gasS)
-						if err != nil {
-							log.Fatal(err)
-						}
+				// 		gas, err := strconv.Atoi(gasS)
+				// 		if err != nil {
+				// 			log.Fatal(err)
+				// 		}
 
-						networking.SendTransaction(senderWallet, address, entries[choice], amount, uint64(gas), []byte{}, false, uint32(senderWallet.GetShardWallet()))
-					},
-				})
+				// 		networking.SendTransaction(senderWallet, address, entries[choice], amount, uint64(gas), []byte{}, false, uint32(senderWallet.GetShardWallet()))
+				// 	},
+				// })
 
-				shell.AddCmd(&ishell.Cmd{
-					Name: "memory",
-					Help: "Inspect the contract memory",
-					Func: func(c *ishell.Context) {
-						log.Print(hex.Dump(contract.State.GetMemory()))
-					},
-				})
+				// shell.AddCmd(&ishell.Cmd{
+				// 	Name: "memory",
+				// 	Help: "Inspect the contract memory",
+				// 	Func: func(c *ishell.Context) {
+				// 		log.Print(hex.Dump(contract.State.GetMemory()))
+				// 	},
+				// })
 
-				shell.AddCmd(&ishell.Cmd{
-					Name: "globals",
-					Help: "Inspect the contract globals",
-					Func: func(c *ishell.Context) {
-						for k, v := range contract.State.GetGlobals() {
-							log.Println(k, "->", v)
-						}
-					},
-				})
+				// shell.AddCmd(&ishell.Cmd{
+				// 	Name: "globals",
+				// 	Help: "Inspect the contract globals",
+				// 	Func: func(c *ishell.Context) {
+				// 		for k, v := range contract.State.GetGlobals() {
+				// 			log.Println(k, "->", v)
+				// 		}
+				// 	},
+				// })
 
-				shell.Run()
+				// shell.Run()
 
 				return nil
 			},

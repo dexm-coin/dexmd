@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
 	"github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
@@ -198,17 +197,17 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 
 		// If a function identifier is specified then fetch the contract and execute
 		if t.GetFunction() != "" {
-			c, err := blockchain.GetContract(t.GetRecipient(), cs.shardChain.ContractDb, cs.shardChain.StateDb)
-			if err != nil {
-				return err
-			}
+			// c, err := blockchain.GetContract(t.GetRecipient(), cs.shardChain.ContractDb, cs.shardChain.StateDb)
+			// if err != nil {
+			// 	return err
+			// }
 
-			err = c.ExecuteContract(t.GetFunction(), t.GetArgs())
-			if err != nil {
-				return err
-			}
+			// err = c.ExecuteContract(t.GetFunction(), t.GetArgs())
+			// if err != nil {
+			// 	return err
+			// }
 
-			c.SaveState()
+			// c.SaveState()
 		}
 
 		// save the hash of the transaction inside cs.shardChain.TransactionArrived
