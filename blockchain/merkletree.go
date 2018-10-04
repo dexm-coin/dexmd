@@ -89,13 +89,6 @@ func GenerateMerkleTree(transactions []*protobufs.Transaction) ([]byte, []byte, 
 }
 
 func GenerateMerkleProof(transactions []*protobufs.Transaction, indexProof int) []byte {
-	// var transactions []*protobufs.Transaction
-	// for _, bTransaction := range transactionsByte {
-	// 	transaction := protobufs.Transaction{}
-	// 	proto.Unmarshal(bTransaction, &transaction)
-	// 	transactions = append(transactions, &transaction)
-	// }
-
 	var data [][]byte
 	for _, t := range transactions {
 		tByte, _ := proto.Marshal(t)

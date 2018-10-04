@@ -737,8 +737,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			var Ps []kyber.Point
 			var SsTransaction []kyber.Scalar
 			var SsReceipt []kyber.Scalar
-			var MessagesTransaction [][]byte
-			var MessagesReceipt [][]byte
 
 			// from all validator choosen get R, P and the signature of transaction and receipt
 			for i := 0; i < len(cs.shardChain.RSchnorr); i++ {
@@ -764,8 +762,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				Ps = append(Ps, p)
 				SsTransaction = append(SsTransaction, sTransaction)
 				SsReceipt = append(SsReceipt, sReceipt)
-				MessagesTransaction = append(MessagesTransaction, cs.shardChain.MessagesTransaction[i])
-				MessagesReceipt = append(MessagesReceipt, cs.shardChain.MessagesReceipt[i])
 			}
 
 			if len(Rs) == 0 || len(SsTransaction) == 0 || len(SsReceipt) == 0 {
@@ -784,8 +780,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				// send the final signature
 				mr := &protoBlockchain.MerkleRootsSigned{
 					Shard: currentShard,
-					MerkleRootsTransaction:        MessagesTransaction,
-					MerkleRootsReceipt:            MessagesReceipt,
+					MerkleRootsTransaction:        cs.shardChain.MessagesTransaction,
+					MerkleRootsReceipt:            cs.shardChain.MessagesReceipt,
 					RSignedMerkleRootsTransaction: RsignatureTransaction,
 					SSignedMerkleRootsTransaction: SsignatureTransaction,
 					RSignedMerkleRootsReceipt:     RsignatureReceipt,
@@ -810,6 +806,42 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 				data, _ := proto.Marshal(env)
 				cs.broadcast <- data
+
+				// send merkle proof of the other shard
+				for i := int64(cs.shardChain.CurrentBlock) - 7; i > int64(cs.shardChain.CurrentBlock)-37; i-- {
+					blockByte, err := cs.shardChain.GetBlock(uint64(i))
+					if err != nil {
+						log.Error(err)
+						continue
+					}
+					block := &protoBlockchain.Block{}
+					proto.Unmarshal(blockByte, block)
+
+					// generate and send the merkle proof
+					transactions := block.GetTransactions()
+					for i, t := range transactions {
+						if t.GetShard() == currentShard {
+							continue
+						}
+						merkleProofByte := blockchain.GenerateMerkleProof(transactions, i)
+
+						broadcastMerkleProof := &network.Broadcast{
+							Type: protoNetwork.Broadcast_MERKLE_PROOF,
+							TTL:  64,
+							Data: merkleProofByte,
+						}
+						broadcastMerkleProofByteByte, _ := proto.Marshal(broadcastMerkleProof)
+
+						envMerkleProof := &network.Envelope{
+							Type:  network.Envelope_BROADCAST,
+							Data:  broadcastMerkleProofByteByte,
+							Shard: currentShard,
+						}
+
+						dataMerkleProof, _ := proto.Marshal(envMerkleProof)
+						cs.broadcast <- dataMerkleProof
+					}
+				}
 			}
 
 			// reset everything about schnorr for the next message
