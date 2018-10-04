@@ -3,6 +3,7 @@ package blockchain
 import (
 	"strings"
 
+	"github.com/dexm-coin/dexmd/wallet"
 	"github.com/dexm-coin/wagon/exec"
 	log "github.com/sirupsen/logrus"
 )
@@ -16,15 +17,21 @@ func timestamp(proc *exec.Process) int64 {
 }
 
 func balance(proc *exec.Process) int64 {
-	return 1447
+	state, err := currentContract.Chain.GetWalletState(string(currentContract.Address))
+	if err != nil {
+		return 0
+	}
+
+	return int64(state.Balance)
 }
 
 func value(proc *exec.Process) int64 {
-	return 1447
+	return int64(currentContract.Transaction.Amount)
 }
 
 func sender(proc *exec.Process, to, len int64) int64 {
-	proc.WriteAt([]byte("AYYY\x00"), to)
+	senderAddr := wallet.BytesToAddress(currentContract.Transaction.Sender, currentContract.Transaction.Shard)
+	proc.WriteAt([]byte(senderAddr), to)
 	return 0
 }
 

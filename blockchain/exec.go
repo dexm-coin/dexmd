@@ -17,12 +17,14 @@ var currentContract *Contract
 
 // Contract is the struct that saves the state of a contract
 type Contract struct {
-	ContractDb *leveldb.DB
-	StateDb    *leveldb.DB
-	Code       []byte
-	Address    []byte
-	State      *bp.ContractState
-	Block      *bp.Block
+	ContractDb  *leveldb.DB
+	StateDb     *leveldb.DB
+	Code        []byte
+	Address     []byte
+	State       *bp.ContractState
+	Block       *bp.Block
+	Chain       *Blockchain
+	Transaction *bp.Transaction
 
 	Module *wasm.Module
 	VM     *exec.VM
@@ -30,7 +32,7 @@ type Contract struct {
 
 // GetContract loads the code and state from the DB and returns an error if there
 // is no code. In case there is no state an empty one will be generated
-func GetContract(address string, contractDb, stateDb *leveldb.DB) (*Contract, error) {
+func GetContract(address string, contractDb, stateDb *leveldb.DB, bc *Blockchain, tr *bp.Transaction) (*Contract, error) {
 	code, err := contractDb.Get([]byte(address), nil)
 	if err != nil {
 		return nil, err
@@ -66,8 +68,10 @@ func GetContract(address string, contractDb, stateDb *leveldb.DB) (*Contract, er
 		Address:    []byte(address),
 		State:      &state,
 
-		Module: m,
-		VM:     vm,
+		Module:      m,
+		VM:          vm,
+		Chain:       bc,
+		Transaction: tr,
 	}, nil
 }
 
