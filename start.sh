@@ -8,7 +8,6 @@ python timestamp.py $timestamp 1
 ssh antoniogroza@35.211.241.218 "cd /home/antoniogroza/go/src/github.com/dexm-coin/dexmd/; git stash; git pull;"
 ssh root@142.93.117.17 "cd /root/go/src/github.com/dexm-coin/dexmd; git stash; git pull;"
 ssh root@68.183.22.198 "cd /root/go/src/github.com/dexm-coin/dexmd; git stash; git pull;"
-
 # ssh antoniogroza@35.211.241.218 "cd /home/antoniogroza/go/src/github.com/dexm-coin/protobufs/; git stash; git pull;"
 # ssh root@142.93.117.17 "cd /root/go/src/github.com/dexm-coin/protobufs/; git stash; git pull;"
 # ssh root@68.183.22.198 "cd /root/go/src/github.com/dexm-coin/protobufs/; git stash; git pull;"
