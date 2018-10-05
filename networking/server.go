@@ -243,14 +243,6 @@ func (cs *ConnectionStore) run() {
 
 			shard := env.GetShard()
 
-			// y := 1.0
-			// if len(cs.interestedClients[fmt.Sprint(shard)]) > 0 {
-			// 	y = math.Exp(float64(20/len(cs.interestedClients[fmt.Sprint(shard)]))) - 0.5
-			// }
-			log.Info("shard ", shard)
-			log.Info("interestedClients ", cs.interestedClients[fmt.Sprint(shard)])
-			log.Info("clients ", cs.clients)
-
 			broadcastEnvelope.TTL--
 			if broadcastEnvelope.TTL < 1 || broadcastEnvelope.TTL > 64 {
 				continue
@@ -273,7 +265,7 @@ func (cs *ConnectionStore) run() {
 			}
 
 			// send to everyone if there are a few clients
-			if len(cs.interestedClients) < 50 {
+			if len(cs.clients) < 50 {
 				for k := range cs.clients {
 					if k.isOpen {
 						k.send <- dataByte

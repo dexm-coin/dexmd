@@ -15,20 +15,17 @@ import (
 
 // CheckShard check if the message arrived is from your interests (shards)
 func (cs *ConnectionStore) CheckShard(shard uint32) bool {
-	if shard != 0 {
-		for interest := range cs.interests {
-			interestInt, err := strconv.Atoi(interest)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-			if shard == uint32(interestInt) {
-				return true
-			}
+	for interest := range cs.interests {
+		interestInt, err := strconv.Atoi(interest)
+		if err != nil {
+			log.Error(err)
+			continue
 		}
-		return false
+		if shard == uint32(interestInt) {
+			return true
+		}
 	}
-	return true
+	return false
 }
 
 func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {

@@ -44,7 +44,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 		env := &network.Envelope{
 			Type:  network.Envelope_REQUEST,
 			Data:  reqD,
-			Shard: uint32(senderWallet.Shard),
+			Shard: shard,
 		}
 
 		// GET_WALLET_STATUS requires to first send a request and then the address
@@ -62,7 +62,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 		senderEnv := &network.Envelope{
 			Type:  network.Envelope_OTHER,
 			Data:  []byte(senderAddr),
-			Shard: uint32(senderWallet.Shard),
+			Shard: shard,
 		}
 
 		senderAddrD, _ := proto.Marshal(senderEnv)
@@ -125,7 +125,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 		trEnv := &network.Envelope{
 			Type:  network.Envelope_BROADCAST,
 			Data:  brD,
-			Shard: 0,
+			Shard: shard,
 		}
 
 		finalD, _ := proto.Marshal(trEnv)
