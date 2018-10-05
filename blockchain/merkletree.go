@@ -9,6 +9,7 @@ import (
 	"github.com/onrik/gomerkle"
 )
 
+// GenerateMerkleTree generate a merkletree 
 func GenerateMerkleTree(transactions []*protobufs.Transaction) ([]byte, []byte, error) {
 	var dataTransaction [][]byte
 	var dataReceipt [][]byte
