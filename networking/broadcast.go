@@ -163,6 +163,9 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			return err
 		}
 
+		// TODO before add it, i have to check if the signature is valid
+		// also it is possible that the signature is right, but the message inside is fake
+
 		cs.shardChain.MTTrasaction = append(cs.shardChain.MTTrasaction, signSchnorr.GetSignTransaction())
 		cs.shardChain.MTReceipt = append(cs.shardChain.MTReceipt, signSchnorr.GetSignReceipt())
 		cs.shardChain.RSchnorr = append(cs.shardChain.RSchnorr, signSchnorr.GetRSchnorr())
@@ -267,6 +270,21 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		}
 		log.Info("Proof verifed")
 
+	case protoNetwork.Broadcast_MONEY_WITHDRAW:
+		log.Printf("New Money WithDraw: %x", broadcastEnvelope.GetData())
+
+		moneyWithdraw := &protoBlockchain.MoneyWithdraw{}
+		err := proto.Unmarshal(broadcastEnvelope.GetData(), moneyWithdraw)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+
+		if !cs.beaconChain.Validators.CheckWithdraw(moneyWithdraw.GetWallet(), cs.shardChain) {
+			log.Error("CheckWithdraw failed")
+		} else {
+			log.Info("CheckWithdraw correct")
+		}
 	}
 	return nil
 }

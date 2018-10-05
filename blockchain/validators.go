@@ -7,19 +7,20 @@ import (
 	"strconv"
 
 	wal "github.com/dexm-coin/dexmd/wallet"
+	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/dedis/kyber.v2"
 )
 
 // ValidatorsBook is a structure that keeps record of every validator and its stake
 type ValidatorsBook struct {
-	valsArray map[string]*Validator
+	valsWithdraw map[string]*protobufs.Transaction
+	valsArray    map[string]*Validator
 }
 
 // Validator is a representation of a validator node
 type Validator struct {
 	wallet       string
-	stake        uint64
 	startDynasty int64
 	endDynasty   int64
 
@@ -29,8 +30,12 @@ type Validator struct {
 
 // NewValidatorsBook creates an empty ValidatorsBook object
 func NewValidatorsBook() (v *ValidatorsBook) {
+	valsWithdraw := make(map[string]*protobufs.Transaction)
 	valsArray := make(map[string]*Validator)
-	return &ValidatorsBook{valsArray}
+	return &ValidatorsBook{
+		valsWithdraw: valsWithdraw,
+		valsArray:    valsArray,
+	}
 }
 
 // CheckIsValidator check if wallet is inside the valsArray
@@ -47,6 +52,42 @@ func (v *ValidatorsBook) CheckDynasty(wallet string, currentBlock uint64) bool {
 		if v.valsArray[wallet].startDynasty+200 < int64(currentBlock) && (v.valsArray[wallet].endDynasty+200 > int64(currentBlock) || v.valsArray[wallet].endDynasty == -1) {
 			return true
 		}
+	}
+	return false
+}
+
+// CheckWithdraw remove the validator and give it back him cash
+func (v *ValidatorsBook) CheckWithdraw(wallet string, bc *Blockchain) bool {
+	if t, ok := v.valsWithdraw[wallet]; ok {
+		if !v.CheckIsValidator(wallet) {
+			return false
+		}
+		// 2419200/5*6 , 1 month*6 divide by 5 (every 5 sec a block)
+		if uint64(v.valsArray[wallet].endDynasty+(2903040)) > bc.CurrentBlock {
+			// TODO maybe it's a problem do it because maybe the shard is different
+			// if wal.BytesToAddress(t.GetSender(), t.GetShard()) != wallet {
+			// 	return false
+			// }
+
+			err := v.RemoveValidator(wallet)
+			if err != nil {
+				log.Error(err)
+				return false
+			}
+
+			walletState, err := bc.GetWalletState(wallet)
+			if err != nil {
+				log.Error(err)
+				return false
+			}
+			walletState.Balance += t.GetAmount()
+			err = bc.SetState(wallet, &walletState)
+			if err != nil {
+				log.Error(err)
+				return false
+			}
+		}
+		return true
 	}
 	return false
 }
@@ -118,7 +159,7 @@ func (v *ValidatorsBook) LenValidators(currentShard uint32) int {
 // AddValidator adds a new validator to the book. If the validator is already
 // registered, overwrites its stake with the new one
 // Return if the validator already exist or not
-func (v *ValidatorsBook) AddValidator(wallet string, stake uint64, dynasty int64, pubSchnorrKey []byte) bool {
+func (v *ValidatorsBook) AddValidator(wallet string, dynasty int64, pubSchnorrKey []byte, transaction *protobufs.Transaction) bool {
 	if _, ok := v.valsArray[wallet]; ok {
 		return true
 	}
@@ -136,7 +177,8 @@ func (v *ValidatorsBook) AddValidator(wallet string, stake uint64, dynasty int64
 		log.Error("addvalidator ", err)
 		return false
 	}
-	v.valsArray[wallet] = &Validator{wallet, stake, dynasty, -1, uint32(shard), publicKey}
+	v.valsArray[wallet] = &Validator{wallet, dynasty, -1, uint32(shard), publicKey}
+	v.valsWithdraw[wallet] = transaction
 	return false
 }
 
@@ -167,23 +209,6 @@ func (v *ValidatorsBook) WithdrawValidator(wallet string, r, s []byte, currentBl
 	return errors.New("Validator " + wallet + " not found")
 }
 
-// SetStake is used to update the validator's stake when it changes.
-func (v *ValidatorsBook) SetStake(wallet string, addStake uint64) error {
-	if _, ok := v.valsArray[wallet]; ok {
-		v.valsArray[wallet].stake += addStake
-		return nil
-	}
-	return errors.New("Validator " + wallet + " not found")
-}
-
-// GetStake returns the stake for a given wallet.
-func (v *ValidatorsBook) GetStake(wallet string) (uint64, error) {
-	if _, ok := v.valsArray[wallet]; ok {
-		return v.valsArray[wallet].stake, nil
-	}
-	return 0, errors.New("Validator " + wallet + " not found")
-}
-
 // SetShard is used to update the validator's shard when it changes.
 func (v *ValidatorsBook) SetShard(wallet string, shard uint32) error {
 	if _, ok := v.valsArray[wallet]; ok {
@@ -208,7 +233,7 @@ type simpleValidator struct {
 
 // ChooseValidator returns a validator's wallet, chosen randomly
 // and proportionally to the stake
-func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32) (string, error) {
+func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32, bc *Blockchain) (string, error) {
 	rand.Seed(currentBlock)
 
 	totalstake := uint64(0)
@@ -221,8 +246,13 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 		if val.shard != currentShard {
 			continue
 		}
-		ss = append(ss, simpleValidator{k, val.stake})
-		totalstake += val.stake
+		stateWallet, err := bc.GetWalletState(val.wallet)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		ss = append(ss, simpleValidator{k, stateWallet.GetBalance()})
+		totalstake += stateWallet.GetBalance()
 	}
 	if totalstake < 1 {
 		return "", errors.New("Not enough stake")
@@ -254,7 +284,7 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 
 // ChooseShard calulate the shard for every validators
 // return the shard for a specific wallet
-func (v *ValidatorsBook) ChooseShard(seed int64, wallet string) (uint32, error) {
+func (v *ValidatorsBook) ChooseShard(seed int64, wallet string, bc *Blockchain) (uint32, error) {
 	rand.Seed(seed)
 
 	var ss []simpleValidator
@@ -262,7 +292,12 @@ func (v *ValidatorsBook) ChooseShard(seed int64, wallet string) (uint32, error) 
 		if !v.CheckDynasty(val.wallet, uint64(currentBlock)) {
 			continue
 		}
-		ss = append(ss, simpleValidator{k, val.stake})
+		stateWallet, err := bc.GetWalletState(val.wallet)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		ss = append(ss, simpleValidator{k, stateWallet.GetBalance()})
 	}
 
 	// suffle the validator with a seed

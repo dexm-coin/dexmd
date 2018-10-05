@@ -125,7 +125,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		// TODO cange this import wallet because we don't want that people know the private key of those 2 wallet
 		satoshi, _ := wallet.ImportWallet("satoshi3")
 		cs.shardChain.SetState("Dexm02aCR946Biyo98t55dqgJSb9NTpVn877EF9F5", state)
-		cs.beaconChain.Validators.AddValidator("Dexm02aCR946Biyo98t55dqgJSb9NTpVn877EF9F5", 20000, -300, satoshi.GetPublicKeySchnorrByte())
+		cs.beaconChain.Validators.AddValidator("Dexm02aCR946Biyo98t55dqgJSb9NTpVn877EF9F5", -300, satoshi.GetPublicKeySchnorrByte(), nil)
 
 		state = &protobufs.AccountState{
 			Balance: 10000,
@@ -134,7 +134,14 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 
 		w, _ := wallet.ImportWallet("w3")
 		cs.shardChain.SetState("Dexm01AXxMYVnzKmrekmjx6mUdTarC3xLB1984853", state)
-		cs.beaconChain.Validators.AddValidator("Dexm01AXxMYVnzKmrekmjx6mUdTarC3xLB1984853", 10000, -300, w.GetPublicKeySchnorrByte())
+		cs.beaconChain.Validators.AddValidator("Dexm01AXxMYVnzKmrekmjx6mUdTarC3xLB1984853", -300, w.GetPublicKeySchnorrByte(), nil)
+
+		state = &protobufs.AccountState{
+			Balance: 0,
+			Nonce:   0,
+		}
+		cs.shardChain.SetState("DexmPos", state)
+		cs.shardChain.SetState("DexmVoid", state)
 
 		cs.shardChain.GenesisTimestamp = block.GetTimestamp()
 
@@ -151,13 +158,14 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		senderBalance, err := cs.shardChain.GetWalletState(sender)
 		if err != nil {
 			log.Error(err)
-			return err
+			continue
 		}
 
 		if t.GetRecipient() == "DexmPoS" {
-			exist := cs.beaconChain.Validators.AddValidator(sender, t.GetAmount(), int64(cs.shardChain.CurrentBlock), t.GetPubSchnorrKey())
+			exist := cs.beaconChain.Validators.AddValidator(sender, int64(cs.shardChain.CurrentBlock), t.GetPubSchnorrKey(), t)
 			if exist {
 				log.Info("slash for ", sender)
+				continue
 			}
 		}
 
@@ -178,12 +186,12 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		err = cs.shardChain.SetState(sender, &senderBalance)
 		if err != nil {
 			log.Error(err)
-			return err
+			continue
 		}
 		err = cs.shardChain.SetState(t.GetRecipient(), &reciverBalance)
 		if err != nil {
 			log.Error(err)
-			return err
+			continue
 		}
 
 		if t.GetContractCreation() {

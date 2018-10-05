@@ -553,7 +553,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 			// choose the next shard with a seed
 			seed := binary.BigEndian.Uint64(finalHash[:])
-			newShard, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal)
+			newShard, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardChain)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -572,7 +572,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// chose a validator based on stake
-		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardChain.CurrentBlock), currentShard)
+		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardChain.CurrentBlock), currentShard, cs.shardChain)
 		if err != nil {
 			log.Fatal(err)
 			continue
