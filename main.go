@@ -103,7 +103,7 @@ func main() {
 				var shardInterest []string
 				// if the file is empty write the config
 				if len(data) == 0 {
-					shardInterest = []string{fmt.Sprint(w.GetShardWallet())}
+					shardInterest = []string{"0", fmt.Sprint(w.GetShardWallet())}
 					resp, _ := json.Marshal(shardInterest)
 					err = ioutil.WriteFile("config.json", resp, 0644)
 					if err != nil {

@@ -235,41 +235,41 @@ func (cs *ConnectionStore) run() {
 		// algorithm but it could be optimized using ASNs as an overlay network
 		case message := <-cs.broadcast:
 			env := &network.Envelope{}
-			broadcast := &network.Broadcast{}
+			broadcastEnvelope := &network.Broadcast{}
 			proto.Unmarshal(message, env)
-			proto.Unmarshal(env.Data, broadcast)
+			proto.Unmarshal(env.Data, broadcastEnvelope)
 
-			broadcast.TTL--
-			if broadcast.TTL < 1 || broadcast.TTL > 64 {
-				continue
-			}
+			shard := env.GetShard()
 
-			broadcastBytes, err := proto.Marshal(broadcast)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-			newEnv := &network.Envelope{
-				Type:  env.Type,
-				Data:  broadcastBytes,
-				Shard: env.Shard,
-			}
-			data, err := proto.Marshal(newEnv)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
+			// send the message to the interest client
+			y := math.Exp(float64(20/len(cs.interestedClients[fmt.Sprint(shard)]))) - 0.5
+			for k := range cs.interestedClients[fmt.Sprint(shard)] {
+				broadcastEnvelope.TTL--
+				if broadcastEnvelope.TTL < 1 || broadcastEnvelope.TTL > 64 {
+					continue
+				}
 
-			if len(cs.clients) < 1 {
-				continue
-			}
-			y := math.Exp(float64(20/len(cs.clients))) - 0.5
-			for k := range cs.clients {
+				broadcastBytes, err := proto.Marshal(broadcastEnvelope)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				newEnv := &protoNetwork.Envelope{
+					Type:  protoNetwork.Envelope_BROADCAST,
+					Data:  broadcastBytes,
+					Shard: shard,
+				}
+				dataByte, err := proto.Marshal(newEnv)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+
 				if rand.Float64() > y {
 					continue
 				}
 				if k.isOpen {
-					k.send <- data
+					k.send <- dataByte
 				}
 			}
 		}
@@ -344,8 +344,11 @@ func (c *client) read() {
 			}
 
 			go c.store.handleBroadcast(pb.GetData(), pb.GetShard())
-			// TODO uncomment it, done only for test
-			// c.store.broadcast <- msg
+
+			// check if the interest exist in interestedClients
+			if _, ok := c.store.interestedClients[fmt.Sprint(pb.GetShard())]; ok {
+				c.store.broadcast <- msg
+			}
 
 		// If the ContentType is a request then try to parse it as such and handle it
 		case protoNetwork.Envelope_REQUEST:

@@ -2,9 +2,6 @@ package networking
 
 import (
 	"errors"
-	"fmt"
-	"math"
-	"math/rand"
 	"strconv"
 
 	"github.com/dexm-coin/dexmd/wallet"
@@ -39,42 +36,6 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 	err := proto.Unmarshal(data, broadcastEnvelope)
 	if err != nil {
 		return err
-	}
-
-	// check if the interest exist in interestedClients
-	if _, ok := cs.interestedClients[fmt.Sprint(shard)]; ok {
-		// if so, send the message to the interest client
-		y := math.Exp(float64(20/len(cs.interestedClients[fmt.Sprint(shard)]))) - 0.5
-		for k := range cs.interestedClients[fmt.Sprint(shard)] {
-
-			broadcastEnvelope.TTL--
-			if broadcastEnvelope.TTL < 1 || broadcastEnvelope.TTL > 64 {
-				continue
-			}
-
-			broadcastBytes, err := proto.Marshal(broadcastEnvelope)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-			newEnv := &protoNetwork.Envelope{
-				Type:  protoNetwork.Envelope_BROADCAST,
-				Data:  broadcastBytes,
-				Shard: shard,
-			}
-			dataByte, err := proto.Marshal(newEnv)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-
-			if rand.Float64() > y {
-				continue
-			}
-			if k.isOpen {
-				k.send <- dataByte
-			}
-		}
 	}
 
 	log.Info("Broadcast type:", broadcastEnvelope.GetType())
@@ -298,7 +259,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			log.Error(err)
 			return err
 		}
- 
+
 		ok, err := cs.CheckMerkleProof(merkleProof, shard)
 		if err != nil || !ok {
 			log.Error("Proof not verifed", err)
