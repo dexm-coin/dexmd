@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"math"
 	"math/rand"
 	"net/http"
 	"os"
@@ -244,38 +243,48 @@ func (cs *ConnectionStore) run() {
 
 			shard := env.GetShard()
 
-			y := 1.0
-			if len(cs.interestedClients[fmt.Sprint(shard)]) > 0 {
-				y = math.Exp(float64(20/len(cs.interestedClients[fmt.Sprint(shard)]))) - 0.5
+			// y := 1.0
+			// if len(cs.interestedClients[fmt.Sprint(shard)]) > 0 {
+			// 	y = math.Exp(float64(20/len(cs.interestedClients[fmt.Sprint(shard)]))) - 0.5
+			// }
+			log.Info("shard ", shard)
+			log.Info("interestedClients ", cs.interestedClients[fmt.Sprint(shard)])
+			log.Info("clients ", cs.clients)
+
+			broadcastEnvelope.TTL--
+			if broadcastEnvelope.TTL < 1 || broadcastEnvelope.TTL > 64 {
+				continue
 			}
-			// send the message to the interest client
-			for k := range cs.interestedClients[fmt.Sprint(shard)] {
-				broadcastEnvelope.TTL--
-				if broadcastEnvelope.TTL < 1 || broadcastEnvelope.TTL > 64 {
-					continue
-				}
 
-				broadcastBytes, err := proto.Marshal(broadcastEnvelope)
-				if err != nil {
-					log.Error(err)
-					continue
-				}
-				newEnv := &protoNetwork.Envelope{
-					Type:  protoNetwork.Envelope_BROADCAST,
-					Data:  broadcastBytes,
-					Shard: shard,
-				}
-				dataByte, err := proto.Marshal(newEnv)
-				if err != nil {
-					log.Error(err)
-					continue
-				}
+			broadcastBytes, err := proto.Marshal(broadcastEnvelope)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			newEnv := &protoNetwork.Envelope{
+				Type:  protoNetwork.Envelope_BROADCAST,
+				Data:  broadcastBytes,
+				Shard: shard,
+			}
+			dataByte, err := proto.Marshal(newEnv)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
 
-				if rand.Float64() > y {
-					continue
+			// send to everyone if there are a few clients
+			if len(cs.interestedClients) < 50 {
+				for k := range cs.clients {
+					if k.isOpen {
+						k.send <- dataByte
+					}
 				}
-				if k.isOpen {
-					k.send <- dataByte
+			} else {
+				// send the message to the interest client
+				for k := range cs.interestedClients[fmt.Sprint(shard)] {
+					if k.isOpen {
+						k.send <- dataByte
+					}
 				}
 			}
 		}
@@ -506,7 +515,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		log.Info("Current block ", cs.shardChain.CurrentBlock)
 
 		// after around 80 round send all your list of ips to every client that you know
-		if int(rand.Float64()*100) > 150-int(cs.shardChain.CurrentBlock%150) {
+		// TODO change 30 with 100
+		if int(rand.Float64()*100) > 30-int(cs.shardChain.CurrentBlock%30) {
 			ips := []string{}
 			for k := range cs.clients {
 				ips = append(ips, k.conn.RemoteAddr().String())
