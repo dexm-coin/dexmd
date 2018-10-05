@@ -124,7 +124,11 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 
 		// TODO cange this import wallet because we don't want that people know the private key of those 2 wallet
 		satoshi, _ := wallet.ImportWallet("satoshi3")
-		cs.shardChain.SetState("Dexm02aCR946Biyo98t55dqgJSb9NTpVn877EF9F5", state)
+		err := cs.shardChain.SetState("Dexm02aCR946Biyo98t55dqgJSb9NTpVn877EF9F5", state)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
 		fakeTransaction := &protobufs.Transaction{}
 		cs.beaconChain.Validators.AddValidator("Dexm02aCR946Biyo98t55dqgJSb9NTpVn877EF9F5", -300, satoshi.GetPublicKeySchnorrByte(), fakeTransaction)
 
@@ -134,14 +138,18 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		}
 
 		w, _ := wallet.ImportWallet("w3")
-		cs.shardChain.SetState("Dexm01AXxMYVnzKmrekmjx6mUdTarC3xLB1984853", state)
+		err = cs.shardChain.SetState("Dexm01AXxMYVnzKmrekmjx6mUdTarC3xLB1984853", state)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
 		cs.beaconChain.Validators.AddValidator("Dexm01AXxMYVnzKmrekmjx6mUdTarC3xLB1984853", -300, w.GetPublicKeySchnorrByte(), fakeTransaction)
 
 		state = &protobufs.AccountState{
 			Balance: 0,
 			Nonce:   0,
 		}
-		err := cs.shardChain.SetState("DexmPos", state)
+		err = cs.shardChain.SetState("DexmPos", state)
 		if err != nil {
 			log.Error(err)
 			return err
