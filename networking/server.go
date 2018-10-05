@@ -241,8 +241,11 @@ func (cs *ConnectionStore) run() {
 
 			shard := env.GetShard()
 
+			y := 1.0
+			if len(cs.interestedClients[fmt.Sprint(shard)]) > 0 {
+				y = math.Exp(float64(20/len(cs.interestedClients[fmt.Sprint(shard)]))) - 0.5
+			}
 			// send the message to the interest client
-			y := math.Exp(float64(20/len(cs.interestedClients[fmt.Sprint(shard)]))) - 0.5
 			for k := range cs.interestedClients[fmt.Sprint(shard)] {
 				broadcastEnvelope.TTL--
 				if broadcastEnvelope.TTL < 1 || broadcastEnvelope.TTL > 64 {
