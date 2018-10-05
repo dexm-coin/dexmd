@@ -163,11 +163,9 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// TODO before add it, i have to check if the signature is valid
 		// also it is possible that the signature is right, but the message inside is fake
 
-		cs.shardChain.MTTrasaction = append(cs.shardChain.MTTrasaction, signSchnorr.GetSignTransaction())
 		cs.shardChain.MTReceipt = append(cs.shardChain.MTReceipt, signSchnorr.GetSignReceipt())
 		cs.shardChain.RSchnorr = append(cs.shardChain.RSchnorr, signSchnorr.GetRSchnorr())
 		cs.shardChain.PSchnorr = append(cs.shardChain.PSchnorr, signSchnorr.GetPSchnorr())
-		cs.shardChain.MessagesTransaction = append(cs.shardChain.MessagesTransaction, signSchnorr.GetMessageSignTransaction())
 		cs.shardChain.MessagesReceipt = append(cs.shardChain.MessagesReceipt, signSchnorr.GetMessageSignReceipt())
 
 	case protoNetwork.Broadcast_MERKLE_ROOTS_SIGNED:
@@ -180,7 +178,6 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			return err
 		}
 
-		transactions := mr.GetMerkleRootsTransaction()
 		receipts := mr.GetMerkleRootsReceipt()
 		pValidatorsByte := mr.GetPValidators()
 
@@ -206,23 +203,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// TODO check 2/3 validator signed correctly
 
 		// over all signed merkle roots check if they are verified
-		for i := 0; i < len(transactions); i++ {
-			rSignedTransaction, err := wallet.ByteToPoint(mr.GetRSignedMerkleRootsTransaction())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			sSignedTransaction, err := wallet.ByteToScalar(mr.GetSSignedMerkleRootsTransaction())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			verify := wallet.VerifySignature(string(transactions[i]), rSignedTransaction, sSignedTransaction, pValidators, rValidators)
-			if !verify {
-				log.Error("Not verify")
-				return errors.New("Verify failed")
-			}
-
+		for i := 0; i < len(receipts); i++ {
 			rSignedReceipt, err := wallet.ByteToPoint(mr.GetRSignedMerkleRootsReceipt())
 			if err != nil {
 				log.Error(err)
@@ -233,7 +214,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 				log.Error(err)
 				return err
 			}
-			verify = wallet.VerifySignature(string(receipts[i]), rSignedReceipt, sSignedReceipt, pValidators, rValidators)
+			verify := wallet.VerifySignature(string(receipts[i]), rSignedReceipt, sSignedReceipt, pValidators, rValidators)
 			if !verify {
 				log.Error("Not verify")
 				return errors.New("Verify failed")

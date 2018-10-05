@@ -138,16 +138,14 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 
 	block.Transactions = transactions
 
-	merkleRootTransaction := []byte{}
 	merkleRootReceipt := []byte{}
 	if len(transactions) != 0 {
-		merkleRootTransaction, merkleRootReceipt, err = GenerateMerkleTree(transactions)
+		merkleRootReceipt, err = GenerateMerkleTree(transactions)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	block.MerkleRootTransaction = merkleRootTransaction
 	block.MerkleRootReceipt = merkleRootReceipt
 
 	return &block, nil

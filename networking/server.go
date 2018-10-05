@@ -677,7 +677,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				Ps = append(Ps, p)
 			}
 
-			var MRTransaction []byte
 			var MRReceipt []byte
 			// -3 becuase it's after 3 turn from sending GenerateParameter
 			for i := int64(cs.shardChain.CurrentBlock) - 3; i > int64(cs.shardChain.CurrentBlock)-33; i-- {
@@ -689,25 +688,20 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				block := &protoBlockchain.Block{}
 				proto.Unmarshal(blockByte, block)
 
-				merkleRootTransaction := block.GetMerkleRootTransaction()
 				merkleRootReceipt := block.GetMerkleRootReceipt()
-				MRTransaction = append(MRTransaction, merkleRootTransaction...)
 				MRReceipt = append(MRReceipt, merkleRootReceipt...)
 			}
 
 			// make the signature of the merkle roots transactions and receipts
-			signTransaction := wallet.MakeSign(x, currentK, string(MRTransaction), Rs, Ps)
 			signReceipt := wallet.MakeSign(x, currentK, string(MRReceipt), Rs, Ps)
 
 			// send the signed transaction and receipt
 			signSchorrP := &protoBlockchain.SignSchnorr{
-				Wallet:                 wal,
-				RSchnorr:               myR,
-				PSchnorr:               myP,
-				SignTransaction:        signTransaction,
-				SignReceipt:            signReceipt,
-				MessageSignTransaction: MRTransaction,
-				MessageSignReceipt:     MRReceipt,
+				Wallet:             wal,
+				RSchnorr:           myR,
+				PSchnorr:           myP,
+				SignReceipt:        signReceipt,
+				MessageSignReceipt: MRReceipt,
 			}
 			signSchorrByte, _ := proto.Marshal(signSchorrP)
 
@@ -732,7 +726,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		if turnAfterSchnorr == 7 {
 			var Rs []kyber.Point
 			var Ps []kyber.Point
-			var SsTransaction []kyber.Scalar
 			var SsReceipt []kyber.Scalar
 
 			// from all validator choosen get R, P and the signature of transaction and receipt
@@ -748,11 +741,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					continue
 				}
 
-				sTransaction, err := wallet.ByteToScalar(cs.shardChain.MTTrasaction[i])
-				if err != nil {
-					log.Error(err)
-					continue
-				}
 				sReceipt, err := wallet.ByteToScalar(cs.shardChain.MTReceipt[i])
 				if err != nil {
 					log.Error(err)
@@ -761,18 +749,13 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 				Rs = append(Rs, r)
 				Ps = append(Ps, p)
-				SsTransaction = append(SsTransaction, sTransaction)
 				SsReceipt = append(SsReceipt, sReceipt)
 			}
 
-			if len(Rs) == 0 || len(SsTransaction) == 0 || len(SsReceipt) == 0 {
-				log.Error("Error length ", Rs, SsTransaction, SsReceipt)
+			if len(Rs) == 0 || len(SsReceipt) == 0 {
+				log.Error("Error length ", Rs, SsReceipt)
 			} else {
 				// generate the final signature
-				RsignatureTransaction, SsignatureTransaction, err := wallet.CreateSignature(Rs, SsTransaction)
-				if err != nil {
-					log.Error(err)
-				}
 				RsignatureReceipt, SsignatureReceipt, err := wallet.CreateSignature(Rs, SsReceipt)
 				if err != nil {
 					log.Error(err)
@@ -780,15 +763,12 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 				// send the final signature
 				mr := &protoBlockchain.MerkleRootsSigned{
-					Shard: currentShard,
-					MerkleRootsTransaction:        cs.shardChain.MessagesTransaction,
-					MerkleRootsReceipt:            cs.shardChain.MessagesReceipt,
-					RSignedMerkleRootsTransaction: RsignatureTransaction,
-					SSignedMerkleRootsTransaction: SsignatureTransaction,
-					RSignedMerkleRootsReceipt:     RsignatureReceipt,
-					SSignedMerkleRootsReceipt:     SsignatureReceipt,
-					RValidators:                   cs.shardChain.RSchnorr,
-					PValidators:                   cs.shardChain.PSchnorr,
+					Shard:                     currentShard,
+					MerkleRootsReceipt:        cs.shardChain.MessagesReceipt,
+					RSignedMerkleRootsReceipt: RsignatureReceipt,
+					SSignedMerkleRootsReceipt: SsignatureReceipt,
+					RValidators:               cs.shardChain.RSchnorr,
+					PValidators:               cs.shardChain.PSchnorr,
 				}
 				mrByte, _ := proto.Marshal(mr)
 
@@ -819,14 +799,26 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					proto.Unmarshal(blockByte, block)
 
 					// generate and send the merkle proof
-					transactions := block.GetTransactions()
-					for i, t := range transactions {
-						log.Info("Transaction to prove")
+					var receipts []*protoBlockchain.Receipt
+					var transactions []*protoBlockchain.Transaction
+					for _, t := range block.GetTransactions() {
 						if t.GetShard() != currentShard {
 							log.Info("not your shard to merkleproof")
 							continue
 						}
-						merkleProofByte := GenerateMerkleProof(transactions, i)
+						r := &protoBlockchain.Receipt{
+							Sender:    wallet.BytesToAddress(t.GetSender(), t.GetShard()),
+							Recipient: t.GetRecipient(),
+							Amount:    t.GetAmount(),
+							Nonce:     t.GetNonce(),
+						}
+						receipts = append(receipts, r)
+						transactions = append(transactions, t)
+					}
+
+					for i, _ := range receipts {
+						log.Info("Receipts to prove")
+						merkleProofByte := GenerateMerkleProof(receipts, i, transactions[i])
 
 						broadcastMerkleProof := &network.Broadcast{
 							Type: protoNetwork.Broadcast_MERKLE_PROOF,
@@ -856,11 +848,9 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			for k := range cs.shardChain.Schnorr {
 				delete(cs.shardChain.Schnorr, k)
 			}
-			cs.shardChain.MTTrasaction = [][]byte{}
 			cs.shardChain.MTReceipt = [][]byte{}
 			cs.shardChain.RSchnorr = [][]byte{}
 			cs.shardChain.PSchnorr = [][]byte{}
-			cs.shardChain.MessagesTransaction = [][]byte{}
 			cs.shardChain.MessagesReceipt = [][]byte{}
 
 			countTurn = false

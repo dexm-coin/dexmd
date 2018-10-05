@@ -26,11 +26,9 @@ type Blockchain struct {
 	TransactionArrived [][]byte
 
 	Schnorr             map[string][]byte
-	MTTrasaction        [][]byte
 	MTReceipt           [][]byte
 	RSchnorr            [][]byte
 	PSchnorr            [][]byte
-	MessagesTransaction [][]byte
 	MessagesReceipt     [][]byte
 
 	GenesisTimestamp uint64
@@ -111,11 +109,9 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		TransactionArrived: [][]byte{},
 
 		Schnorr:             make(map[string][]byte),
-		MTTrasaction:        [][]byte{},
 		MTReceipt:           [][]byte{},
 		RSchnorr:            [][]byte{},
 		PSchnorr:            [][]byte{},
-		MessagesTransaction: [][]byte{},
 		MessagesReceipt:     [][]byte{},
 
 		CurrentBlock:      index,

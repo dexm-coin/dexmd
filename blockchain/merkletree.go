@@ -10,8 +10,7 @@ import (
 )
 
 // GenerateMerkleTree generate a merkletree 
-func GenerateMerkleTree(transactions []*protobufs.Transaction) ([]byte, []byte, error) {
-	var dataTransaction [][]byte
+func GenerateMerkleTree(transactions []*protobufs.Transaction) ([]byte, error) {
 	var dataReceipt [][]byte
 	for _, t := range transactions {
 		r := &protobufs.Receipt{
@@ -21,26 +20,16 @@ func GenerateMerkleTree(transactions []*protobufs.Transaction) ([]byte, []byte, 
 			Nonce:     t.GetNonce(),
 		}
 		rByte, _ := proto.Marshal(r)
-		tByte, _ := proto.Marshal(t)
-		dataTransaction = append(dataTransaction, tByte)
 		dataReceipt = append(dataReceipt, rByte)
 	}
 
-	treeTransaction := gomerkle.NewTree(sha256.New())
-	treeTransaction.AddData(dataTransaction...)
-	err := treeTransaction.Generate()
-	if err != nil {
-		return nil, nil, err
-	}
-	merkleRootTransaction := treeTransaction.Root()
-
 	treeReceipt := gomerkle.NewTree(sha256.New())
 	treeReceipt.AddData(dataReceipt...)
-	err = treeReceipt.Generate()
+	err := treeReceipt.Generate()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	merkleRootReceipt := treeReceipt.Root()
 
-	return merkleRootTransaction, merkleRootReceipt, nil
+	return merkleRootReceipt, nil
 }

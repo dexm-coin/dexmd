@@ -97,7 +97,7 @@ func (cs *ConnectionStore) VerifyProof(mp *protobufs.MerkleProof, shard uint32) 
 
 		mrs := &protobufs.MerkleRootsSigned{}
 		proto.Unmarshal(value, mrs)
-		for _, t := range mrs.GetMerkleRootsTransaction() {
+		for _, t := range mrs.GetMerkleRootsReceipt() {
 			equal := reflect.DeepEqual(rootTransaction, t)
 			if equal {
 				merkleRootFound = true
@@ -125,7 +125,7 @@ func (cs *ConnectionStore) VerifyProof(mp *protobufs.MerkleProof, shard uint32) 
 		m[key] = hashes[i]
 		mapProof = append(mapProof, m)
 	}
-	t, _ := proto.Marshal(mp.GetTransaction())
+	t, _ := proto.Marshal(mp.GetReceipt())
 
 	equal := reflect.DeepEqual(hash(t), mp.GetLeaf())
 	// check if the transaction and Leaf ( hash of the transaction for the proof ) are equal
@@ -151,9 +151,9 @@ func verifyMerkleProof(proof []map[string][]byte, root, value []byte) bool {
 	return bytes.Equal(root, proofHash)
 }
 
-func GenerateMerkleProof(transactions []*protobufs.Transaction, indexProof int) []byte {
+func GenerateMerkleProof(receipts []*protobufs.Receipt, indexProof int, transaction *protobufs.Transaction) []byte {
 	var data [][]byte
-	for _, t := range transactions {
+	for _, t := range receipts {
 		tByte, _ := proto.Marshal(t)
 		data = append(data, tByte)
 	}
@@ -184,7 +184,8 @@ func GenerateMerkleProof(transactions []*protobufs.Transaction, indexProof int) 
 		MapHash:     listHash,
 		Root:        merkleRoot,
 		Leaf:        leaf,
-		Transaction: transactions[indexProof],
+		Receipt:     receipts[indexProof],
+		Transaction: transaction,
 	}
 	merkleProofByte, _ := proto.Marshal(merkleProof)
 	return merkleProofByte
