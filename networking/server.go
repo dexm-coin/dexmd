@@ -791,7 +791,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				env := &network.Envelope{
 					Type:  network.Envelope_BROADCAST,
 					Data:  broadcastMrByte,
-					Shard: currentShard,
+					Shard: 0,
 				}
 
 				data, _ := proto.Marshal(env)
@@ -815,7 +815,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 							log.Info("not your shard to merkleproof")
 							continue
 						}
-						merkleProofByte := blockchain.GenerateMerkleProof(transactions, i)
+						merkleProofByte := GenerateMerkleProof(transactions, i)
 
 						broadcastMerkleProof := &network.Broadcast{
 							Type: protoNetwork.Broadcast_MERKLE_PROOF,
@@ -827,7 +827,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 						envMerkleProof := &network.Envelope{
 							Type:  network.Envelope_BROADCAST,
 							Data:  broadcastMerkleProofByteByte,
-							Shard: currentShard,
+							Shard: 0,
 						}
 
 						dataMerkleProof, _ := proto.Marshal(envMerkleProof)

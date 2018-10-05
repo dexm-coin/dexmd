@@ -279,15 +279,15 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			}
 		}
 
-		log.Info("MerkleRootSigned Verified")
-
 		// TODO right now i save every Broadcast_MERKLE_ROOTS_SIGNED that is verified, but i can't do like this
 
 		// if everything is verified then save the signature inside the MerkleRootsDb
 		err = cs.beaconChain.SaveMerkleRoots(mr)
 		if err != nil {
 			log.Error(err)
+			return err
 		}
+		log.Info("MerkleRootSigned Verified")
 
 	case protoNetwork.Broadcast_MERKLE_PROOF:
 		log.Printf("New Merkle Proof: %x", broadcastEnvelope.GetData())
@@ -298,11 +298,10 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			log.Error(err)
 			return err
 		}
-
-		ok, err := cs.CheckMerkleProof(merkleProof)
+ 
+		ok, err := cs.CheckMerkleProof(merkleProof, shard)
 		if err != nil || !ok {
-			log.Error("Proof not verifed")
-			log.Error(err)
+			log.Error("Proof not verifed", err)
 			return err
 		}
 		log.Info("Proof verifed")

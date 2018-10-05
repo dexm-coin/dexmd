@@ -1,19 +1,22 @@
 package networking
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"errors"
+	"reflect"
 
-	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/util"
 	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
+	"github.com/onrik/gomerkle"
 	log "github.com/sirupsen/logrus"
 )
 
 var ReceiptBurned = make(map[string]bool)
 
-func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) (bool, error) {
+func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof, shard uint32) (bool, error) {
 	// check if the proof has already be done
 	if val, ok := ReceiptBurned[string(merkleProof.GetLeaf())]; ok && val {
 		log.Error("Double spend!")
@@ -21,7 +24,7 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) 
 	}
 
 	// if not, check the poof and then change the balance of the receiver and sender of the transaction in the proof
-	if blockchain.VerifyProof(merkleProof) {
+	if cs.VerifyProof(merkleProof, shard) {
 		// mark the hash of the transaction as burned
 		ReceiptBurned[string(merkleProof.GetLeaf())] = true
 
@@ -74,4 +77,115 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) 
 		return true, nil
 	}
 	return false, nil
+}
+
+// TODO maybe there is a problem with data and leaf
+
+func hash(data []byte) []byte {
+	h := sha256.New()
+	h.Write(data)
+	return h.Sum(nil)
+}
+
+func (cs *ConnectionStore) VerifyProof(mp *protobufs.MerkleProof, shard uint32) bool {
+	//check that merkleproof.Root is inside MerkleRootsDb
+	rootTransaction := mp.GetRoot()
+	merkleRootFound := false
+	iter := cs.beaconChain.MerkleRootsDb[shard].NewIterator(nil, nil)
+	for iter.Next() {
+		value := iter.Value()
+
+		mrs := &protobufs.MerkleRootsSigned{}
+		proto.Unmarshal(value, mrs)
+		for _, t := range mrs.GetMerkleRootsTransaction() {
+			equal := reflect.DeepEqual(rootTransaction, t)
+			if equal {
+				merkleRootFound = true
+				break
+			}
+		}
+		if merkleRootFound {
+			break
+		}
+	}
+	iter.Release()
+	err := iter.Error()
+	if err != nil {
+		log.Error(err)
+	}
+
+	if !merkleRootFound {
+		return false
+	}
+
+	hashes := mp.GetMapHash()
+	var mapProof []map[string][]byte
+	for i, key := range mp.GetMapLeaf() {
+		m := make(map[string][]byte)
+		m[key] = hashes[i]
+		mapProof = append(mapProof, m)
+	}
+	t, _ := proto.Marshal(mp.GetTransaction())
+
+	equal := reflect.DeepEqual(hash(t), mp.GetLeaf())
+	// check if the transaction and Leaf ( hash of the transaction for the proof ) are equal
+	if !equal {
+		return false
+	}
+
+	return verifyMerkleProof(mapProof, mp.GetRoot(), mp.GetLeaf())
+}
+
+// VerifyProof verify proof for value
+func verifyMerkleProof(proof []map[string][]byte, root, value []byte) bool {
+	proofHash := value
+	for _, p := range proof {
+		if sibling, exist := p["left"]; exist {
+			proofHash = hash(append(sibling, proofHash...))
+		} else if sibling, exist := p["right"]; exist {
+			proofHash = hash(append(proofHash, sibling...))
+		} else {
+			return false
+		}
+	}
+	return bytes.Equal(root, proofHash)
+}
+
+func GenerateMerkleProof(transactions []*protobufs.Transaction, indexProof int) []byte {
+	var data [][]byte
+	for _, t := range transactions {
+		tByte, _ := proto.Marshal(t)
+		data = append(data, tByte)
+	}
+
+	tree := gomerkle.NewTree(sha256.New())
+	tree.AddData(data...)
+
+	err := tree.Generate()
+	if err != nil {
+		panic(err)
+	}
+	merkleRoot := tree.Root()
+
+	proof := tree.GetProof(indexProof)
+	leaf := tree.GetLeaf(indexProof)
+
+	var listLeaf []string
+	var listHash [][]byte
+	for _, p := range proof {
+		for key, value := range p {
+			listLeaf = append(listLeaf, key)
+			listHash = append(listHash, value)
+		}
+	}
+
+	merkleProof := &protobufs.MerkleProof{
+		MapLeaf:     listLeaf,
+		MapHash:     listHash,
+		Root:        merkleRoot,
+		Leaf:        leaf,
+		Transaction: transactions[indexProof],
+	}
+	merkleProofByte, _ := proto.Marshal(merkleProof)
+	return merkleProofByte
 }
