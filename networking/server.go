@@ -72,6 +72,9 @@ func (cs *ConnectionStore) Loop() {
 			continue
 		}
 		// TODO do go routine and delete break
+		if interestInt == 0 {
+			continue
+		}
 		cs.ValidatorLoop(uint32(interestInt))
 		break
 	}

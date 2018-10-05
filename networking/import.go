@@ -145,20 +145,20 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		}
 		cs.beaconChain.Validators.AddValidator("Dexm01AXxMYVnzKmrekmjx6mUdTarC3xLB1984853", -300, w.GetPublicKeySchnorrByte(), fakeTransaction)
 
-		state = &protobufs.AccountState{
-			Balance: 0,
-			Nonce:   0,
-		}
-		err = cs.shardChain.SetState("DexmPos", state)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		err = cs.shardChain.SetState("DexmVoid", state)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+		// state = &protobufs.AccountState{
+		// 	Balance: 0,
+		// 	Nonce:   0,
+		// }
+		// err = cs.shardChain.SetState("DexmPos", state)
+		// if err != nil {
+		// 	log.Error(err)
+		// 	return err
+		// }
+		// err = cs.shardChain.SetState("DexmVoid", state)
+		// if err != nil {
+		// 	log.Error(err)
+		// 	return err
+		// }
 
 		cs.shardChain.GenesisTimestamp = block.GetTimestamp()
 

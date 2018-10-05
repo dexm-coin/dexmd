@@ -131,9 +131,7 @@ func (bc *Blockchain) GetWalletState(wallet string) (protobufs.AccountState, err
 	if err != nil {
 		return state, err
 	}
-
 	proto.Unmarshal(raw, &state)
-
 	return state, nil
 }
 
