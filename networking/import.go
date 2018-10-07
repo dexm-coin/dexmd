@@ -149,7 +149,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		// 	Balance: 0,
 		// 	Nonce:   0,
 		// }
-		// err = cs.shardChain.SetState("DexmPos", state)
+		// err = cs.shardChain.SetState("DexmPoS", state)
 		// if err != nil {
 		// 	log.Error(err)
 		// 	return err
