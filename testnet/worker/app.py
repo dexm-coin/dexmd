@@ -3,6 +3,7 @@ from threading import Thread
 from time import sleep
 import random
 
+sleep(60)
 shard = random.randint(1, 10)
 os.system("./dexmd mw wal.json " + str(shard))
 

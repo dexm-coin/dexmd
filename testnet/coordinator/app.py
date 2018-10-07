@@ -4,14 +4,15 @@ import os, random
 app = Flask(__name__)
 
 wallets = [] 
-start_time = int(time() + 120)
+start_time = int(time() + 130)
+
+os.system("./dexmd sn satoshi3 " + str(start_time))
 
 @app.route("/submit_addr")
 def key():
     wallet = request.args.get('wallet')
     wallets.append(wallet)
     return str(start_time)
-
 
 @app.route("/send_money")
 def send_money():
