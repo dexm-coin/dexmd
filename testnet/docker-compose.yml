@@ -2,12 +2,12 @@ version: "3"
  
 services:
   coordinator:
-    build: ./coordinator
+    image: "dexmcoin/coordinator"
     ports:
       - "5000:5000"
 
   worker:
-    build: ./worker
+    image: "dexmcoin/worker"
     links:
       - coordinator
     ports:
