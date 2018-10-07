@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// TODO put ReceiptBurned in a file, can't handle this in ram
 var ReceiptBurned = make(map[string]bool)
 
 func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof, shard uint32) (bool, error) {

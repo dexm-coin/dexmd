@@ -72,7 +72,7 @@ func (cs *ConnectionStore) CheckpointAgreement(SourceHeight, TargetHeight uint64
 			continue
 		}
 		if !IsVoteValid(cs.shardChain, vote.GetSource(), vote.GetTarget(), vote.GetTargetHeight()) {
-			log.Error("Source and target and not valid")
+			log.Error("Source and target are not valid")
 			continue
 		}
 
@@ -101,8 +101,8 @@ func (cs *ConnectionStore) CheckpointAgreement(SourceHeight, TargetHeight uint64
 }
 
 // IsJustified : A block is justified if is the root or if it's between 2 checkpoint
-func IsJustified(b *blockchain.Blockchain, index uint64) bool {
-	if index > b.CurrentCheckpoint {
+func IsJustified(currentCheckpoint uint64, index uint64) bool {
+	if index > currentCheckpoint {
 		return false
 	}
 	return true
@@ -132,9 +132,10 @@ func IsVoteValid(b *blockchain.Blockchain, sourceHash, targetHash []byte, Target
 			if len(block.PrevHash) < 1 {
 				continue
 			}
+			prevHash = block.GetPrevHash()
 		}
 		// check untill the first checkpoint
-		if IsJustified(b, i) {
+		if IsJustified(b.CurrentCheckpoint, i) {
 			return false
 		}
 	}

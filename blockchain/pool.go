@@ -57,11 +57,15 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 		currBlocks := []byte{}
 		var err error
 		// There may be holes in the blockchain. Keep going till you find a block
-		for i := bc.CurrentBlock - 1; i > 0; i-- {
+		for i := bc.CurrentBlock - 1; i >= 0; i-- {
 			currBlocks, err = bc.GetBlock(i)
 			if err == nil {
 				break
 			}
+		}
+
+		if err != nil {
+			log.Error("Prev block not found")
 		}
 
 		bhash := sha256.Sum256(currBlocks)
