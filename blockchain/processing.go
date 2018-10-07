@@ -25,11 +25,11 @@ type Blockchain struct {
 	Mempool            *mempool
 	TransactionArrived [][]byte
 
-	Schnorr             map[string][]byte
-	MTReceipt           [][]byte
-	RSchnorr            [][]byte
-	PSchnorr            [][]byte
-	MessagesReceipt     [][]byte
+	Schnorr         map[string][]byte
+	MTReceipt       [][]byte
+	RSchnorr        [][]byte
+	PSchnorr        [][]byte
+	MessagesReceipt [][]byte
 
 	GenesisTimestamp uint64
 
@@ -58,6 +58,7 @@ func NewBeaconChain(dbPath string) (*BeaconChain, error) {
 			return nil, err
 		}
 		mrdb[i] = db
+		cb[i] = 0
 	}
 
 	vd := NewValidatorsBook()
@@ -108,11 +109,11 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		Mempool:            mp,
 		TransactionArrived: [][]byte{},
 
-		Schnorr:             make(map[string][]byte),
-		MTReceipt:           [][]byte{},
-		RSchnorr:            [][]byte{},
-		PSchnorr:            [][]byte{},
-		MessagesReceipt:     [][]byte{},
+		Schnorr:         make(map[string][]byte),
+		MTReceipt:       [][]byte{},
+		RSchnorr:        [][]byte{},
+		PSchnorr:        [][]byte{},
+		MessagesReceipt: [][]byte{},
 
 		CurrentBlock:      index,
 		CurrentCheckpoint: 0,
@@ -134,17 +135,17 @@ func (bc *Blockchain) GetWalletState(wallet string) (protobufs.AccountState, err
 func (bc *BeaconChain) SaveMerkleRoots(mr *protobufs.MerkleRootsSigned) error {
 	res, _ := proto.Marshal(mr)
 	currShard := mr.GetShard()
+	log.Info("save")
+	log.Info("bc.CurrentBlock ", bc.CurrentBlock)
+	log.Info("bc.CurrentBlock[currShard] ", bc.CurrentBlock[currShard])
+	log.Info("bc.MerkleRootsDb ", bc.MerkleRootsDb)
+	log.Info("bc.MerkleRootsDb[currShard] ", bc.MerkleRootsDb[currShard])
+	// TODO increase bc.CurrentBlock[currShard]
 	return bc.MerkleRootsDb[currShard].Put([]byte(strconv.Itoa(int(bc.CurrentBlock[currShard]))), res, nil)
 }
 
 func (bc *BeaconChain) GetMerkleRoots(index uint64, shard uint32) ([]byte, error) {
 	return bc.MerkleRootsDb[shard].Get([]byte(strconv.Itoa(int(index))), nil)
-}
-
-// SaveBlockBeacon saves a block into the BeaconChain in a specific shard and index
-func (bc *BeaconChain) SaveBlockBeacon(block *protobufs.MerkleRootsSigned, shard uint32, index int64) error {
-	res, _ := proto.Marshal(block)
-	return bc.MerkleRootsDb[shard].Put([]byte(strconv.Itoa(int(index))), res, nil)
 }
 
 // GetBlockBeacon returns the array of blocks at an index and at a specific shard
