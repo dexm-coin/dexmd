@@ -10,7 +10,6 @@ start_time = int(time() + 120)
 def key():
     wallet = request.args.get('wallet')
     wallets.append(wallet)
-
     return str(start_time)
 
 
