@@ -87,34 +87,10 @@ func hash(data []byte) []byte {
 	return h.Sum(nil)
 }
 
-/*
-panic: runtime error: invalid memory address or nil pointer dereference
-[signal SIGSEGV: segmentation violation code=0x1 addr=0x178 pc=0x690071]
-
-goroutine 218 [running]:
-github.com/syndtr/goleveldb/leveldb.(*DB).isClosed(...)
-        /home/antoniogroza/go/src/github.com/syndtr/goleveldb/leveldb/db_state.go:230
-github.com/syndtr/goleveldb/leveldb.(*DB).ok(...)
-        /home/antoniogroza/go/src/github.com/syndtr/goleveldb/leveldb/db_state.go:235
-github.com/syndtr/goleveldb/leveldb.(*DB).NewIterator(0x0, 0x0, 0x0, 0x0, 0x0)
-        /home/antoniogroza/go/src/github.com/syndtr/goleveldb/leveldb/db.go:879 +0x31
-github.com/dexm-coin/dexmd/networking.(*ConnectionStore).VerifyProof(0xc4200aa0c0, 0xc423f70000, 0xc400000000, 0x20)
-        /home/antoniogroza/go/src/github.com/dexm-coin/dexmd/networking/merkleproof.go:94 +0xac
-github.com/dexm-coin/dexmd/networking.(*ConnectionStore).CheckMerkleProof(0xc4200aa0c0, 0xc423f70000, 0x0, 0x9c5aa0, 0xc423f70000, 0x0)
-        /home/antoniogroza/go/src/github.com/dexm-coin/dexmd/networking/merkleproof.go:27 +0xb3
-github.com/dexm-coin/dexmd/networking.(*ConnectionStore).handleBroadcast(0xc4200aa0c0, 0xc425206000, 0x184, 0x1a0, 0x0, 0x2, 0x982700)
-        /home/antoniogroza/go/src/github.com/dexm-coin/dexmd/networking/broadcast.go:244 +0x1cec
-created by github.com/dexm-coin/dexmd/networking.(*client).read
-		/home/antoniogroza/go/src/github.com/dexm-coin/dexmd/networking/server.go:353 +0x285
-*/
-
 func (cs *ConnectionStore) VerifyProof(mp *protobufs.MerkleProof, shard uint32) bool {
 	//check that merkleproof.Root is inside MerkleRootsDb
 	rootTransaction := mp.GetRoot()
 	merkleRootFound := false
-	log.Info("VerifyProof")
-	log.Info("cs.beaconChain.MerkleRootsDb ", cs.beaconChain.MerkleRootsDb)
-	log.Info("cs.beaconChain.MerkleRootsDb[shard] ", cs.beaconChain.MerkleRootsDb[shard])
 	if _, ok := cs.beaconChain.MerkleRootsDb[shard]; !ok {
 		return false
 	}

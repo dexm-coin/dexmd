@@ -135,12 +135,8 @@ func (bc *Blockchain) GetWalletState(wallet string) (protobufs.AccountState, err
 func (bc *BeaconChain) SaveMerkleRoots(mr *protobufs.MerkleRootsSigned) error {
 	res, _ := proto.Marshal(mr)
 	currShard := mr.GetShard()
-	log.Info("save")
-	log.Info("bc.CurrentBlock ", bc.CurrentBlock)
-	log.Info("bc.CurrentBlock[currShard] ", bc.CurrentBlock[currShard])
-	log.Info("bc.MerkleRootsDb ", bc.MerkleRootsDb)
-	log.Info("bc.MerkleRootsDb[currShard] ", bc.MerkleRootsDb[currShard])
-	// TODO increase bc.CurrentBlock[currShard]
+
+	bc.CurrentBlock[currShard]++
 	return bc.MerkleRootsDb[currShard].Put([]byte(strconv.Itoa(int(bc.CurrentBlock[currShard]))), res, nil)
 }
 

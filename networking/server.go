@@ -858,7 +858,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// Checkpoint Agreement
-		if cs.shardChain.CurrentBlock%100 == 0 && cs.shardChain.CurrentBlock%10000 != 0 {
+		if cs.shardChain.CurrentBlock%10 == 0 && cs.shardChain.CurrentBlock%10000 != 0 {
 			// check if it is a validator, also check that the dynasty are correct
 			if cs.beaconChain.Validators.CheckDynasty(wal, cs.shardChain.CurrentBlock) {
 				// get source and target block in the blockchain
