@@ -573,7 +573,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			seed := binary.BigEndian.Uint64(finalHash[:])
 			newShard, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardChain)
 			if err != nil {
-				log.Fatal(err)
+				log.Error(err)
 			}
 
 			// TODO like this doesn't work, you shouldn't remove the blockchain so early
@@ -592,7 +592,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		// chose a validator based on stake
 		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardChain.CurrentBlock), currentShard, cs.shardChain)
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 			continue
 		}
 
@@ -936,7 +936,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// Checkpoint Agreement
-		if cs.shardChain.CurrentBlock%5 == 0 && cs.shardChain.CurrentBlock%10000 != 0 {
+		if cs.shardChain.CurrentBlock%100 == 0 && cs.shardChain.CurrentBlock%10000 != 0 {
 			// check if it is a validator, also check that the dynasty are correct
 			if cs.beaconChain.Validators.CheckDynasty(wal, cs.shardChain.CurrentBlock) {
 				// get source and target block in the blockchain
