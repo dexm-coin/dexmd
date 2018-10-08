@@ -185,16 +185,17 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	for i, t := range block.GetTransactions() {
 		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
 
-		result, _ := proto.Marshal(t)
-		bhash := sha256.Sum256(result)
-		hash := bhash[:]
+		// result, _ := proto.Marshal(t)
+		// bhash := sha256.Sum256(result)
+		// hash := bhash[:]
 
-		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
-		if !valid || err != nil {
-			log.Error("SignatureValid ", err)
-			return false, err
-		}
+		// valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
+		// if !valid || err != nil {
+		// 	log.Error("SignatureValid ", err)
+		// 	return false, err
+		// }
 
+		var err error
 		balance := protobufs.AccountState{}
 
 		// Check if the address state changed while processing this block
