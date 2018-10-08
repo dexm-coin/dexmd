@@ -62,14 +62,14 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			return err
 		}
 
-		// save only the block that have cs.shardChain.currentblock+1
-		if block.Index != cs.shardChain.CurrentBlock+1 {
-			log.Error("The index of the block is wrong")
-		}
-		// check if the signature of the block that should be cs.shardChain.CurrentValidator
-		if block.Miner != cs.shardChain.CurrentValidator {
-			log.Error("The miner is wrong")
-		}
+		// // save only the block that have cs.shardChain.currentblock+1
+		// if block.Index != cs.shardChain.CurrentBlock+1 {
+		// 	log.Error("The index of the block is wrong")
+		// }
+		// // check if the signature of the block that should be cs.shardChain.CurrentValidator
+		// if block.Miner != cs.shardChain.CurrentValidator {
+		// 	log.Error("The miner is wrong")
+		// }
 		// TODO check signature
 		// blockBytes, _ := proto.Marshal(block)
 		// bhash := sha256.Sum256(blockBytes)
