@@ -40,12 +40,20 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 	switch broadcastEnvelope.GetType() {
 	// Register a new transaction to the mempool
 	case protoNetwork.Broadcast_TRANSACTION:
-		if !cs.CheckShard(shard) {
+		pb := &protoBlockchain.Transaction{}
+		err := proto.Unmarshal(broadcastEnvelope.GetData(), pb)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+
+		// check the interests with the shard of the sender of the transaction
+		if !cs.CheckShard(pb.GetShard()) {
 			return nil
 		}
 
 		log.Printf("New Transaction: %x", broadcastEnvelope.GetData())
-		cs.shardChain.AddMempoolTransaction(broadcastEnvelope.GetData())
+		cs.shardChain.AddMempoolTransaction(pb, len(broadcastEnvelope.GetData()))
 
 	// Save a block proposed by a validator
 	case protoNetwork.Broadcast_BLOCK_PROPOSAL:

@@ -24,24 +24,17 @@ func newMempool(maxBlockSize int, maxGas float64) *mempool {
 }
 
 // AddMempoolTransaction adds a transaction to the mempool
-func (bc *Blockchain) AddMempoolTransaction(rawTx []byte) error {
-	pb := &protobufs.Transaction{}
-
-	err := proto.Unmarshal(rawTx, pb)
+func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, lenRawTransaction int) error {
+	err := bc.ValidateTransaction(pb)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 
-	err = bc.ValidateTransaction(pb)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	priority := float64(pb.GetGas()) / float64(len(rawTx))
+	priority := float64(pb.GetGas()) / float64(lenRawTransaction)
 
 	if priority > bc.Mempool.maxGasPerByte {
+		log.Error("Too much gas")
 		return errors.New("Too much gas")
 	}
 

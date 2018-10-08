@@ -136,7 +136,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 		trEnv := &network.Envelope{
 			Type:  network.Envelope_BROADCAST,
 			Data:  brD,
-			Shard: shard,
+			Shard: 0,
 		}
 
 		finalD, _ := proto.Marshal(trEnv)
