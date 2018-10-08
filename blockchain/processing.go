@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"crypto/sha256"
 	"errors"
 	"math"
 	"strconv"
@@ -185,8 +186,10 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
 
 		result, _ := proto.Marshal(t)
+		bhash := sha256.Sum256(result)
+		hash := bhash[:]
 
-		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), result)
+		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
 		if !valid || err != nil {
 			log.Error("SignatureValid ", err)
 			return false, err
@@ -258,8 +261,11 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 		return errors.New("Invalid recipient")
 	}
 
-	// TODO change []byte{} with the hash of the transaction
-	valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), )
+	result, _ := proto.Marshal(t)
+	bhash := sha256.Sum256(result)
+	hash := bhash[:]
+
+	valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
 	if !valid {
 		return err
 	}

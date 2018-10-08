@@ -241,16 +241,6 @@ func (cs *ConnectionStore) run() {
 			proto.Unmarshal(message, env)
 			proto.Unmarshal(env.Data, broadcastEnvelope)
 
-			// check signature
-			bhash := sha256.Sum256(broadcastEnvelope.GetData())
-			hash := bhash[:]
-			identityBroadcast := broadcastEnvelope.GetIdentity()
-			signatureValid, err := wallet.SignatureValid(identityBroadcast.GetPubkey(), identityBroadcast.GetR(), identityBroadcast.GetS(), hash)
-			if !signatureValid || err != nil {
-				log.Error("Fail signatureValid broadcast ", err)
-				continue
-			}
-
 			shard := env.GetShard()
 
 			broadcastEnvelope.TTL--
@@ -300,20 +290,20 @@ func checkDuplicatedMessage(msg []byte) bool {
 	proto.Unmarshal(env.Data, broadcast)
 
 	// check signature
-	bhash := sha256.Sum256(broadcastEnvelope.GetData())
+	bhash := sha256.Sum256(broadcast.GetData())
 	hash := bhash[:]
-	identityBroadcast := broadcastEnvelope.GetIdentity()
+	identityBroadcast := broadcast.GetIdentity()
 	signatureValid, err := wallet.SignatureValid(identityBroadcast.GetPubkey(), identityBroadcast.GetR(), identityBroadcast.GetS(), hash)
 	if !signatureValid || err != nil {
 		log.Error("Fail signatureValid broadcast ", err)
-		continue
+		return false
 	}
 
 	// set TTL to 0, calculate the hash of the message, check if already exist
 	copyBroadcast := *broadcast
 	copyBroadcast.TTL = 0
-	bhash := sha256.Sum256([]byte(fmt.Sprintf("%v", copyBroadcast)))
-	hash := bhash[:]
+	bhash = sha256.Sum256([]byte(fmt.Sprintf("%v", copyBroadcast)))
+	hash = bhash[:]
 	alreadyReceived := false
 	for _, h := range hashMessages {
 		equal := reflect.DeepEqual(h, hash)

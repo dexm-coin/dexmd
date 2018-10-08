@@ -63,13 +63,14 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		}
 
 		// save only the block that have cs.shardChain.currentblock+1
-		// if block.Index != cs.shardChain.CurrentBlock+1 {
-		// 	log.Error("The index of the block is wrong")
-		// }
+		if block.Index != cs.shardChain.CurrentBlock+1 {
+			log.Error("The index of the block is wrong")
+		}
 		// check if the signature of the block that should be cs.shardChain.CurrentValidator
-		// if block.Miner != cs.shardChain.CurrentValidator {
-		// 	log.Error("The miner is wrong")
-		// }
+		if block.Miner != cs.shardChain.CurrentValidator {
+			log.Error("The miner is wrong")
+		}
+		// TODO check signature
 		// blockBytes, _ := proto.Marshal(block)
 		// bhash := sha256.Sum256(blockBytes)
 		// hash := bhash[:]
@@ -78,6 +79,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// 	log.Error(err)
 		// 	return err
 		// }
+		// TODO change first parameter
 		// verifyBlock, err := wallet.SignatureValid([]byte(cs.shardChain.CurrentValidator), r.Bytes(), s.Bytes(), hash)
 		// if !verifyBlock || err != nil {
 		// 	log.Error("SignatureValid ", err)
@@ -200,8 +202,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			pValidators = append(pValidators, p)
 		}
 
-		// TODO check 2/3 validator signed correctly
-
+		counterSignatureRight := 0
 		// over all signed merkle roots check if they are verified
 		for i := 0; i < len(receipts); i++ {
 			rSignedReceipt, err := wallet.ByteToPoint(mr.GetRSignedMerkleRootsReceipt())
@@ -219,6 +220,13 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 				log.Error("Not verify")
 				return errors.New("Verify failed")
 			}
+			counterSignatureRight++
+		}
+
+		// check 2/3 validate firm the merkleroot
+		if float64(cs.beaconChain.Validators.LenValidators(mr.GetShard())) < float64(2*counterSignatureRight/3) {
+			log.Error("2/3 Didn't validate")
+			return nil
 		}
 
 		// TODO right now i save every Broadcast_MERKLE_ROOTS_SIGNED that is verified, but i can't do like this

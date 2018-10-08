@@ -31,9 +31,12 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof, 
 
 		t := merkleProof.GetTransaction()
 		result, _ := proto.Marshal(t)
+		bhash := sha256.Sum256(result)
+		hash := bhash[:]
+
 		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
 
-		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), result)
+		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
 		if !valid || err != nil {
 			log.Error("SignatureValid ", err)
 			return false, err
