@@ -1,12 +1,18 @@
 from flask import Flask, request
 from time import time
 import os, random
+from threading import Thread
 app = Flask(__name__)
 
 wallets = [] 
 start_time = int(time() + 130)
 
-os.system("./dexmd sn satoshi3 " + str(start_time))
+def start_hackney():
+    os.system("./dexmd sn satoshi3 " + str(start_time))
+
+
+thread = Thread(target=start_hackney)
+thread.start()
 
 @app.route("/submit_addr")
 def key():
@@ -24,3 +30,4 @@ def send_money():
         return "Not Sent"
 
 app.run(host='0.0.0.0')
+thread.join()
