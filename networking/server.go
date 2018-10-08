@@ -241,6 +241,16 @@ func (cs *ConnectionStore) run() {
 			proto.Unmarshal(message, env)
 			proto.Unmarshal(env.Data, broadcastEnvelope)
 
+			// check signature
+			bhash := sha256.Sum256(broadcastEnvelope.GetData())
+			hash := bhash[:]
+			identityBroadcast := broadcastEnvelope.GetIdentity()
+			signatureValid, err := wallet.SignatureValid(identityBroadcast.GetPubkey(), identityBroadcast.GetR(), identityBroadcast.GetS(), hash)
+			if !signatureValid || err != nil {
+				log.Error("Fail signatureValid broadcast ", err)
+				continue
+			}
+
 			shard := env.GetShard()
 
 			broadcastEnvelope.TTL--
@@ -288,6 +298,16 @@ func checkDuplicatedMessage(msg []byte) bool {
 	broadcast := &network.Broadcast{}
 	proto.Unmarshal(msg, env)
 	proto.Unmarshal(env.Data, broadcast)
+
+	// check signature
+	bhash := sha256.Sum256(broadcastEnvelope.GetData())
+	hash := bhash[:]
+	identityBroadcast := broadcastEnvelope.GetIdentity()
+	signatureValid, err := wallet.SignatureValid(identityBroadcast.GetPubkey(), identityBroadcast.GetR(), identityBroadcast.GetS(), hash)
+	if !signatureValid || err != nil {
+		log.Error("Fail signatureValid broadcast ", err)
+		continue
+	}
 
 	// set TTL to 0, calculate the hash of the message, check if already exist
 	copyBroadcast := *broadcast
@@ -612,11 +632,28 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			}
 			schnorrPByte, _ := proto.Marshal(schnorrP)
 
+			pub, _ := cs.identity.GetPubKey()
+			bhash := sha256.Sum256(schnorrPByte)
+			hash := bhash[:]
+
+			r, s, err := cs.identity.Sign(hash)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			signature := &network.Signature{
+				Pubkey: pub,
+				R:      r.Bytes(),
+				S:      s.Bytes(),
+				Data:   hash,
+			}
+
 			// broadcast schnorr message
 			broadcastSchnorr := &network.Broadcast{
-				Type: protoNetwork.Broadcast_SCHNORR,
-				TTL:  64,
-				Data: schnorrPByte,
+				Type:     protoNetwork.Broadcast_SCHNORR,
+				TTL:      64,
+				Identity: signature,
+				Data:     schnorrPByte,
 			}
 			broadcastSchnorrByte, _ := proto.Marshal(broadcastSchnorr)
 
@@ -705,10 +742,27 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			}
 			signSchorrByte, _ := proto.Marshal(signSchorrP)
 
+			pub, _ := cs.identity.GetPubKey()
+			bhash := sha256.Sum256(signSchorrByte)
+			hash := bhash[:]
+
+			r, s, err := cs.identity.Sign(hash)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			signature := &network.Signature{
+				Pubkey: pub,
+				R:      r.Bytes(),
+				S:      s.Bytes(),
+				Data:   hash,
+			}
+
 			broadcastSignSchorr := &network.Broadcast{
-				Type: protoNetwork.Broadcast_SIGN_SCHNORR,
-				TTL:  64,
-				Data: signSchorrByte,
+				Type:     protoNetwork.Broadcast_SIGN_SCHNORR,
+				TTL:      64,
+				Identity: signature,
+				Data:     signSchorrByte,
 			}
 			broadcastMrByte, _ := proto.Marshal(broadcastSignSchorr)
 
@@ -772,10 +826,27 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				}
 				mrByte, _ := proto.Marshal(mr)
 
+				pub, _ := cs.identity.GetPubKey()
+				bhash := sha256.Sum256(mrByte)
+				hash := bhash[:]
+
+				r, s, err := cs.identity.Sign(hash)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				signature := &network.Signature{
+					Pubkey: pub,
+					R:      r.Bytes(),
+					S:      s.Bytes(),
+					Data:   hash,
+				}
+
 				broadcastMr := &network.Broadcast{
-					Type: protoNetwork.Broadcast_MERKLE_ROOTS_SIGNED,
-					TTL:  64,
-					Data: mrByte,
+					Type:     protoNetwork.Broadcast_MERKLE_ROOTS_SIGNED,
+					TTL:      64,
+					Identity: signature,
+					Data:     mrByte,
 				}
 				broadcastMrByte, _ := proto.Marshal(broadcastMr)
 
@@ -820,10 +891,27 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 						log.Info("Receipts to prove")
 						merkleProofByte := GenerateMerkleProof(receipts, i, transactions[i])
 
+						pub, _ := cs.identity.GetPubKey()
+						bhash := sha256.Sum256(merkleProofByte)
+						hash := bhash[:]
+
+						r, s, err := cs.identity.Sign(hash)
+						if err != nil {
+							log.Error(err)
+							continue
+						}
+						signature := &network.Signature{
+							Pubkey: pub,
+							R:      r.Bytes(),
+							S:      s.Bytes(),
+							Data:   hash,
+						}
+
 						broadcastMerkleProof := &network.Broadcast{
-							Type: protoNetwork.Broadcast_MERKLE_PROOF,
-							TTL:  64,
-							Data: merkleProofByte,
+							Type:     protoNetwork.Broadcast_MERKLE_PROOF,
+							TTL:      64,
+							Data:     merkleProofByte,
+							Identity: signature,
 						}
 						broadcastMerkleProofByteByte, _ := proto.Marshal(broadcastMerkleProof)
 

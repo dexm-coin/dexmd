@@ -259,7 +259,7 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 	}
 
 	// TODO change []byte{} with the hash of the transaction
-	valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), []byte{})
+	valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), )
 	if !valid {
 		return err
 	}

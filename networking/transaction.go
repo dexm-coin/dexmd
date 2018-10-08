@@ -1,6 +1,7 @@
 package networking
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"net/http"
 	"time"
@@ -108,17 +109,27 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 			continue
 		}
 
-		// signature := &network.Signature{
-		// 	Pubkey: pub,
-		// 	R:      r.Bytes(),
-		// 	S:      s.Bytes(),
-		// 	Data:   hash,
-		// }
+		pub, _ := senderWallet.GetPubKey()
+		bhash := sha256.Sum256(trans)
+		hash := bhash[:]
+
+		r, s, err := senderWallet.Sign(hash)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		signature := &network.Signature{
+			Pubkey: pub,
+			R:      r.Bytes(),
+			S:      s.Bytes(),
+			Data:   hash,
+		}
+
 		trBroad := &network.Broadcast{
-			Type: network.Broadcast_TRANSACTION,
-			Data: trans,
-			// identity
-			TTL: 64,
+			Type:     network.Broadcast_TRANSACTION,
+			Data:     trans,
+			Identity: signature,
+			TTL:      64,
 		}
 		brD, _ := proto.Marshal(trBroad)
 
