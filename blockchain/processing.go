@@ -53,7 +53,7 @@ func NewBeaconChain(dbPath string) (*BeaconChain, error) {
 	mrdb := make(map[uint32]*leveldb.DB)
 	cb := make(map[uint32]uint64)
 
-	for i := uint32(1); i < 11; i++ {
+	for i := uint32(1); i < nShard+1; i++ {
 		db, err := leveldb.OpenFile(dbPath+".merkleroots"+strconv.Itoa(int(i)), nil)
 		if err != nil {
 			return nil, err

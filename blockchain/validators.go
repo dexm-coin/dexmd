@@ -12,6 +12,10 @@ import (
 	"gopkg.in/dedis/kyber.v2"
 )
 
+const (
+	nShard = 5
+)
+
 // ValidatorsBook is a structure that keeps record of every validator and its stake
 type ValidatorsBook struct {
 	valsWithdraw map[string]*protobufs.Transaction
@@ -172,7 +176,7 @@ func (v *ValidatorsBook) AddValidator(wallet string, dynasty int64, pubSchnorrKe
 		log.Error("Not IsWalletValid")
 		return false
 	}
-	shard, err := strconv.ParseUint(wallet[4:6], 10, 32)
+	shard, err := strconv.ParseUint(wallet[4:6], 16, 32)
 	if err != nil {
 		log.Error("addvalidator ", err)
 		return false
@@ -305,7 +309,7 @@ func (v *ValidatorsBook) ChooseShard(seed int64, wallet string, bc *Blockchain) 
 	r := rand.New(rand.NewSource(seed))
 	perm := r.Perm(len(ss))
 	for _, randIndex := range perm {
-		shard := uint32(rand.Int31n(10) + 1)
+		shard := uint32(rand.Int31n(nShard) + 1)
 		randValidator := ss[randIndex]
 		if randValidator.wallet == wallet {
 			shardWallet = shard

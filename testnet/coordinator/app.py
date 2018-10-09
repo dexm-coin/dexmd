@@ -1,18 +1,27 @@
 from flask import Flask, request
-from time import time
+import time
 import os, random
 from threading import Thread
 app = Flask(__name__)
 
 wallets = [] 
-start_time = int(time() + 130)
+start_time = int(time.time() + 130)
 
 def start_hackney():
-    os.system("./dexmd sn satoshi3 " + str(start_time))
-
+    os.system("sudo ./dexmd sn wallet1 " + str(start_time))
 
 thread = Thread(target=start_hackney)
 thread.start()
+
+counter = 0
+
+@app.route("/start_validator")
+def start_validator():
+    global counter
+    if counter < 5:
+        counter += 1
+        return counter
+    return 0
 
 @app.route("/submit_addr")
 def key():
@@ -23,11 +32,11 @@ def key():
 @app.route("/send_money")
 def send_money():
     if random.random() > 0.5:
+        print("REQUEST FOR DEXMPOS OK")
         wallet = request.args.get('wallet')
-        os.system("./dexmd mkt w3 " + wallet + " 100 2")
+        os.system("./dexmd mkt wallet1 " + wallet + " 100 2")
         return "Sent"
-    else:
-        return "Not Sent"
+    return "Not Sent"
 
 app.run(host='0.0.0.0')
 thread.join()

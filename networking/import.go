@@ -116,49 +116,37 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 	// The genesis block is a title of a The Times article, We still need to
 	// add a validator because otherwise no blocks will be generated
 	if block.GetIndex() == 0 {
-		// A bit of balance to run tests
+		// TODO cange this import wallet because we don't want that people know the private key of those 2 wallet
+		fakeTransaction := &protobufs.Transaction{}
 		state := &protobufs.AccountState{
 			Balance: 20000,
 			Nonce:   0,
 		}
 
-		// TODO cange this import wallet because we don't want that people know the private key of those 2 wallet
-		satoshi, _ := wallet.ImportWallet("satoshi3")
-		err := cs.shardChain.SetState("Dexm02aCR946Biyo98t55dqgJSb9NTpVn877EF9F5", state)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		fakeTransaction := &protobufs.Transaction{}
-		cs.beaconChain.Validators.AddValidator("Dexm02aCR946Biyo98t55dqgJSb9NTpVn877EF9F5", -300, satoshi.GetPublicKeySchnorrByte(), fakeTransaction)
+		state.Balance++
+		wallet1, _ := wallet.ImportWallet("wallet1")
+		cs.shardChain.SetState("Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2", state)
+		cs.beaconChain.Validators.AddValidator("Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2", -300, wallet1.GetPublicKeySchnorrByte(), fakeTransaction)
 
-		state = &protobufs.AccountState{
-			Balance: 10000,
-			Nonce:   0,
-		}
+		state.Balance++
+		wallet2, _ := wallet.ImportWallet("wallet2")
+		cs.shardChain.SetState("Dexm022FK264yvfQuR3AxmbJoeonYnhdRQ94F9E559", state)
+		cs.beaconChain.Validators.AddValidator("Dexm022FK264yvfQuR3AxmbJoeonYnhdRQ94F9E559", -300, wallet2.GetPublicKeySchnorrByte(), fakeTransaction)
 
-		w, _ := wallet.ImportWallet("w3")
-		err = cs.shardChain.SetState("Dexm01AXxMYVnzKmrekmjx6mUdTarC3xLB1984853", state)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		cs.beaconChain.Validators.AddValidator("Dexm01AXxMYVnzKmrekmjx6mUdTarC3xLB1984853", -300, w.GetPublicKeySchnorrByte(), fakeTransaction)
+		state.Balance++
+		wallet3, _ := wallet.ImportWallet("wallet3")
+		cs.shardChain.SetState("Dexm032dTkjtWDKFnSJTMUDCBhVCDhDaxp8E2D8EFA", state)
+		cs.beaconChain.Validators.AddValidator("Dexm032dTkjtWDKFnSJTMUDCBhVCDhDaxp8E2D8EFA", -300, wallet3.GetPublicKeySchnorrByte(), fakeTransaction)
 
-		// state = &protobufs.AccountState{
-		// 	Balance: 0,
-		// 	Nonce:   0,
-		// }
-		// err = cs.shardChain.SetState("DexmPoS", state)
-		// if err != nil {
-		// 	log.Error(err)
-		// 	return err
-		// }
-		// err = cs.shardChain.SetState("DexmVoid", state)
-		// if err != nil {
-		// 	log.Error(err)
-		// 	return err
-		// }
+		state.Balance++
+		wallet4, _ := wallet.ImportWallet("wallet4")
+		cs.shardChain.SetState("Dexm044RpgEQPTyBbi4YdJ24z7rgr4oA2U9DC18A73", state)
+		cs.beaconChain.Validators.AddValidator("Dexm044RpgEQPTyBbi4YdJ24z7rgr4oA2U9DC18A73", -300, wallet4.GetPublicKeySchnorrByte(), fakeTransaction)
+
+		state.Balance++
+		wallet5, _ := wallet.ImportWallet("wallet5")
+		cs.shardChain.SetState("Dexm053E479JqUdoHKWc6ie4d1mXv9Gy6M5071B5BA", state)
+		cs.beaconChain.Validators.AddValidator("Dexm053E479JqUdoHKWc6ie4d1mXv9Gy6M5071B5BA", -300, wallet5.GetPublicKeySchnorrByte(), fakeTransaction)
 
 		cs.shardChain.GenesisTimestamp = block.GetTimestamp()
 

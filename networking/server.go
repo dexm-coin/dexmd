@@ -26,6 +26,7 @@ import (
 
 const (
 	maxMessagesSave = 500
+	nShard          = 5
 )
 
 // ConnectionStore handles peer messaging
