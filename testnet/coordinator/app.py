@@ -20,8 +20,8 @@ def start_validator():
     global counter
     if counter < 5:
         counter += 1
-        return counter
-    return 0
+        return str(counter)
+    return str(0)
 
 @app.route("/submit_addr")
 def key():
