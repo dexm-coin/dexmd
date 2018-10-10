@@ -598,7 +598,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// Start accepting the block from the new validator
-		cs.shardChain.CurrentValidator = validator
+		cs.shardChain.CurrentValidator[cs.shardChain.CurrentBlock] = validator
 
 		// check if you are a validator or not, if not don't continue with the other messages
 		if !cs.beaconChain.Validators.CheckIsValidator(wal) {
