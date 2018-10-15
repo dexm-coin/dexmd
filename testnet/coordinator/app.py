@@ -5,7 +5,7 @@ from threading import Thread
 app = Flask(__name__)
 
 wallets = [] 
-start_time = int(time.time() + 130)
+start_time = int(time.time() + 200)
 
 def start_hackney():
     os.system("sudo ./dexmd sn wallet1 " + str(start_time))
@@ -13,7 +13,7 @@ def start_hackney():
 thread = Thread(target=start_hackney)
 thread.start()
 
-counter = 0
+counter = 1
 
 @app.route("/start_validator")
 def start_validator():
@@ -21,7 +21,7 @@ def start_validator():
     if counter < 5:
         counter += 1
         return str(counter)
-    return str(0)
+    return "0"
 
 @app.route("/submit_addr")
 def key():

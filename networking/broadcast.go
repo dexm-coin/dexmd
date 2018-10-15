@@ -57,6 +57,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 
 	// Save a block proposed by a validator
 	case protoNetwork.Broadcast_BLOCK_PROPOSAL:
+		log.Info("Block proposal arrived from SHARD ", shard)
 		if !cs.CheckShard(shard) {
 			return nil
 		}
