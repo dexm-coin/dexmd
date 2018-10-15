@@ -1,6 +1,6 @@
 import requests, os, json
 from threading import Thread
-from time import sleep
+from time import sleep, time
 import random, os
 
 
@@ -26,7 +26,7 @@ else:
 
 def send_dexmpos():
     print("waiting")
-    sleep(timestamp+20)
+    sleep(timestamp-time()+20)
     req = requests.get("http://35.211.241.218:5000/send_money", params={
         "wallet": address
     })
