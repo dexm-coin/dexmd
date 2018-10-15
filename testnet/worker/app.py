@@ -1,10 +1,10 @@
 import requests, os, json
 from threading import Thread
-from time import sleep
+from time import sleep, time
 import random, os
 
-
 shard = random.randint(1, 5)
+print("Using shard ", str(shard))
 os.system("./dexmd mw wal.json " + str(shard))
 
 wallet = json.loads(open('wal.json').read())
@@ -22,7 +22,7 @@ sleep(40)
 
 def send_dexmpos():
     print("waiting")
-    sleep(40)
+    sleep(timestamp-time()+40)
     req = requests.get("http://35.211.241.218:5000/send_money", params={
         "wallet": address
     })
@@ -39,9 +39,9 @@ thread = Thread(target=send_dexmpos)
 thread.start()
 
 if validator != 0:
-    os.system("sudo ./dexmd sn wallet" + str(validator) + " " + str(timestamp))
+    os.system("./dexmd sn wallet" + str(validator) + " " + str(timestamp))
 else:
     sleep(20)
-    os.system("sudo ./dexmd sn wal.json " + str(timestamp))
+    os.system("./dexmd sn wal.json " + str(timestamp))
 
 thread.join()
