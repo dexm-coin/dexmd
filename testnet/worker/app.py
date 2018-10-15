@@ -18,15 +18,11 @@ timestamp = requests.get("http://35.211.241.218:5000/submit_addr", params={
 }).text
 timestamp = int(timestamp)
 
-if validator != 0:
-    sleep(40)
-    os.system("sudo ./dexmd sn wallet" + str(validator) + " " + str(timestamp))
-else:
-    sleep(60)
+sleep(40)
 
 def send_dexmpos():
     print("waiting")
-    sleep(timestamp+20)
+    sleep(40)
     req = requests.get("http://35.211.241.218:5000/send_money", params={
         "wallet": address
     })
@@ -42,7 +38,10 @@ def send_dexmpos():
 thread = Thread(target=send_dexmpos)
 thread.start()
 
-
-os.system("./dexmd sn wal.json " + str(timestamp))
+if validator != 0:
+    os.system("sudo ./dexmd sn wallet" + str(validator) + " " + str(timestamp))
+else:
+    sleep(20)
+    os.system("sudo ./dexmd sn wal.json " + str(timestamp))
 
 thread.join()
