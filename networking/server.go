@@ -602,6 +602,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 		// check if you are a validator or not, if not don't continue with the other messages
 		if !cs.beaconChain.Validators.CheckIsValidator(wal) {
+			log.Info(wal, " is not a validator, so continue")
 			continue
 		}
 
