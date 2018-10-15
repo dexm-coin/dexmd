@@ -881,6 +881,10 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					for i, _ := range receipts {
 						log.Info("Receipts to prove")
 						merkleProofByte := GenerateMerkleProof(receipts, i, transactions[i])
+						if len(merkleProofByte) == 0 {
+							log.Error("proof failed")
+							continue
+						}
 
 						pub, _ := cs.identity.GetPubKey()
 						bhash := sha256.Sum256(merkleProofByte)

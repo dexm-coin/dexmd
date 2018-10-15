@@ -170,7 +170,8 @@ func GenerateMerkleProof(receipts []*protobufs.Receipt, indexProof int, transact
 
 	err := tree.Generate()
 	if err != nil {
-		panic(err)
+		log.Error(err)
+		return []byte{}
 	}
 	merkleRoot := tree.Root()
 
