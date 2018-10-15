@@ -4,6 +4,8 @@ import os, random
 from threading import Thread
 app = Flask(__name__)
 
+os.system("cd ..;cd ..;go build; cp dexmd testnet/worker/; cp dexmd testnet/coordinator/")
+
 wallets = [] 
 start_time = int(time.time() + 200)
 
