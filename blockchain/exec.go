@@ -2,9 +2,9 @@ package blockchain
 
 import (
 	"bytes"
-	"errors"
 	"reflect"
 
+	"github.com/dexm-coin/dexmd/wallet"
 	bp "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/dexm-coin/wagon/exec"
 	"github.com/dexm-coin/wagon/wasm"
@@ -14,6 +14,14 @@ import (
 )
 
 var currentContract *Contract
+
+// ReturnState tells the block generator what the contract outputed
+type ReturnState struct {
+	TxHash   []byte
+	Reverted bool
+	GasLeft  int
+	Outputs  []*bp.Receipt
+}
 
 // Contract is the struct that saves the state of a contract
 type Contract struct {
@@ -25,6 +33,11 @@ type Contract struct {
 	Block       *bp.Block
 	Chain       *Blockchain
 	Transaction *bp.Transaction
+	Return      *ReturnState
+	Sender      string
+
+	TempDB      map[string][]byte
+	TempBalance uint64
 
 	Module *wasm.Module
 	VM     *exec.VM
@@ -61,22 +74,33 @@ func GetContract(address string, contractDb, stateDb *leveldb.DB, bc *Blockchain
 		proto.Unmarshal(encodedState, &state)
 	}
 
+	senderAddr := wallet.BytesToAddress(tr.Sender, tr.Shard)
+
 	return &Contract{
 		ContractDb: contractDb,
 		StateDb:    stateDb,
 		Code:       code,
 		Address:    []byte(address),
 		State:      &state,
+		Return:     &ReturnState{},
 
 		Module:      m,
 		VM:          vm,
 		Chain:       bc,
+		Sender:      senderAddr,
 		Transaction: tr,
+		TempDB:      make(map[string][]byte),
+		TempBalance: 0,
 	}, nil
 }
 
 // ExecuteContract runs the function with the passed arguments
-func (c *Contract) ExecuteContract(exportName string, arguments []uint64) error {
+func (c *Contract) ExecuteContract(exportName string, arguments []uint64) *ReturnState {
+	// Check if the contract is locked and the sender is authorized
+	if c.Sender != string(c.State.AllowedWallet) && c.State.Locked {
+		return c.Return
+	}
+
 	// Set the VM state before executing
 	c.VM.SetMemory(c.State.Memory)
 	c.VM.SetGlobal(c.State.Globals)
@@ -86,7 +110,8 @@ func (c *Contract) ExecuteContract(exportName string, arguments []uint64) error 
 	// Check if the passed function exists
 	calledFunction, ok := c.Module.Export.Entries[exportName]
 	if !ok {
-		return errors.New("Invalid export index")
+		c.Return.Reverted = true
+		return c.Return
 	}
 
 	log.Info(exportName, calledFunction.Index)
@@ -94,12 +119,17 @@ func (c *Contract) ExecuteContract(exportName string, arguments []uint64) error 
 	// Call the function with passed arguments
 	_, err := c.VM.ExecCode(int64(calledFunction.Index))
 	if err != nil {
-		return err
+		c.Return.Reverted = true
+		return c.Return
 	}
 
-	// Save the new state
-	c.State.Memory = c.VM.Memory()
-	c.State.Globals = c.VM.Globals()
+	// If the contract wasn't reverted save the new state
+	if !c.Return.Reverted {
+		c.State.Memory = c.VM.Memory()
+		c.State.Globals = c.VM.Globals()
+	} else {
+		c.State.Locked = false
+	}
 
 	return nil
 }
