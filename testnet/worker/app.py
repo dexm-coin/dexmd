@@ -3,6 +3,7 @@ from threading import Thread
 from time import sleep, time
 import random, os
 
+os.system("sudo rm -rf .dexm*")
 os.system("cd ..;cd ..;go build; cp dexmd testnet/worker/; cp dexmd testnet/coordinator/")
 
 # create the wallet
@@ -10,21 +11,20 @@ shard = random.randint(1, 5)
 print("Using shard ", str(shard))
 os.system("./dexmd mw wal.json " + str(shard))
 
-wallet = json.loads(open('wal.json').read())
-address = wallet["Address"]
 
 validator = requests.get("http://35.211.241.218:5000/start_validator").text
 validator = int(validator)
 
-timestamp = 0
+wallet = ""
 if validator != 0:
-    timestamp = requests.get("http://35.211.241.218:5000/submit_addr", params={
-        "wallet": "wallet"+str(validator)
-    }).text
+    wallet = json.loads(open('wal.json').read())
 else:
-    timestamp = requests.get("http://35.211.241.218:5000/submit_addr", params={
-        "wallet": wallet
-    }).text
+    wallet = json.loads(open('wallet'+str(validator)).read())
+address = wallet["Address"]
+
+timestamp = requests.get("http://35.211.241.218:5000/submit_addr", params={
+    "wallet": address
+}).text
 timestamp = int(timestamp)
 
 # wait for hackney to start

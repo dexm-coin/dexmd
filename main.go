@@ -81,6 +81,7 @@ func main() {
 				if err != nil {
 					log.Fatal("import", err)
 				}
+				log.Info("wallet ", w)
 
 				if genesisTimestamp != "" {
 					TS, err = strconv.ParseUint(genesisTimestamp, 10, 64)
