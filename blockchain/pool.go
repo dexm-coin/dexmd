@@ -2,8 +2,6 @@ package blockchain
 
 import (
 	"crypto/sha256"
-	"errors"
-	"reflect"
 	"time"
 
 	"github.com/dexm-coin/dexmd/wallet"
@@ -24,21 +22,18 @@ func newMempool(maxBlockSize int, maxGas float64) *mempool {
 }
 
 // AddMempoolTransaction adds a transaction to the mempool
-func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, lenRawTransaction int) error {
+// TODO Validate gas
+func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transaction []byte) error {
 	err := bc.ValidateTransaction(pb)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 
-	priority := float64(pb.GetGas()) / float64(lenRawTransaction)
+	dbKey := sha256.Sum256(transaction)
+	bc.blockDb.Put(dbKey[:], transaction, nil)
 
-	if priority > bc.Mempool.maxGasPerByte {
-		log.Error("Too much gas")
-		return errors.New("Too much gas")
-	}
-
-	bc.Mempool.queue.Insert(pb, priority)
+	bc.Mempool.queue.Insert(dbKey[:], float64(pb.GetGas()))
 	return nil
 }
 
@@ -84,14 +79,21 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 
 	// Check that the len is smaller than the max
 	for currentLen < bc.Mempool.maxBlockBytes {
-		tx, err := bc.Mempool.queue.Pop()
+		txB, err := bc.Mempool.queue.Pop()
 
 		// The mempool is empty, that's all the transactions we can include
 		if err != nil {
 			break
 		}
 
-		rtx := interface{}(tx).(*protobufs.Transaction)
+		txKey := interface{}(txB).([]byte)
+		txData, err := bc.blockDb.Get(txKey, nil)
+		if err != nil {
+			continue
+		}
+
+		rtx := &protobufs.Transaction{}
+		proto.Unmarshal(txData, rtx)
 
 		// check if the transazion is form my shard
 		senderWallet := wallet.BytesToAddress(rtx.GetSender(), rtx.GetShard())
@@ -114,18 +116,12 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 			break
 		}
 
-		// check if the hash of this transaction is inside bc.TransactionArrived that contain all the hash of the prev n transaction
-		bhash := sha256.Sum256(rawTx)
-		hash := bhash[:]
-		alreadyReceived := false
-		for _, h := range bc.TransactionArrived {
-			equal := reflect.DeepEqual(h, hash)
-			if equal {
-				alreadyReceived = true
-				break
-			}
-		}
-		if alreadyReceived {
+		// remove transaction from db as it was included
+		bc.blockDb.Delete(txKey, nil)
+
+		// Don't include invalid transactions
+		err = bc.ValidateTransaction(rtx)
+		if err != nil {
 			continue
 		}
 
