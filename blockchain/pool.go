@@ -30,10 +30,12 @@ func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transacti
 		return err
 	}
 
-	dbKey := sha256.Sum256(transaction)
-	bc.BlockDb.Put(dbKey[:], transaction, nil)
+	dbKeyS := sha256.Sum256(transaction)
+	dbKey := dbKeyS[:]
 
-	bc.Mempool.queue.Insert(dbKey[:], float64(pb.GetGas()))
+	bc.BlockDb.Put(dbKey, transaction, nil)
+
+	bc.Mempool.queue.Insert(&dbKey, float64(pb.GetGas()))
 	return nil
 }
 
@@ -86,8 +88,8 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 			break
 		}
 
-		txKey := interface{}(txB).([]byte)
-		txData, err := bc.BlockDb.Get(txKey, nil)
+		txKey := interface{}(txB).(*[]byte)
+		txData, err := bc.BlockDb.Get(*txKey, nil)
 		if err != nil {
 			continue
 		}
