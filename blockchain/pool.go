@@ -119,7 +119,7 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 		}
 
 		// remove transaction from db as it was included
-		_ = bc.BlockDb.Delete(txKey, nil)
+		_ = bc.BlockDb.Delete(*txKey, nil)
 
 		// Don't include invalid transactions
 		err = bc.ValidateTransaction(rtx)
