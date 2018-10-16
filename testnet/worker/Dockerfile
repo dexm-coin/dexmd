@@ -10,7 +10,8 @@ RUN cp dexmd testnet/worker/dexmd
 RUN cp dexmd testnet/worker/dexmd
 WORKDIR /go/src/github.com/dexm-coin/dexmd/testnet/worker
 
-RUN echo "" > config.json
+RUN rm config.json
+RUN touch config.json
 RUN apt-get update && apt-get install -y python-pip
 RUN pip install requests 
 EXPOSE 3141:3141
