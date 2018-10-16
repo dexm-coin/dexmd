@@ -471,8 +471,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 	log.Info("myWallet ", wal)
 
 	var currentK kyber.Scalar
-	countTurn := false
-	turnAfterSchnorr := 1
 
 	for {
 		// The validator changes every time the unix timestamp is a multiple of 5
@@ -508,11 +506,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					log.Error(err)
 				}
 			}
-		}
-
-		// for the schnorr broadcast i can't do %n for the sequence of operation, must be after every k turn, so i count it manually
-		if countTurn {
-			turnAfterSchnorr++
 		}
 
 		// TODO multishard
@@ -610,9 +603,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 		// every 30 blocks do the merkle root signature
 		if cs.shardChain.CurrentBlock%30 == 0 {
-			countTurn = true
-			// cs.beaconChain.CurrentSign = cs.beaconChain.Validators.ChooseSignSequence(int64(cs.shardChain.CurrentBlock))
-
 			// generate k and caluate r
 			k, rByte, err := wallet.GenerateParameter()
 			if err != nil {
@@ -662,7 +652,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// after 3 turn, make the sign and broadcast it
-		if turnAfterSchnorr == 4 {
+		if cs.shardChain.CurrentBlock%30 == 3 && cs.shardChain.CurrentBlock != 3 {
 			// get the private schnorr key
 			x, err := cs.identity.GetPrivateKeySchnorr()
 			if err != nil {
@@ -680,7 +670,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					log.Error("r ByteToPoint ", err)
 					continue
 				}
-				// i should't myself in the sign, so i save it in difference variable
+				// i should't include myself in the sign, so i save it in difference variable
 				if key == wal {
 					myR, err = r.MarshalBinary()
 					if err != nil {
@@ -771,7 +761,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// after another 3 turn make the final signature, from sign of the chosen validator, and verify it
-		if turnAfterSchnorr == 7 {
+		if cs.shardChain.CurrentBlock%30 == 6 && cs.shardChain.CurrentBlock != 6 {
 			var Rs []kyber.Point
 			var Ps []kyber.Point
 			var SsReceipt []kyber.Scalar
@@ -938,9 +928,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			cs.shardChain.RSchnorr = [][]byte{}
 			cs.shardChain.PSchnorr = [][]byte{}
 			cs.shardChain.MessagesReceipt = [][]byte{}
-
-			countTurn = false
-			turnAfterSchnorr = 1
 		}
 
 		// Checkpoint Agreement

@@ -16,7 +16,7 @@ validator = requests.get("http://35.211.241.218:5000/start_validator").text
 validator = int(validator)
 
 wallet = ""
-if validator != 0:
+if validator == 0:
     wallet = json.loads(open('wal.json').read())
 else:
     wallet = json.loads(open('wallet'+str(validator)).read())
