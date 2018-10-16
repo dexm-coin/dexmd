@@ -222,14 +222,6 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 
 			// c.SaveState()
 		}
-
-		// save the hash of the transaction inside cs.shardChain.TransactionArrived
-		tByte, _ := proto.Marshal(t)
-		hashTransaction := sha256.Sum256(tByte)
-		cs.shardChain.TransactionArrived = append(cs.shardChain.TransactionArrived, hashTransaction[:])
-		if len(cs.shardChain.TransactionArrived) > maxMessagesSave {
-			cs.shardChain.TransactionArrived = cs.shardChain.TransactionArrived[1:]
-		}
 	}
 
 	return nil

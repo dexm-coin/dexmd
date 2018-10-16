@@ -24,7 +24,6 @@ type Blockchain struct {
 	CasperVotesDb *leveldb.DB
 
 	Mempool            *mempool
-	TransactionArrived [][]byte
 
 	Schnorr         map[string][]byte
 	MTReceipt       [][]byte
@@ -113,7 +112,6 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		CasperVotesDb: cvdb,
 
 		Mempool:            mp,
-		TransactionArrived: [][]byte{},
 
 		Schnorr:         make(map[string][]byte),
 		MTReceipt:       [][]byte{},
