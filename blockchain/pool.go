@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"crypto/sha256"
+	"errors"
 	"time"
 
 	"github.com/dexm-coin/dexmd/wallet"
@@ -32,6 +33,11 @@ func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transacti
 
 	dbKeyS := sha256.Sum256(transaction)
 	dbKey := dbKeyS[:]
+
+	_, err = bc.BlockDb.Get(dbKey, nil)
+	if err == nil {
+		return errors.New("Already in db")
+	}
 
 	bc.BlockDb.Put(dbKey, transaction, nil)
 
