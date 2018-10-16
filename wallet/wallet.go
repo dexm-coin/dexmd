@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	mathRand "math/rand"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
@@ -14,7 +15,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"sync"
-	"time"
 
 	"gopkg.in/dedis/kyber.v2"
 
@@ -29,7 +29,6 @@ import (
 type Wallet struct {
 	PrivKey        *ecdsa.PrivateKey
 	Shard          uint8
-	Nonce          int
 	Balance        int
 	PrivKeySchnorr []byte
 	PubKeySchnorr  []byte
@@ -39,14 +38,13 @@ type file struct {
 	// content to be converted in json
 	PrivKeyString        string
 	Address              string
-	Nonce                int
 	Balance              int
 	Shard                uint8
 	PrivKeySchnorrString []byte
 	PubKeySchnorrString  []byte
 }
 
-// GenerateWallet generates a new random wallet with a 0 balance and nonce
+// GenerateWallet generates a new random wallet with a 0 balance
 func GenerateWallet(shard uint8) (*Wallet, error) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -73,7 +71,6 @@ func GenerateWallet(shard uint8) (*Wallet, error) {
 	return &Wallet{
 		PrivKey:        priv,
 		Shard:          shard,
-		Nonce:          0,
 		Balance:        0,
 		PrivKeySchnorr: xByte,
 		PubKeySchnorr:  pByte,
@@ -133,7 +130,6 @@ func jsonKeyToStruct(walletJSON []byte) (*Wallet, error) {
 
 	return &Wallet{
 		PrivKey:        key,
-		Nonce:          walletfile.Nonce,
 		Balance:        walletfile.Balance,
 		PrivKeySchnorr: walletfile.PrivKeySchnorrString,
 		PubKeySchnorr:  walletfile.PubKeySchnorrString,
@@ -178,7 +174,6 @@ func (w *Wallet) GetEncodedWallet() ([]byte, error) {
 	walletfile := file{
 		Address:              add,
 		PrivKeyString:        string(pemEncoded),
-		Nonce:                w.Nonce,
 		Balance:              w.Balance,
 		Shard:                w.Shard,
 		PrivKeySchnorrString: w.PrivKeySchnorr,
@@ -304,15 +299,14 @@ func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32, dat
 		return nil, err
 	}
 
-	w.Nonce++
+	nonce := uint32(mathRand.Intn(2147483647))
 
 	newT := &protobufs.Transaction{
 		Sender:    x509Encoded,
 		Recipient: recipient,
-		Nonce:     uint32(w.Nonce),
+		Nonce:     nonce,
 		Amount:    amount,
 		Gas:       gas,
-		Timestamp: uint64(time.Now().Unix()),
 		Data:      data,
 		Shard:     shard,
 	}

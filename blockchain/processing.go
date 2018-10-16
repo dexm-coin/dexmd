@@ -221,11 +221,12 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 			return false, errors.New("Balance is insufficient in transaction " + strconv.Itoa(i))
 		}
 
-		// Check if nonce is correct
-		newNonce, ok := util.AddU32O(balance.GetNonce(), uint32(1))
-
-		if t.GetNonce() != newNonce || !ok {
-			return false, errors.New("Invalid nonce in transaction " + strconv.Itoa(i))
+		// Check if has already been send
+		dbKeyS := sha256.Sum256(t)
+		dbKey := dbKeyS[:]
+		_, err = bc.BlockDb.Get(dbKey, nil)
+		if err == nil {
+			return false, errors.New("Already in db")
 		}
 
 		// Taint sender and update his balance. Reciver will be able to spend
@@ -238,7 +239,6 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 		}
 
 		balance.Balance = newBal
-		balance.Nonce++
 		taintedState[sender] = balance
 
 		// To save a DB query we don't check the reciver for an overflow. If someone
@@ -281,19 +281,10 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 		return err
 	}
 
-	if balance.Nonce != t.Nonce {
-		return errors.New("Invalid nonce")
-	}
-
 	// Check if balance is sufficient
 	requiredBal, ok := util.AddU64O(t.GetAmount(), uint64(t.GetGas()))
 	if requiredBal > balance.GetBalance() && ok {
 		return errors.New("Balance is insufficient in transaction")
-	}
-
-	// Check if nonce is correct
-	if t.GetNonce() != balance.GetNonce() || !ok {
-		return errors.New("Invalid nonce in transaction")
 	}
 
 	return nil

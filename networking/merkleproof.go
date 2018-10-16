@@ -52,10 +52,12 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof, 
 		if requiredBal > senderBalance.GetBalance() && ok {
 			return false, errors.New("Balance is insufficient in transaction")
 		}
-		// Check if nonce is correct
-		newNonce, ok := util.AddU32O(senderBalance.GetNonce(), uint32(1))
-		if t.GetNonce() != newNonce || !ok {
-			return false, errors.New("Invalid nonce in transaction")
+		// Check if has already been send
+		dbKeyS := sha256.Sum256(t)
+		dbKey := dbKeyS[:]
+		_, err = bc.BlockDb.Get(dbKey, nil)
+		if err == nil {
+			return false, errors.New("Already in db")
 		}
 
 		receiver := t.GetRecipient()
@@ -64,8 +66,6 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof, 
 
 		senderBalance.Balance -= t.GetAmount() + uint64(t.GetGas())
 		reciverBalance.Balance += t.GetAmount()
-
-		senderBalance.Nonce++
 
 		err = cs.shardChain.SetState(sender, &senderBalance)
 		if err != nil {

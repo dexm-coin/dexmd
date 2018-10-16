@@ -120,7 +120,6 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		fakeTransaction := &protobufs.Transaction{}
 		state := &protobufs.AccountState{
 			Balance: 20000,
-			Nonce:   0,
 		}
 
 		state.Balance++
@@ -181,11 +180,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		senderBalance.Balance -= t.GetAmount() + uint64(t.GetGas())
 		reciverBalance.Balance += t.GetAmount()
 
-		// Avoid replaying transactions
-		senderBalance.Nonce++
-
 		log.Info("Sender balance:", senderBalance.Balance)
-		log.Info("Sender nonce: ", senderBalance.Nonce)
 		log.Info("Reciver balance:", reciverBalance.Balance)
 
 		err = cs.shardChain.SetState(sender, &senderBalance)

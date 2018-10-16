@@ -100,7 +100,6 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 			log.Error(err)
 		}
 		log.Info("walletStatus ", walletStatus)
-		senderWallet.Nonce = int(walletStatus.Nonce)
 		senderWallet.Balance = int(walletStatus.Balance)
 
 		trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata, shard)
