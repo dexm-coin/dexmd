@@ -18,7 +18,7 @@ import (
 // Blockchain is an internal representation of a blockchain
 type Blockchain struct {
 	balancesDb    *leveldb.DB
-	blockDb       *leveldb.DB
+	BlockDb       *leveldb.DB
 	ContractDb    *leveldb.DB
 	StateDb       *leveldb.DB
 	CasperVotesDb *leveldb.DB
@@ -107,7 +107,7 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 
 	return &Blockchain{
 		balancesDb:    db,
-		blockDb:       dbb,
+		BlockDb:       dbb,
 		ContractDb:    cdb,
 		StateDb:       sdb,
 		CasperVotesDb: cvdb,
@@ -159,12 +159,12 @@ func (bc *BeaconChain) GetBlockBeacon(index int64, shard uint32) ([]byte, error)
 // SaveBlock saves an unvalidated block into the blockchain to be used with Casper
 func (bc *Blockchain) SaveBlock(block *protobufs.Block) error {
 	res, _ := proto.Marshal(block)
-	return bc.blockDb.Put([]byte(strconv.Itoa(int(block.GetIndex()))), res, nil)
+	return bc.BlockDb.Put([]byte(strconv.Itoa(int(block.GetIndex()))), res, nil)
 }
 
 // GetBlock returns the array of blocks at an index
 func (bc *Blockchain) GetBlock(index uint64) ([]byte, error) {
-	return bc.blockDb.Get([]byte(strconv.Itoa(int(index))), nil)
+	return bc.BlockDb.Get([]byte(strconv.Itoa(int(index))), nil)
 }
 
 // GetContractCode returns the code of a contract at an address. Used

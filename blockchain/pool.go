@@ -31,7 +31,7 @@ func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transacti
 	}
 
 	dbKey := sha256.Sum256(transaction)
-	bc.blockDb.Put(dbKey[:], transaction, nil)
+	bc.BlockDb.Put(dbKey[:], transaction, nil)
 
 	bc.Mempool.queue.Insert(dbKey[:], float64(pb.GetGas()))
 	return nil
@@ -87,7 +87,7 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 		}
 
 		txKey := interface{}(txB).([]byte)
-		txData, err := bc.blockDb.Get(txKey, nil)
+		txData, err := bc.BlockDb.Get(txKey, nil)
 		if err != nil {
 			continue
 		}
@@ -117,7 +117,7 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 		}
 
 		// remove transaction from db as it was included
-		bc.blockDb.Delete(txKey, nil)
+		_ = bc.BlockDb.Delete(txKey, nil)
 
 		// Don't include invalid transactions
 		err = bc.ValidateTransaction(rtx)
