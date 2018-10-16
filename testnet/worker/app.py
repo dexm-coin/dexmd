@@ -3,9 +3,6 @@ from threading import Thread
 from time import sleep, time
 import random, os
 
-os.system("sudo rm -rf .dexm*")
-os.system("cd ..;cd ..;go build; cp dexmd testnet/worker/; cp dexmd testnet/coordinator/")
-
 # create the wallet
 shard = random.randint(1, 5)
 print("Using shard ", str(shard))
