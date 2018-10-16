@@ -244,12 +244,10 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 	var ss []simpleValidator
 	for k, val := range v.valsArray {
 		if !v.CheckDynasty(val.wallet, uint64(currentBlock)) {
-			log.Error("CheckDynasty in ChooseValidator")
 			continue
 		}
 		// check if the validator is in the current shard
 		if val.shard != currentShard {
-			log.Error("val.shard != currentShard ", val.shard, " ", currentShard)
 			continue
 		}
 		stateWallet, err := bc.GetWalletState(val.wallet)
