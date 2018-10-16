@@ -65,7 +65,6 @@ var upgrader = websocket.Upgrader{
 
 // Loop start ValidatorLoop for every interest
 func (cs *ConnectionStore) Loop() {
-	log.Info("cs.interests ", cs.interests)
 	for interest := range cs.interests {
 		interestInt, err := strconv.Atoi(interest)
 		if err != nil {
@@ -76,7 +75,6 @@ func (cs *ConnectionStore) Loop() {
 		if interestInt == 0 {
 			continue
 		}
-		log.Info("loop with shard ", uint32(interestInt))
 		cs.ValidatorLoop(uint32(interestInt))
 		break
 	}
