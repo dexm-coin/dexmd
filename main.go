@@ -91,7 +91,7 @@ func main() {
 				}
 
 				// create and read config.json
-				jsonFile, err := os.Open("config.json")
+				jsonFile, err := os.OpenFile("config.json", os.O_RDONLY|os.O_CREATE, 0666)
 				defer jsonFile.Close()
 				if err != nil {
 					log.Fatal(err)
