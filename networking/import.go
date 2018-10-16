@@ -1,7 +1,6 @@
 package networking
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strconv"
@@ -196,7 +195,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 
 		if t.GetContractCreation() {
 			// Use sender a nonce to find contract address
-			contractAddr := wallet.BytesToAddress([]byte(fmt.Sprintf("%s%d", sender, senderBalance.Nonce)), t.GetShard())
+			contractAddr := wallet.BytesToAddress([]byte(fmt.Sprintf("%s%d", sender, t.GetNonce())), t.GetShard())
 
 			// Save it on a separate db
 			log.Info("New contract at ", contractAddr)

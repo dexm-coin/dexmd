@@ -53,9 +53,10 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof, 
 			return false, errors.New("Balance is insufficient in transaction")
 		}
 		// Check if has already been send
-		dbKeyS := sha256.Sum256(t)
+		res, _ := proto.Marshal(t)
+		dbKeyS := sha256.Sum256(res)
 		dbKey := dbKeyS[:]
-		_, err = bc.BlockDb.Get(dbKey, nil)
+		_, err = cs.shardChain.BlockDb.Get(dbKey, nil)
 		if err == nil {
 			return false, errors.New("Already in db")
 		}

@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	mathRand "math/rand"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
@@ -14,6 +13,7 @@ import (
 	"hash/crc32"
 	"io/ioutil"
 	"math/big"
+	mathRand "math/rand"
 	"sync"
 
 	"gopkg.in/dedis/kyber.v2"

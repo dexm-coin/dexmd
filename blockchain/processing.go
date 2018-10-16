@@ -23,7 +23,7 @@ type Blockchain struct {
 	StateDb       *leveldb.DB
 	CasperVotesDb *leveldb.DB
 
-	Mempool            *mempool
+	Mempool *mempool
 
 	Schnorr         map[string][]byte
 	MTReceipt       [][]byte
@@ -111,7 +111,7 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		StateDb:       sdb,
 		CasperVotesDb: cvdb,
 
-		Mempool:            mp,
+		Mempool: mp,
 
 		Schnorr:         make(map[string][]byte),
 		MTReceipt:       [][]byte{},
@@ -222,7 +222,8 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 		}
 
 		// Check if has already been send
-		dbKeyS := sha256.Sum256(t)
+		res, _ := proto.Marshal(t)
+		dbKeyS := sha256.Sum256(res)
 		dbKey := dbKeyS[:]
 		_, err = bc.BlockDb.Get(dbKey, nil)
 		if err == nil {
