@@ -27,7 +27,7 @@ const (
 var (
 	// -- start
 	PUBLIC_PEERSERVER = false
-	TS                = uint64(1539026446)
+	TS                = uint64(1539781729)
 	// -- start
 )
 
@@ -122,6 +122,9 @@ func main() {
 				allInterestBlockchain := make(map[uint32]*blockchain.Blockchain)
 				// Create the dexm folder in case it's not there
 				for _, s := range shardInterest {
+					if s == "0" {
+						continue
+					}
 					os.MkdirAll(".dexm.shard"+s, os.ModePerm)
 					// Create the blockchain database
 					b, err := blockchain.NewBlockchain(".dexm.shard"+s+"/", 0)
@@ -160,6 +163,10 @@ func main() {
 				}
 
 				for _, shard := range shardInterest {
+					if shard == "0" {
+						cs.AddInterest(shard)
+						continue
+					}
 					sInt, err := strconv.ParseUint(shard, 16, 32)
 					// TODO this interest is not a shard, but we should consider it either
 					if err != nil {

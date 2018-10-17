@@ -77,6 +77,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// check if the signature of the block that should be cs.shardsChain[shard].CurrentValidator[block.GetIndex()]
 		if block.Miner != cs.shardsChain[shard].CurrentValidator[block.GetIndex()] {
 			log.Error("The miner is wrong")
+			return err
 		}
 		// TODO check signature
 		// blockBytes, _ := proto.Marshal(block)
