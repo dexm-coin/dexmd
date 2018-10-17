@@ -43,10 +43,10 @@ func CreateVote(sVote, tVote []byte, hsVote, htVote uint64, w *wallet.Wallet) pr
 }
 
 // CheckpointAgreement : Every checkpoint there should be an agreement of 2/3 of the validators
-func (cs *ConnectionStore) CheckpointAgreement(SourceHeight, TargetHeight uint64) bool {
+func (cs *ConnectionStore) CheckpointAgreement(SourceHeight, TargetHeight uint64, currentShard uint32) bool {
 	mapVote := make(map[string]bool)
 	var userToRemove []string
-	currentShard := uint32(cs.identity.GetShardWallet())
+	// currentShard := uint32(cs.identity.GetShardWallet())
 	for _, vote := range receivedVotes {
 		if vote.GetSourceHeight() != SourceHeight {
 			continue
@@ -67,11 +67,11 @@ func (cs *ConnectionStore) CheckpointAgreement(SourceHeight, TargetHeight uint64
 			log.Error("Validator is from a different shard")
 			continue
 		}
-		if !cs.beaconChain.Validators.CheckDynasty(pubKey, cs.shardChain.CurrentBlock) {
+		if !cs.beaconChain.Validators.CheckDynasty(pubKey, cs.shardsChain[currentShard].CurrentBlock) {
 			log.Error("Vote not valid based on dynasty of validator")
 			continue
 		}
-		if !IsVoteValid(cs.shardChain, vote.GetSource(), vote.GetTarget(), vote.GetTargetHeight()) {
+		if !IsVoteValid(cs.shardsChain[currentShard], vote.GetSource(), vote.GetTarget(), vote.GetTargetHeight()) {
 			log.Error("Source and target are not valid")
 			continue
 		}
@@ -94,7 +94,7 @@ func (cs *ConnectionStore) CheckpointAgreement(SourceHeight, TargetHeight uint64
 		// so h(s1) < h(s2) < h(t2) < h(t1) is valid
 		receivedVotes = []*protobufs.CasperVote{}
 
-		cs.shardChain.CurrentCheckpoint = TargetHeight
+		cs.shardsChain[currentShard].CurrentCheckpoint = TargetHeight
 		return true
 	}
 	return false
@@ -143,7 +143,7 @@ func IsVoteValid(b *blockchain.Blockchain, sourceHash, targetHash []byte, Target
 }
 
 // AddVote add a vote in receivedVotes and put it on the db
-func (cs *ConnectionStore) AddVote(vote *protobufs.CasperVote) error {
+func (cs *ConnectionStore) AddVote(vote *protobufs.CasperVote, shard uint32) error {
 	if !cs.beaconChain.Validators.CheckIsValidator(vote.GetPublicKey()) {
 		return nil
 	}
@@ -153,12 +153,12 @@ func (cs *ConnectionStore) AddVote(vote *protobufs.CasperVote) error {
 	if err != nil {
 		return err
 	}
-	return cs.shardChain.CasperVotesDb.Put([]byte(string(cs.shardChain.CurrentVote)), res, nil)
+	return cs.shardsChain[shard].CasperVotesDb.Put([]byte(string(cs.shardsChain[shard].CurrentVote)), res, nil)
 }
 
 // GetCasperVote get a casper vote inside CasperVotesDb
-func (cs *ConnectionStore) GetCasperVote(index int) (protobufs.CasperVote, error) {
-	oldVote, err := cs.shardChain.CasperVotesDb.Get([]byte(strconv.Itoa(index)), nil)
+func (cs *ConnectionStore) GetCasperVote(index int, shard uint32) (protobufs.CasperVote, error) {
+	oldVote, err := cs.shardsChain[shard].CasperVotesDb.Get([]byte(strconv.Itoa(index)), nil)
 
 	vote := protobufs.CasperVote{}
 	if err == nil {

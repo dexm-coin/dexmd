@@ -24,11 +24,11 @@ const (
 // TODO Drop client if err != nil
 func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 	// No need to sync before genesis
-	for cs.shardChain.GetNetworkIndex() < 0 {
+	for cs.shardsChain[nextShard].GetNetworkIndex() < 0 {
 		return nil
 	}
 
-	for cs.shardChain.CurrentBlock <= uint64(cs.shardChain.GetNetworkIndex()) {
+	for cs.shardsChain[nextShard].CurrentBlock <= uint64(cs.shardsChain[nextShard].GetNetworkIndex()) {
 		for k := range cs.clients {
 			// Ask for blockchain len
 			req := &network.Request{
@@ -59,7 +59,7 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 				continue
 			}
 
-			cb := cs.shardChain.CurrentBlock
+			cb := cs.shardsChain[nextShard].CurrentBlock
 			if flen < cb {
 				continue
 			}
@@ -89,10 +89,10 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 					break
 				}
 
-				res, err := cs.shardChain.ValidateBlock(b)
+				res, err := cs.shardsChain[nextShard].ValidateBlock(b)
 				if res && err == nil {
-					cs.ImportBlock(b)
-					cs.shardChain.CurrentBlock++
+					cs.ImportBlock(b, uint32(nextShard))
+					cs.shardsChain[nextShard].CurrentBlock++
 				} else {
 					log.Error("import ", err)
 				}
@@ -103,10 +103,16 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 	return nil
 }
 
+// SaveBlock saves an unvalidated block into the blockchain to be used with Casper
+func (cs *ConnectionStore) SaveBlock(block *protobufs.Block, shard uint32) error {
+	res, _ := proto.Marshal(block)
+	return cs.shardsChain[shard].BlockDb.Put([]byte(strconv.Itoa(int(block.GetIndex()))), res, nil)
+}
+
 // ImportBlock imports a block into the blockchain and checks if it's valid
 // This should be called on blocks that are finalized by PoS
-func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
-	res, err := cs.shardChain.ValidateBlock(block)
+func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) error {
+	res, err := cs.shardsChain[shard].ValidateBlock(block)
 	if !res {
 		log.Error("ImportBlock ", err)
 		return err
@@ -123,30 +129,30 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 
 		state.Balance++
 		wallet1, _ := wallet.ImportWallet("wallet1")
-		cs.shardChain.SetState("Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2", state)
+		cs.shardsChain[shard].SetState("Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2", state)
 		cs.beaconChain.Validators.AddValidator("Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2", -300, wallet1.GetPublicKeySchnorrByte(), fakeTransaction)
 
 		state.Balance++
 		wallet2, _ := wallet.ImportWallet("wallet2")
-		cs.shardChain.SetState("Dexm022FK264yvfQuR3AxmbJoeonYnhdRQ94F9E559", state)
+		cs.shardsChain[shard].SetState("Dexm022FK264yvfQuR3AxmbJoeonYnhdRQ94F9E559", state)
 		cs.beaconChain.Validators.AddValidator("Dexm022FK264yvfQuR3AxmbJoeonYnhdRQ94F9E559", -300, wallet2.GetPublicKeySchnorrByte(), fakeTransaction)
 
 		state.Balance++
 		wallet3, _ := wallet.ImportWallet("wallet3")
-		cs.shardChain.SetState("Dexm032dTkjtWDKFnSJTMUDCBhVCDhDaxp8E2D8EFA", state)
+		cs.shardsChain[shard].SetState("Dexm032dTkjtWDKFnSJTMUDCBhVCDhDaxp8E2D8EFA", state)
 		cs.beaconChain.Validators.AddValidator("Dexm032dTkjtWDKFnSJTMUDCBhVCDhDaxp8E2D8EFA", -300, wallet3.GetPublicKeySchnorrByte(), fakeTransaction)
 
 		state.Balance++
 		wallet4, _ := wallet.ImportWallet("wallet4")
-		cs.shardChain.SetState("Dexm044RpgEQPTyBbi4YdJ24z7rgr4oA2U9DC18A73", state)
+		cs.shardsChain[shard].SetState("Dexm044RpgEQPTyBbi4YdJ24z7rgr4oA2U9DC18A73", state)
 		cs.beaconChain.Validators.AddValidator("Dexm044RpgEQPTyBbi4YdJ24z7rgr4oA2U9DC18A73", -300, wallet4.GetPublicKeySchnorrByte(), fakeTransaction)
 
 		state.Balance++
 		wallet5, _ := wallet.ImportWallet("wallet5")
-		cs.shardChain.SetState("Dexm053E479JqUdoHKWc6ie4d1mXv9Gy6M5071B5BA", state)
+		cs.shardsChain[shard].SetState("Dexm053E479JqUdoHKWc6ie4d1mXv9Gy6M5071B5BA", state)
 		cs.beaconChain.Validators.AddValidator("Dexm053E479JqUdoHKWc6ie4d1mXv9Gy6M5071B5BA", -300, wallet5.GetPublicKeySchnorrByte(), fakeTransaction)
 
-		cs.shardChain.GenesisTimestamp = block.GetTimestamp()
+		cs.shardsChain[shard].GenesisTimestamp = block.GetTimestamp()
 
 		return nil
 	}
@@ -158,14 +164,14 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		log.Info("Recipient:", t.GetRecipient())
 		log.Info("Amnt:", t.GetAmount())
 
-		senderBalance, err := cs.shardChain.GetWalletState(sender)
+		senderBalance, err := cs.shardsChain[shard].GetWalletState(sender)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
 
 		if t.GetRecipient() == "DexmPoS" {
-			exist := cs.beaconChain.Validators.AddValidator(sender, int64(cs.shardChain.CurrentBlock), t.GetPubSchnorrKey(), t)
+			exist := cs.beaconChain.Validators.AddValidator(sender, int64(cs.shardsChain[shard].CurrentBlock), t.GetPubSchnorrKey(), t)
 			if exist {
 				log.Info("slash for ", sender)
 				continue
@@ -173,7 +179,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		}
 
 		// Ignore error because if the wallet doesn't exist yet we don't care
-		reciverBalance, _ := cs.shardChain.GetWalletState(t.GetRecipient())
+		reciverBalance, _ := cs.shardsChain[shard].GetWalletState(t.GetRecipient())
 
 		// No overflow checks because ValidateBlock already does that
 		senderBalance.Balance -= t.GetAmount() + uint64(t.GetGas())
@@ -182,12 +188,12 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 		log.Info("Sender balance:", senderBalance.Balance)
 		log.Info("Reciver balance:", reciverBalance.Balance)
 
-		err = cs.shardChain.SetState(sender, &senderBalance)
+		err = cs.shardsChain[shard].SetState(sender, &senderBalance)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
-		err = cs.shardChain.SetState(t.GetRecipient(), &reciverBalance)
+		err = cs.shardsChain[shard].SetState(t.GetRecipient(), &reciverBalance)
 		if err != nil {
 			log.Error(err)
 			continue
@@ -199,12 +205,12 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block) error {
 
 			// Save it on a separate db
 			log.Info("New contract at ", contractAddr)
-			cs.shardChain.ContractDb.Put([]byte(contractAddr), t.GetData(), nil)
+			cs.shardsChain[shard].ContractDb.Put([]byte(contractAddr), t.GetData(), nil)
 		}
 
 		// If a function identifier is specified then fetch the contract and execute
 		if t.GetFunction() != "" {
-			// c, err := blockchain.GetContract(t.GetRecipient(), cs.shardChain.ContractDb, cs.shardChain.StateDb)
+			// c, err := blockchain.GetContract(t.GetRecipient(), cs.shardsChain[shard].ContractDb, cs.shardsChain[shard].StateDb)
 			// if err != nil {
 			// 	return err
 			// }

@@ -154,11 +154,7 @@ func (bc *BeaconChain) GetBlockBeacon(index int64, shard uint32) ([]byte, error)
 	return bc.MerkleRootsDb[shard].Get([]byte(strconv.Itoa(int(index))), nil)
 }
 
-// SaveBlock saves an unvalidated block into the blockchain to be used with Casper
-func (bc *Blockchain) SaveBlock(block *protobufs.Block) error {
-	res, _ := proto.Marshal(block)
-	return bc.BlockDb.Put([]byte(strconv.Itoa(int(block.GetIndex()))), res, nil)
-}
+
 
 // GetBlock returns the array of blocks at an index
 func (bc *Blockchain) GetBlock(index uint64) ([]byte, error) {

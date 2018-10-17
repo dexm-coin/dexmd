@@ -45,7 +45,7 @@ func main() {
 			Aliases: []string{"genwallet", "mw", "gw"},
 			Action: func(c *cli.Context) error {
 
-				shard, err := strconv.ParseUint(c.Args().Get(1), 10, 8)
+				shard, err := strconv.ParseUint(c.Args().Get(1), 16, 8)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -119,31 +119,22 @@ func main() {
 
 				log.Info(time.Now().Unix())
 
-				// allInterestBlockchain := make(map[uint32]*blockchain.Blockchain)
-				// // Create the dexm folder in case it's not there
-				// for _, s := range shardInterest {
-				// 	os.MkdirAll(".dexm.shard"+s, os.ModePerm)
-				// 	// Create the blockchain database
-				// 	b, err := blockchain.NewBlockchain(".dexm.shard"+s+"/", 0)
-				// 	if err != nil {
-				// 		log.Fatal("blockchain", err)
-				// 	}
-				// 	sInt, err := strconv.ParseUint(s, 10, 32)
-				// 	genesisBlock := &bp.Block{
-				// 		Index:     0,
-				// 		Timestamp: TS,
-				// 		Miner:     "Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2",
-				// 		Shard: 	   uint32(sInt)
-				// 	}
-				// 	b.SaveBlock(genesisBlock)
-				// 	allInterestBlockchain[uint32(sInt)] = b
-				// }
-
-				os.MkdirAll(".dexm.shard", os.ModePerm)
-				// Create the blockchain database
-				b, err := blockchain.NewBlockchain(".dexm.shard/", 0)
-				if err != nil {
-					log.Fatal("blockchain", err)
+				allInterestBlockchain := make(map[uint32]*blockchain.Blockchain)
+				// Create the dexm folder in case it's not there
+				for _, s := range shardInterest {
+					os.MkdirAll(".dexm.shard"+s, os.ModePerm)
+					// Create the blockchain database
+					b, err := blockchain.NewBlockchain(".dexm.shard"+s+"/", 0)
+					if err != nil {
+						log.Fatal("blockchain", err)
+					}
+					sInt, err := strconv.ParseUint(s, 16, 32)
+					// TODO this interest is not a shard, but we should consider it either
+					if err != nil {
+						log.Error(s, " is not a valid shard")
+						continue
+					}
+					allInterestBlockchain[uint32(sInt)] = b
 				}
 
 				os.MkdirAll(".dexm.beacon", os.ModePerm)
@@ -153,13 +144,6 @@ func main() {
 					log.Fatal("blockchain", err)
 				}
 
-				genesisBlock := &bp.Block{
-					Index:     0,
-					Timestamp: TS,
-					Miner:     "Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2",
-				}
-				b.SaveBlock(genesisBlock)
-
 				// Open the port on the router, ignore errors
 				networking.TraverseNat(PORT, "Dexm Blockchain Node")
 
@@ -167,7 +151,7 @@ func main() {
 				cs, err := networking.StartServer(
 					fmt.Sprintf(":%d", PORT),
 					network,
-					b,
+					allInterestBlockchain,
 					beacon,
 					w,
 				)
@@ -176,10 +160,22 @@ func main() {
 				}
 
 				for _, shard := range shardInterest {
+					sInt, err := strconv.ParseUint(shard, 16, 32)
+					// TODO this interest is not a shard, but we should consider it either
+					if err != nil {
+						log.Error(shard, " is not a valid shard")
+						continue
+					}
+					genesisBlock := &bp.Block{
+						Index:     0,
+						Timestamp: TS,
+						Miner:     "Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2",
+						// Shard:     uint32(sInt),
+					}
+					cs.SaveBlock(genesisBlock, uint32(sInt))
+					cs.ImportBlock(genesisBlock, uint32(sInt))
 					cs.AddInterest(shard)
 				}
-
-				cs.ImportBlock(genesisBlock)
 
 				// This is only supposed to be one for nodes that are
 				// pointed to by *.dexm.space. Off by default
@@ -189,13 +185,6 @@ func main() {
 				}
 
 				cs.FindPeers()
-
-				// Update chain before
-				log.Info("Staring chain import")
-
-				// cs.UpdateChain()
-
-				log.Info("Done importing")
 
 				cs.Loop()
 
@@ -351,7 +340,7 @@ func main() {
 				vanity := c.Args().Get(1)
 				cores, err := strconv.Atoi(c.Args().Get(2))
 
-				shard, err := strconv.ParseUint(c.Args().Get(3), 10, 8)
+				shard, err := strconv.ParseUint(c.Args().Get(3), 16, 8)
 				if err != nil {
 					log.Fatal(err)
 				}

@@ -14,7 +14,7 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 	switch pb.GetType() {
 	// GET_BLOCKCHAIN_LEN returns the current block index
 	case protobufs.Request_GET_BLOCKCHAIN_LEN:
-		return []byte(strconv.FormatUint(cs.shardChain.CurrentBlock, 10))
+		return []byte(strconv.FormatUint(cs.shardsChain[shard].CurrentBlock, 10))
 
 	// GET_PEERS returns the peers the node is currently connected to
 	case protobufs.Request_GET_PEERS:
@@ -41,7 +41,7 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 			return []byte("Error")
 		}
 
-		block, err := cs.shardChain.GetBlock(pb.GetIndex())
+		block, err := cs.shardsChain[shard].GetBlock(pb.GetIndex())
 		if err != nil {
 			return []byte("Error")
 		}
@@ -59,7 +59,7 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 			return []byte{}
 		}
 
-		state, err := cs.shardChain.GetWalletState(fmt.Sprintf("%s", walletAddr))
+		state, err := cs.shardsChain[shard].GetWalletState(fmt.Sprintf("%s", walletAddr))
 		if err != nil {
 			return []byte("Error")
 		}
@@ -86,7 +86,7 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 			return []byte{}
 		}
 
-		code, err := cs.shardChain.GetContractCode(contractAddr)
+		code, err := cs.shardsChain[shard].GetContractCode(contractAddr)
 		if err != nil {
 			return []byte("Error")
 		}

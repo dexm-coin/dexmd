@@ -53,7 +53,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		}
 
 		log.Printf("New Transaction: %x", broadcastEnvelope.GetData())
-		cs.shardChain.AddMempoolTransaction(pb, broadcastEnvelope.GetData())
+		cs.shardsChain[shard].AddMempoolTransaction(pb, broadcastEnvelope.GetData())
 
 	// Save a block proposed by a validator
 	case protoNetwork.Broadcast_BLOCK_PROPOSAL:
@@ -70,12 +70,12 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			return err
 		}
 
-		// // save only the block that have cs.shardChain.currentblock+1
-		// if block.Index != cs.shardChain.CurrentBlock+1 {
+		// // save only the block that have cs.shardsChain[shard].currentblock+1
+		// if block.Index != cs.shardsChain[shard].CurrentBlock+1 {
 		// 	log.Error("The index of the block is wrong")
 		// }
-		// check if the signature of the block that should be cs.shardChain.CurrentValidator[block.GetIndex()]
-		if block.Miner != cs.shardChain.CurrentValidator[block.GetIndex()] {
+		// check if the signature of the block that should be cs.shardsChain[shard].CurrentValidator[block.GetIndex()]
+		if block.Miner != cs.shardsChain[shard].CurrentValidator[block.GetIndex()] {
 			log.Error("The miner is wrong")
 		}
 		// TODO check signature
@@ -88,18 +88,18 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// 	return err
 		// }
 		// TODO change first parameter
-		// verifyBlock, err := wallet.SignatureValid([]byte(cs.shardChain.CurrentValidator), r.Bytes(), s.Bytes(), hash)
+		// verifyBlock, err := wallet.SignatureValid([]byte(cs.shardsChain[shard].CurrentValidator), r.Bytes(), s.Bytes(), hash)
 		// if !verifyBlock || err != nil {
 		// 	log.Error("SignatureValid ", err)
 		// 	return err
 		// }
 
-		err = cs.shardChain.SaveBlock(block)
+		err = cs.SaveBlock(block, shard)
 		if err != nil {
 			log.Error("error on saving block")
 			return err
 		}
-		err = cs.ImportBlock(block)
+		err = cs.ImportBlock(block, uint32(shard))
 		if err != nil {
 			log.Error("error on importing block")
 			return err
@@ -121,12 +121,12 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			return err
 		}
 		if cs.beaconChain.Validators.CheckIsValidator(vote.PublicKey) {
-			err := cs.AddVote(vote)
+			err := cs.AddVote(vote, shard)
 			if err != nil {
 				log.Error(err)
 				return err
 			}
-			cs.shardChain.CurrentVote++
+			cs.shardsChain[shard].CurrentVote++
 		}
 
 	case protoNetwork.Broadcast_WITHDRAW:
@@ -139,7 +139,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			return err
 		}
 
-		cs.beaconChain.Validators.WithdrawValidator(withdrawVal.GetPublicKey(), withdrawVal.GetR(), withdrawVal.GetS(), int64(cs.shardChain.CurrentBlock))
+		cs.beaconChain.Validators.WithdrawValidator(withdrawVal.GetPublicKey(), withdrawVal.GetR(), withdrawVal.GetS(), int64(cs.shardsChain[shard].CurrentBlock))
 
 	case protoNetwork.Broadcast_SCHNORR:
 		if !cs.CheckShard(shard) {
@@ -154,7 +154,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			log.Error(err)
 			return err
 		}
-		cs.shardChain.Schnorr[schnorr.P] = schnorr.R
+		cs.shardsChain[shard].Schnorr[schnorr.P] = schnorr.R
 
 	case protoNetwork.Broadcast_SIGN_SCHNORR:
 		if !cs.CheckShard(shard) {
@@ -173,10 +173,10 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// TODO before add it, i have to check if the signature is valid
 		// also it is possible that the signature is right, but the message inside is fake
 
-		cs.shardChain.MTReceipt = append(cs.shardChain.MTReceipt, signSchnorr.GetSignReceipt())
-		cs.shardChain.RSchnorr = append(cs.shardChain.RSchnorr, signSchnorr.GetRSchnorr())
-		cs.shardChain.PSchnorr = append(cs.shardChain.PSchnorr, signSchnorr.GetPSchnorr())
-		cs.shardChain.MessagesReceipt = append(cs.shardChain.MessagesReceipt, signSchnorr.GetMessageSignReceipt())
+		cs.shardsChain[shard].MTReceipt = append(cs.shardsChain[shard].MTReceipt, signSchnorr.GetSignReceipt())
+		cs.shardsChain[shard].RSchnorr = append(cs.shardsChain[shard].RSchnorr, signSchnorr.GetRSchnorr())
+		cs.shardsChain[shard].PSchnorr = append(cs.shardsChain[shard].PSchnorr, signSchnorr.GetPSchnorr())
+		cs.shardsChain[shard].MessagesReceipt = append(cs.shardsChain[shard].MessagesReceipt, signSchnorr.GetMessageSignReceipt())
 
 	case protoNetwork.Broadcast_MERKLE_ROOTS_SIGNED:
 		log.Printf("New Merkle Roots: %x", broadcastEnvelope.GetData())
@@ -274,7 +274,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			return err
 		}
 
-		if !cs.beaconChain.Validators.CheckWithdraw(moneyWithdraw.GetWallet(), cs.shardChain) {
+		if !cs.beaconChain.Validators.CheckWithdraw(moneyWithdraw.GetWallet(), cs.shardsChain[shard]) {
 			log.Error("CheckWithdraw failed")
 		} else {
 			log.Info("CheckWithdraw correct")

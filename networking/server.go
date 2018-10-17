@@ -38,7 +38,7 @@ type ConnectionStore struct {
 	unregister chan *client
 
 	beaconChain *blockchain.BeaconChain
-	shardChain  *blockchain.Blockchain
+	shardsChain map[uint32]*blockchain.Blockchain
 
 	identity  *wallet.Wallet
 	network   string
@@ -75,20 +75,24 @@ func (cs *ConnectionStore) Loop() {
 		if interestInt == 0 {
 			continue
 		}
+		// log.Info("Staring chain import")
+		// cs.UpdateChain(uint32(interestInt))
+		// log.Info("Done importing")
+
 		cs.ValidatorLoop(uint32(interestInt))
 		break
 	}
 }
 
 // StartServer creates a new ConnectionStore, which handles network peers
-func StartServer(port, network string, shardChain *blockchain.Blockchain, beaconChain *blockchain.BeaconChain, idn *wallet.Wallet) (*ConnectionStore, error) {
+func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockchain, beaconChain *blockchain.BeaconChain, idn *wallet.Wallet) (*ConnectionStore, error) {
 	store := &ConnectionStore{
 		clients:           make(map[*client]bool),
 		broadcast:         make(chan []byte),
 		register:          make(chan *client),
 		unregister:        make(chan *client),
 		beaconChain:       beaconChain,
-		shardChain:        shardChain,
+		shardsChain:       shardsChain,
 		identity:          idn,
 		network:           network,
 		interests:         make(map[string]bool),
@@ -457,9 +461,9 @@ func (c *client) write() {
 // ValidatorLoop updates the current expected validator and generates a block
 // if the validator has the same identity as the node generates a block
 func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
-	if int64(cs.shardChain.GenesisTimestamp) > time.Now().Unix() {
+	if int64(cs.shardsChain[currentShard].GenesisTimestamp) > time.Now().Unix() {
 		log.Info("Waiting for genesis")
-		time.Sleep(time.Duration(int64(cs.shardChain.GenesisTimestamp)-time.Now().Unix()) * time.Second)
+		time.Sleep(time.Duration(int64(cs.shardsChain[currentShard].GenesisTimestamp)-time.Now().Unix()) * time.Second)
 	}
 
 	wal, err := cs.identity.GetWallet()
@@ -475,44 +479,41 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		sleepTime := 1 + 4 - time.Now().Unix()%5
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 
-		// check if the block with index cs.shardChain.CurrentBlock have been saved, otherwise save an empty block
+		// check if the block with index cs.shardsChain[currentShard].CurrentBlock have been saved, otherwise save an empty block
 		for interest := range cs.interests {
 			interestInt, err := strconv.Atoi(interest)
 			if err != nil {
 				log.Error(err)
 				continue
 			}
-			// TODO multishard
-			selectedBlock, err := cs.shardChain.GetBlock(cs.shardChain.CurrentBlock)
+			selectedBlock, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock)
 			if err != nil {
 				bhash := sha256.Sum256(selectedBlock)
 				hash := bhash[:]
 				block := &protoBlockchain.Block{
-					Index:     cs.shardChain.CurrentBlock,
+					Index:     cs.shardsChain[currentShard].CurrentBlock,
 					Timestamp: uint64(time.Now().Unix()),
 					Miner:     "",
 					PrevHash:  hash,
 					Shard:     uint32(interestInt),
 				}
 
-				err = cs.shardChain.SaveBlock(block)
+				err = cs.SaveBlock(block, currentShard)
 				if err != nil {
 					log.Error(err)
 				}
-				err = cs.ImportBlock(block)
+				err = cs.ImportBlock(block, uint32(currentShard))
 				if err != nil {
 					log.Error(err)
 				}
 			}
 		}
 
-		// TODO multishard
-		cs.shardChain.CurrentBlock++
-		log.Info("Current block ", cs.shardChain.CurrentBlock)
+		cs.shardsChain[currentShard].CurrentBlock++
+		log.Info("Current block ", cs.shardsChain[currentShard].CurrentBlock)
 
 		// after around 80 round send all your list of ips to every client that you know
-		// TODO change 30 with 100
-		if int(rand.Float64()*100) > 30-int(cs.shardChain.CurrentBlock%30) {
+		if int(rand.Float64()*100) > 100-int(cs.shardsChain[currentShard].CurrentBlock%100) {
 			ips := []string{}
 			for k := range cs.clients {
 				ips = append(ips, k.conn.RemoteAddr().String())
@@ -541,12 +542,12 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// Change shard
-		if cs.shardChain.CurrentBlock%10000 == 0 {
+		if cs.shardsChain[currentShard].CurrentBlock%10000 == 0 {
 			// calulate the hash of the previous 100 blocks from current block - 1
 			var hashBlocks []byte
 			latestBlock := true
-			for i := cs.shardChain.CurrentBlock - 1; i > cs.shardChain.CurrentBlock-100; i-- {
-				currentBlockByte, err := cs.shardChain.GetBlock(i)
+			for i := cs.shardsChain[currentShard].CurrentBlock - 1; i > cs.shardsChain[currentShard].CurrentBlock-100; i-- {
+				currentBlockByte, err := cs.shardsChain[currentShard].GetBlock(i)
 				if err != nil {
 					log.Error(err)
 				}
@@ -565,7 +566,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 			// choose the next shard with a seed
 			seed := binary.BigEndian.Uint64(finalHash[:])
-			newShard, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardChain)
+			newShard, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardsChain[currentShard])
 			if err != nil {
 				log.Error(err)
 			}
@@ -575,7 +576,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			// remove the older blockchain and create a new one
 			os.RemoveAll(".dexm/shard")
 			os.MkdirAll(".dexm/shard", os.ModePerm)
-			cs.shardChain, err = blockchain.NewBlockchain(".dexm/shard/", 0)
+			cs.shardsChain[currentShard], err = blockchain.NewBlockchain(".dexm/shard/", 0)
 			if err != nil {
 				log.Fatal("NewBlockchain ", err)
 			}
@@ -584,14 +585,14 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// chose a validator based on stake
-		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardChain.CurrentBlock), currentShard, cs.shardChain)
+		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardsChain[currentShard].CurrentBlock), currentShard, cs.shardsChain[currentShard])
 		if err != nil {
 			log.Error(err)
 			continue
 		}
 
 		// Start accepting the block from the new validator
-		cs.shardChain.CurrentValidator[cs.shardChain.CurrentBlock] = validator
+		cs.shardsChain[currentShard].CurrentValidator[cs.shardsChain[currentShard].CurrentBlock] = validator
 
 		// check if you are a validator or not, if not don't continue with the other messages
 		if !cs.beaconChain.Validators.CheckIsValidator(wal) {
@@ -600,7 +601,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// every 30 blocks do the merkle root signature
-		if cs.shardChain.CurrentBlock%30 == 0 {
+		if cs.shardsChain[currentShard].CurrentBlock%30 == 0 {
 			// generate k and caluate r
 			k, rByte, err := wallet.GenerateParameter()
 			if err != nil {
@@ -650,7 +651,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// after 3 turn, make the sign and broadcast it
-		if cs.shardChain.CurrentBlock%30 == 3 && cs.shardChain.CurrentBlock != 3 {
+		if cs.shardsChain[currentShard].CurrentBlock%30 == 3 && cs.shardsChain[currentShard].CurrentBlock != 3 {
 			// get the private schnorr key
 			x, err := cs.identity.GetPrivateKeySchnorr()
 			if err != nil {
@@ -662,7 +663,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			var Rs []kyber.Point
 			var Ps []kyber.Point
 
-			for key, value := range cs.shardChain.Schnorr {
+			for key, value := range cs.shardsChain[currentShard].Schnorr {
 				r, err := wallet.ByteToPoint(value)
 				if err != nil {
 					log.Error("r ByteToPoint ", err)
@@ -698,8 +699,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 			var MRReceipt []byte
 			// -3 becuase it's after 3 turn from sending GenerateParameter
-			for i := int64(cs.shardChain.CurrentBlock) - 3; i > int64(cs.shardChain.CurrentBlock)-33; i-- {
-				blockByte, err := cs.shardChain.GetBlock(uint64(i))
+			for i := int64(cs.shardsChain[currentShard].CurrentBlock) - 3; i > int64(cs.shardsChain[currentShard].CurrentBlock)-33; i-- {
+				blockByte, err := cs.shardsChain[currentShard].GetBlock(uint64(i))
 				if err != nil {
 					log.Error(err)
 					continue
@@ -759,25 +760,25 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// after another 3 turn make the final signature, from sign of the chosen validator, and verify it
-		if cs.shardChain.CurrentBlock%30 == 6 && cs.shardChain.CurrentBlock != 6 {
+		if cs.shardsChain[currentShard].CurrentBlock%30 == 6 && cs.shardsChain[currentShard].CurrentBlock != 6 {
 			var Rs []kyber.Point
 			var Ps []kyber.Point
 			var SsReceipt []kyber.Scalar
 
 			// from all validator choosen get R, P and the signature of transaction and receipt
-			for i := 0; i < len(cs.shardChain.RSchnorr); i++ {
-				r, err := wallet.ByteToPoint(cs.shardChain.RSchnorr[i])
+			for i := 0; i < len(cs.shardsChain[currentShard].RSchnorr); i++ {
+				r, err := wallet.ByteToPoint(cs.shardsChain[currentShard].RSchnorr[i])
 				if err != nil {
 					log.Error(err)
 					continue
 				}
-				p, err := wallet.ByteToPoint(cs.shardChain.PSchnorr[i])
+				p, err := wallet.ByteToPoint(cs.shardsChain[currentShard].PSchnorr[i])
 				if err != nil {
 					log.Error(err)
 					continue
 				}
 
-				sReceipt, err := wallet.ByteToScalar(cs.shardChain.MTReceipt[i])
+				sReceipt, err := wallet.ByteToScalar(cs.shardsChain[currentShard].MTReceipt[i])
 				if err != nil {
 					log.Error(err)
 					continue
@@ -800,11 +801,11 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				// send the final signature
 				mr := &protoBlockchain.MerkleRootsSigned{
 					Shard:                     currentShard,
-					MerkleRootsReceipt:        cs.shardChain.MessagesReceipt,
+					MerkleRootsReceipt:        cs.shardsChain[currentShard].MessagesReceipt,
 					RSignedMerkleRootsReceipt: RsignatureReceipt,
 					SSignedMerkleRootsReceipt: SsignatureReceipt,
-					RValidators:               cs.shardChain.RSchnorr,
-					PValidators:               cs.shardChain.PSchnorr,
+					RValidators:               cs.shardsChain[currentShard].RSchnorr,
+					PValidators:               cs.shardsChain[currentShard].PSchnorr,
 				}
 				mrByte, _ := proto.Marshal(mr)
 
@@ -842,8 +843,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				cs.broadcast <- data
 
 				// send merkle proof of the other shard
-				for i := int64(cs.shardChain.CurrentBlock) - 7; i > int64(cs.shardChain.CurrentBlock)-37; i-- {
-					blockByte, err := cs.shardChain.GetBlock(uint64(i))
+				for i := int64(cs.shardsChain[currentShard].CurrentBlock) - 7; i > int64(cs.shardsChain[currentShard].CurrentBlock)-37; i-- {
+					blockByte, err := cs.shardsChain[currentShard].GetBlock(uint64(i))
 					if err != nil {
 						log.Error(err)
 						continue
@@ -919,26 +920,26 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			// for k := range cs.beaconChain.CurrentSign {
 			// 	delete(cs.beaconChain.CurrentSign, k)
 			// }
-			for k := range cs.shardChain.Schnorr {
-				delete(cs.shardChain.Schnorr, k)
+			for k := range cs.shardsChain[currentShard].Schnorr {
+				delete(cs.shardsChain[currentShard].Schnorr, k)
 			}
-			cs.shardChain.MTReceipt = [][]byte{}
-			cs.shardChain.RSchnorr = [][]byte{}
-			cs.shardChain.PSchnorr = [][]byte{}
-			cs.shardChain.MessagesReceipt = [][]byte{}
+			cs.shardsChain[currentShard].MTReceipt = [][]byte{}
+			cs.shardsChain[currentShard].RSchnorr = [][]byte{}
+			cs.shardsChain[currentShard].PSchnorr = [][]byte{}
+			cs.shardsChain[currentShard].MessagesReceipt = [][]byte{}
 		}
 
 		// Checkpoint Agreement
-		if cs.shardChain.CurrentBlock%100 == 0 && cs.shardChain.CurrentBlock%10000 != 0 {
+		if cs.shardsChain[currentShard].CurrentBlock%100 == 0 && cs.shardsChain[currentShard].CurrentBlock%10000 != 0 {
 			// check if it is a validator, also check that the dynasty are correct
-			if cs.beaconChain.Validators.CheckDynasty(wal, cs.shardChain.CurrentBlock) {
+			if cs.beaconChain.Validators.CheckDynasty(wal, cs.shardsChain[currentShard].CurrentBlock) {
 				// get source and target block in the blockchain
-				souceBlockByte, err := cs.shardChain.GetBlock(cs.shardChain.CurrentCheckpoint)
+				souceBlockByte, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentCheckpoint)
 				if err != nil {
 					log.Fatal("Get block ", err)
 					continue
 				}
-				targetBlockByte, err := cs.shardChain.GetBlock(cs.shardChain.CurrentBlock - 1)
+				targetBlockByte, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock - 1)
 				if err != nil {
 					log.Fatal("Get block ", err)
 					continue
@@ -955,13 +956,13 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				hashTarget := bhash2[:]
 
 				// create the casper vote for the agreement of checkpoint
-				vote := CreateVote(hashSource, hashTarget, cs.shardChain.CurrentCheckpoint, cs.shardChain.CurrentBlock-1, cs.identity)
+				vote := CreateVote(hashSource, hashTarget, cs.shardsChain[currentShard].CurrentCheckpoint, cs.shardsChain[currentShard].CurrentBlock-1, cs.identity)
 
 				// read all the incoming vote and store it, after 15 second call CheckpointAgreement
 				go func() {
-					currentBlockCheckpoint := cs.shardChain.CurrentBlock - 1
+					currentBlockCheckpoint := cs.shardsChain[currentShard].CurrentBlock - 1
 					time.Sleep(15 * time.Second)
-					check := cs.CheckpointAgreement(cs.shardChain.CurrentCheckpoint, currentBlockCheckpoint)
+					check := cs.CheckpointAgreement(cs.shardsChain[currentShard].CurrentCheckpoint, currentBlockCheckpoint, currentShard)
 					log.Info("CheckpointAgreement ", check)
 				}()
 
@@ -1004,7 +1005,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		// If this node is the validator then generate a block and sign it
 		if wal == validator {
 			log.Info("I'm the miner ", wal)
-			block, err := cs.shardChain.GenerateBlock(wal, currentShard, cs.beaconChain.Validators)
+			block, err := cs.shardsChain[currentShard].GenerateBlock(wal, currentShard, cs.beaconChain.Validators)
 			if err != nil {
 				log.Fatal(err)
 				return

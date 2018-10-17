@@ -42,7 +42,7 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof, 
 			return false, err
 		}
 
-		senderBalance, err := cs.shardChain.GetWalletState(sender)
+		senderBalance, err := cs.shardsChain[shard].GetWalletState(sender)
 		if err != nil {
 			log.Error(err)
 			return false, err
@@ -53,24 +53,24 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof, 
 			return false, errors.New("Balance is insufficient in transaction")
 		}
 		// Check if has already been send
-		_, err = cs.shardChain.BlockDb.Get(hash, nil)
+		_, err = cs.shardsChain[shard].BlockDb.Get(hash, nil)
 		if err == nil {
 			return false, errors.New("Already in db")
 		}
 
 		receiver := t.GetRecipient()
 		// Ignore error because if the wallet doesn't exist yet we don't care
-		reciverBalance, _ := cs.shardChain.GetWalletState(receiver)
+		reciverBalance, _ := cs.shardsChain[shard].GetWalletState(receiver)
 
 		senderBalance.Balance -= t.GetAmount() + uint64(t.GetGas())
 		reciverBalance.Balance += t.GetAmount()
 
-		err = cs.shardChain.SetState(sender, &senderBalance)
+		err = cs.shardsChain[shard].SetState(sender, &senderBalance)
 		if err != nil {
 			log.Error(err)
 			return false, err
 		}
-		err = cs.shardChain.SetState(receiver, &reciverBalance)
+		err = cs.shardsChain[shard].SetState(receiver, &reciverBalance)
 		if err != nil {
 			log.Error(err)
 			return false, err
