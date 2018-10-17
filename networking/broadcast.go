@@ -74,7 +74,9 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// if block.Index != cs.shardsChain[shard].CurrentBlock+1 {
 		// 	log.Error("The index of the block is wrong")
 		// }
-		// check if the signature of the block that should be cs.shardsChain[shard].CurrentValidator[block.GetIndex()]
+		// check if the miner of the block that should be cs.shardsChain[shard].CurrentValidator[block.GetIndex()]
+		log.Info("shard ", shard)
+		log.Info("CurrentValidator ", cs.shardsChain[shard].CurrentValidator)
 		if block.Miner != cs.shardsChain[shard].CurrentValidator[block.GetIndex()] {
 			log.Error("The miner is wrong")
 			return err
