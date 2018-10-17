@@ -35,7 +35,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		return err
 	}
 
-	log.Info("Broadcast type:", broadcastEnvelope.GetType())
+	// log.Info("Broadcast type:", broadcastEnvelope.GetType())
 
 	switch broadcastEnvelope.GetType() {
 	// Register a new transaction to the mempool
@@ -74,13 +74,14 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// if block.Index != cs.shardsChain[shard].CurrentBlock+1 {
 		// 	log.Error("The index of the block is wrong")
 		// }
+
+		// TODO the message arrive too fast so CurrentValidator didn't get update to check if it is right
 		// check if the miner of the block that should be cs.shardsChain[shard].CurrentValidator[block.GetIndex()]
-		log.Info("shard ", shard)
-		log.Info("CurrentValidator ", cs.shardsChain[shard].CurrentValidator)
-		if block.Miner != cs.shardsChain[shard].CurrentValidator[block.GetIndex()] {
-			log.Error("The miner is wrong")
-			return err
-		}
+		// if block.Miner != cs.shardsChain[shard].CurrentValidator[block.GetIndex()] {
+		// 	log.Error("The miner is wrong")
+		// 	return err
+		// }
+
 		// TODO check signature
 		// blockBytes, _ := proto.Marshal(block)
 		// bhash := sha256.Sum256(blockBytes)
@@ -90,6 +91,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// 	log.Error(err)
 		// 	return err
 		// }
+
 		// TODO change first parameter
 		// verifyBlock, err := wallet.SignatureValid([]byte(cs.shardsChain[shard].CurrentValidator), r.Bytes(), s.Bytes(), hash)
 		// if !verifyBlock || err != nil {

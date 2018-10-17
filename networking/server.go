@@ -515,6 +515,16 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		cs.shardsChain[currentShard].CurrentBlock++
 		log.Info("Current block ", cs.shardsChain[currentShard].CurrentBlock)
 
+		// chose a validator based on stake
+		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardsChain[currentShard].CurrentBlock), currentShard, cs.shardsChain[currentShard])
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		// Start accepting the block from the new validator
+		cs.shardsChain[currentShard].CurrentValidator[cs.shardsChain[currentShard].CurrentBlock] = validator
+
 		// after around 80 round send all your list of ips to every client that you know
 		if int(rand.Float64()*100) > 100-int(cs.shardsChain[currentShard].CurrentBlock%100) {
 			ips := []string{}
@@ -586,16 +596,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			// ask for the chain that corrispond to newShard shard
 			cs.UpdateChain(newShard)
 		}
-
-		// chose a validator based on stake
-		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardsChain[currentShard].CurrentBlock), currentShard, cs.shardsChain[currentShard])
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-
-		// Start accepting the block from the new validator
-		cs.shardsChain[currentShard].CurrentValidator[cs.shardsChain[currentShard].CurrentBlock] = validator
 
 		// check if you are a validator or not, if not don't continue with the other messages
 		if !cs.beaconChain.Validators.CheckIsValidator(wal) {
