@@ -65,7 +65,9 @@ var upgrader = websocket.Upgrader{
 
 // Loop start ValidatorLoop for every interest
 func (cs *ConnectionStore) Loop() {
+	count := 0
 	for interest := range cs.interests {
+		count++
 		interestInt, err := strconv.Atoi(interest)
 		if err != nil {
 			log.Error(err)
@@ -78,6 +80,9 @@ func (cs *ConnectionStore) Loop() {
 		// cs.UpdateChain(uint32(interestInt))
 		// log.Info("Done importing")
 
+		if len(cs.interests) == count {
+			cs.ValidatorLoop(uint32(interestInt))
+		}
 		go cs.ValidatorLoop(uint32(interestInt))
 	}
 }
