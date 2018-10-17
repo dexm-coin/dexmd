@@ -52,10 +52,16 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof, 
 		if requiredBal > senderBalance.GetBalance() && ok {
 			return false, errors.New("Balance is insufficient in transaction")
 		}
-		// Check if has already been send
-		_, err = cs.shardsChain[shard].BlockDb.Get(hash, nil)
+
+		// Check if has already been sent
+		data, err := cs.shardsChain[shard].BlockDb.Get(hash, nil)
 		if err == nil {
-			return false, errors.New("Already in db")
+			tr := &protobufs.Transaction{}
+
+			err = proto.Unmarshal(data, tr)
+			if err != nil {
+				return false, errors.New("Transaction was already included in db")
+			}
 		}
 
 		receiver := t.GetRecipient()
