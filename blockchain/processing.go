@@ -154,8 +154,6 @@ func (bc *BeaconChain) GetBlockBeacon(index int64, shard uint32) ([]byte, error)
 	return bc.MerkleRootsDb[shard].Get([]byte(strconv.Itoa(int(index))), nil)
 }
 
-
-
 // GetBlock returns the array of blocks at an index
 func (bc *Blockchain) GetBlock(index uint64) ([]byte, error) {
 	return bc.BlockDb.Get([]byte(strconv.Itoa(int(index))), nil)
@@ -221,9 +219,14 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 		res, _ := proto.Marshal(t)
 		dbKeyS := sha256.Sum256(res)
 		dbKey := dbKeyS[:]
-		_, err = bc.BlockDb.Get(dbKey, nil)
+		data, err := bc.BlockDb.Get(dbKey, nil)
 		if err == nil {
-			return false, errors.New("Already in db")
+			tr := &protobufs.Transaction{}
+
+			err = proto.Unmarshal(data, tr)
+			if err == nil {
+				return false, errors.New("Transaction was already included in db")
+			}
 		}
 
 		// Taint sender and update his balance. Reciver will be able to spend

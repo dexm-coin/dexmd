@@ -1,11 +1,13 @@
 package networking
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
 	"github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
@@ -210,18 +212,26 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 
 		// If a function identifier is specified then fetch the contract and execute
 		if t.GetFunction() != "" {
-			// c, err := blockchain.GetContract(t.GetRecipient(), cs.shardsChain[shard].ContractDb, cs.shardsChain[shard].StateDb)
-			// if err != nil {
-			// 	return err
-			// }
+			c, err := blockchain.GetContract(t.GetRecipient(), cs.shardsChain[shard].ContractDb, cs.shardsChain[shard].StateDb, cs.shardsChain[shard], t)
+			if err != nil {
+				return err
+			}
 
-			// err = c.ExecuteContract(t.GetFunction(), t.GetArgs())
-			// if err != nil {
-			// 	return err
-			// }
+			c.ExecuteContract(t.GetFunction(), t.GetArgs())
+			if err != nil {
+				return err
+			}
 
-			// c.SaveState()
+			c.SaveState()
 		}
+
+		res, _ := proto.Marshal(t)
+		dbKeyS := sha256.Sum256(res)
+		dbKey := dbKeyS[:]
+
+		// Remove the transaction from the DB and replace it with the block index
+		cs.shardsChain[shard].BlockDb.Delete(dbKey, nil)
+		cs.shardsChain[shard].BlockDb.Put(dbKey, []byte(string(block.GetIndex())), nil)
 	}
 
 	return nil
