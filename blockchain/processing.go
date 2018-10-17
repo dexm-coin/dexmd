@@ -224,7 +224,7 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 			tr := &protobufs.Transaction{}
 
 			err = proto.Unmarshal(data, tr)
-			if err == nil {
+			if err != nil {
 				return false, errors.New("Transaction was already included in db")
 			}
 		}
