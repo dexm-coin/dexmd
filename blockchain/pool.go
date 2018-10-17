@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/dexm-coin/dexmd/util"
 	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
@@ -84,6 +85,8 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 	var transactions []*protobufs.Transaction
 
 	currentLen := len(blockHeader)
+	isTainted := make(map[string]bool)
+	taintedState := make(map[string]protobufs.AccountState)
 
 	// Check that the len is smaller than the max
 	for currentLen < bc.Mempool.maxBlockBytes {
@@ -103,6 +106,12 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 		rtx := &protobufs.Transaction{}
 		proto.Unmarshal(txData, rtx)
 
+		// Don't include invalid transactions
+		err = bc.ValidateTransaction(rtx)
+		if err != nil {
+			continue
+		}
+
 		// check if the transazion is form my shard
 		senderWallet := wallet.BytesToAddress(rtx.GetSender(), rtx.GetShard())
 		shardSender, err := validators.GetShard(senderWallet)
@@ -119,15 +128,38 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 			continue
 		}
 
+		balance := protobufs.AccountState{}
+
+		// Check if the address state changed while processing this block
+		// If it hasn't changed then pull the state from the blockchain, otherwise
+		// get the updated copy instead
+		if !isTainted[senderWallet] {
+			balance, err = bc.GetWalletState(senderWallet)
+			if err != nil {
+				continue
+			}
+		} else {
+			balance = taintedState[senderWallet]
+		}
+
+		// Check if balance is sufficient
+		requiredBal, ok := util.AddU64O(rtx.GetAmount(), uint64(rtx.GetGas()))
+		if requiredBal > balance.GetBalance() && ok {
+			continue
+		}
+
+		newBal, ok := util.SubU64O(balance.Balance, requiredBal)
+		if !ok {
+			continue
+		}
+
+		balance.Balance = newBal
+		isTainted[senderWallet] = true
+		taintedState[senderWallet] = balance
+
 		rawTx, err := proto.Marshal(rtx)
 		if err != nil {
 			break
-		}
-
-		// Don't include invalid transactions
-		err = bc.ValidateTransaction(rtx)
-		if err != nil {
-			continue
 		}
 
 		transactions = append(transactions, rtx)
