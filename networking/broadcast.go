@@ -53,7 +53,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		}
 
 		log.Printf("New Transaction: %x", broadcastEnvelope.GetData())
-		cs.shardsChain[shard].AddMempoolTransaction(pb, broadcastEnvelope.GetData())
+		cs.shardsChain[pb.GetShard()].AddMempoolTransaction(pb, broadcastEnvelope.GetData())
 
 	// Save a block proposed by a validator
 	case protoNetwork.Broadcast_BLOCK_PROPOSAL:
