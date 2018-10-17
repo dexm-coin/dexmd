@@ -71,7 +71,6 @@ func (cs *ConnectionStore) Loop() {
 			log.Error(err)
 			continue
 		}
-		// TODO do go routine and delete break
 		if interestInt == 0 {
 			continue
 		}
@@ -79,8 +78,7 @@ func (cs *ConnectionStore) Loop() {
 		// cs.UpdateChain(uint32(interestInt))
 		// log.Info("Done importing")
 
-		cs.ValidatorLoop(uint32(interestInt))
-		break
+		go cs.ValidatorLoop(uint32(interestInt))
 	}
 }
 
