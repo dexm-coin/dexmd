@@ -15,6 +15,9 @@ import (
 
 // CheckShard check if the message arrived is from your interests (shards)
 func (cs *ConnectionStore) CheckShard(shard uint32) bool {
+	if shard == 0 {
+		return false
+	}
 	for interest := range cs.interests {
 		interestInt, err := strconv.Atoi(interest)
 		if err != nil {

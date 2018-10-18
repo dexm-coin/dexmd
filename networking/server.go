@@ -392,7 +392,7 @@ func (c *client) read() {
 				env := protoNetwork.Envelope{
 					Type:  protoNetwork.Envelope_OTHER,
 					Data:  rawMsg,
-					Shard: 0,
+					Shard: pb.GetShard(),
 				}
 
 				toSend, err := proto.Marshal(&env)
