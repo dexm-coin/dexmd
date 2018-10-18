@@ -3,7 +3,6 @@ package blockchain
 import (
 	"crypto/sha256"
 
-	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
 	"github.com/onrik/gomerkle"
@@ -15,7 +14,7 @@ func GenerateMerkleTree(transactions []*protobufs.Transaction) ([]byte, error) {
 	// For every transaction create its receipt and use it to create the tree
 	for _, t := range transactions {
 		r := &protobufs.Receipt{
-			Sender:    wallet.BytesToAddress(t.GetSender(), t.GetShard()),
+			Sender:    t.GetSender(),
 			Recipient: t.GetRecipient(),
 			Amount:    t.GetAmount(),
 			Nonce:     t.GetNonce(),

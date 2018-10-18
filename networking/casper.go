@@ -21,23 +21,16 @@ var receivedVotes []*protobufs.CasperVote
 // - Target -> hash of any descendent of s
 // - SourceHeight -> height of s
 // - TargetHeight -> height of t
-// - R, S -> signature of <s, t, h(s), h(t)> with validator private key
 func CreateVote(sVote, tVote []byte, hsVote, htVote uint64, w *wallet.Wallet) protobufs.CasperVote {
-	wal, err := w.GetWallet()
+	wal, err := w.GetPubKey()
 	if err != nil {
 		log.Fatal(err)
 	}
-	data := []byte(fmt.Sprintf("%v", sVote) + fmt.Sprintf("%v", tVote) + fmt.Sprintf("%v", hsVote) + fmt.Sprintf("%v", hsVote) + wal)
-	bhash := sha256.Sum256(data)
-	hash := bhash[:]
-	rSign, sSign, _ := w.Sign(hash)
 	return protobufs.CasperVote{
 		Source:       sVote,
 		Target:       tVote,
 		SourceHeight: hsVote,
 		TargetHeight: htVote,
-		R:            rSign.Bytes(),
-		S:            sSign.Bytes(),
 		PublicKey:    wal,
 	}
 }

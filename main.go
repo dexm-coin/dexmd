@@ -26,10 +26,10 @@ const (
 
 var (
 	// -- start
-        PUBLIC_PEERSERVER = false
-        TS                = uint64(1539785361)
-        // -- start
-                                                                )
+	PUBLIC_PEERSERVER = false
+	TS                = uint64(1539785361)
+	// -- start
+)
 
 /*
 	optimize everything with pprof
@@ -65,7 +65,7 @@ func main() {
 
 		{
 			Name:    "startnode",
-			Usage:   "sn [wallet] [timestamp] [network]",
+			Usage:   "sn [wallet] [timestamp] [network] [publicserver]",
 			Aliases: []string{"sn", "rn"},
 			Action: func(c *cli.Context) error {
 				walletPath := c.Args().Get(0)
@@ -74,6 +74,10 @@ func main() {
 
 				if network == "" {
 					network = "hackney"
+				}
+
+				if c.Args().Get(3) == "true" {
+					PUBLIC_PEERSERVER = true
 				}
 
 				// Import an identity to encrypt data and sign for validator msg

@@ -4,14 +4,11 @@ import os, random
 from threading import Thread
 app = Flask(__name__)
 
-os.system("sudo rm -rf .dexm*")
-os.system("cd ..;cd ..;go build; cp dexmd testnet/worker/; cp dexmd testnet/coordinator/; cd testnet/coordinator/")
-
 wallets = [] 
 start_time = int(time.time() + 200)
 
 def start_hackney():
-    os.system("sudo ./dexmd sn wallet1 " + str(start_time))
+    os.system("sudo ./dexmd sn wallet1 " + str(start_time) + " hackney true")
 
 thread = Thread(target=start_hackney)
 thread.start()
