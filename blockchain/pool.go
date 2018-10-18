@@ -50,17 +50,15 @@ func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transacti
 func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *ValidatorsBook) (*protobufs.Block, error) {
 	hash := []byte{}
 
-	// if isn't the genesis block, get the prev block and get the hash
-	if bc.CurrentBlock != 0 {
-		currBlocks, err := bc.GetBlock(bc.CurrentBlock - 1)
-		// there shouldn't be hole in the chain
-		if err != nil {
-			log.Error("Prev block not found")
-			return nil, err
-		}
-		bhash := sha256.Sum256(currBlocks)
-		hash = bhash[:]
+	// get the prev block and calulate the hash
+	currBlocks, err := bc.GetBlock(bc.CurrentBlock - 1)
+	// there shouldn't be hole in the chain
+	if err != nil {
+		log.Error("Prev block not found")
+		return nil, err
 	}
+	bhash := sha256.Sum256(currBlocks)
+	hash = bhash[:]
 
 	block := protobufs.Block{
 		Index:     bc.CurrentBlock,

@@ -488,18 +488,21 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			prevBlockByte, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock - 1)
 			if err != nil {
 				log.Error(err)
+				continue
 			}
-			prevBlock := &protoBlockchain.Block{}
-			err = proto.Unmarshal(prevBlockByte, prevBlock)
-			if err != nil {
-				log.Error(err)
+			bhash := sha256.Sum256(prevBlockByte)
+
+			emptyBlock := &protoBlockchain.Block{
+				Index:    cs.shardsChain[currentShard].CurrentBlock,
+				PrevHash: bhash[:],
+				Shard:    currentShard,
 			}
 
-			err = cs.SaveBlock(prevBlock, currentShard)
+			err = cs.SaveBlock(emptyBlock, currentShard)
 			if err != nil {
 				log.Error(err)
 			}
-			err = cs.ImportBlock(prevBlock, currentShard)
+			err = cs.ImportBlock(emptyBlock, currentShard)
 			if err != nil {
 				log.Error(err)
 			}
@@ -933,12 +936,12 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				// get source and target block in the blockchain
 				souceBlockByte, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentCheckpoint)
 				if err != nil {
-					log.Fatal("Get block ", err)
+					log.Error("Get block ", err)
 					continue
 				}
 				targetBlockByte, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock - 1)
 				if err != nil {
-					log.Fatal("Get block ", err)
+					log.Error("Get block ", err)
 					continue
 				}
 
@@ -1004,8 +1007,14 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			log.Info("I'm the miner ", wal)
 			block, err := cs.shardsChain[currentShard].GenerateBlock(wal, currentShard, cs.beaconChain.Validators)
 			if err != nil {
-				log.Fatal(err)
-				return
+				log.Error(err)
+				continue
+			}
+
+			err = cs.SaveBlock(block, currentShard)
+			if err != nil {
+				log.Error(err)
+				continue
 			}
 
 			// Get marshaled block

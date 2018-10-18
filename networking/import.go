@@ -101,7 +101,6 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 			}
 		}
 	}
-
 	return nil
 }
 
