@@ -483,37 +483,31 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 
 		// check if the block with index cs.shardsChain[currentShard].CurrentBlock have been saved, otherwise save an empty block
-		for interest := range cs.interests {
-			interestInt, err := strconv.Atoi(interest)
+		_, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock)
+		if err != nil {
+			prevBlockByte, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock - 1)
 			if err != nil {
 				log.Error(err)
-				continue
 			}
-			selectedBlock, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock)
+			prevBlock := &protoBlockchain.Block{}
+			err = proto.Unmarshal(prevBlockByte, prevBlock)
 			if err != nil {
-				bhash := sha256.Sum256(selectedBlock)
-				hash := bhash[:]
-				block := &protoBlockchain.Block{
-					Index:     cs.shardsChain[currentShard].CurrentBlock,
-					Timestamp: uint64(time.Now().Unix()),
-					Miner:     "",
-					PrevHash:  hash,
-					Shard:     uint32(interestInt),
-				}
+				log.Error(err)
+			}
 
-				err = cs.SaveBlock(block, currentShard)
-				if err != nil {
-					log.Error(err)
-				}
-				err = cs.ImportBlock(block, uint32(currentShard))
-				if err != nil {
-					log.Error(err)
-				}
+			err = cs.SaveBlock(prevBlock, currentShard)
+			if err != nil {
+				log.Error(err)
+			}
+			err = cs.ImportBlock(prevBlock, currentShard)
+			if err != nil {
+				log.Error(err)
 			}
 		}
 
+		// increment the block number
 		cs.shardsChain[currentShard].CurrentBlock++
-		log.Info("Current block ", cs.shardsChain[currentShard].CurrentBlock)
+		log.Info("Current block ", cs.shardsChain[currentShard].CurrentBlock, " in shard ", currentShard)
 
 		// chose a validator based on stake
 		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardsChain[currentShard].CurrentBlock), currentShard, cs.shardsChain[currentShard])
@@ -525,7 +519,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		// Start accepting the block from the new validator
 		cs.shardsChain[currentShard].CurrentValidator[cs.shardsChain[currentShard].CurrentBlock] = validator
 
-		// after around 80 round send all your list of ips to every client that you know
+		// after max 100 rounds send all your list of ips to every client that you know
 		if int(rand.Float64()*100) > 100-int(cs.shardsChain[currentShard].CurrentBlock%100) {
 			ips := []string{}
 			for k := range cs.clients {

@@ -100,9 +100,7 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 	mp := newMempool(1000000, 100)
 
 	currentValidators := make(map[uint64]string)
-	for i := uint64(1); i < 11; i++ {
-		currentValidators[i] = ""
-	}
+	currentValidators[1] = ""
 
 	return &Blockchain{
 		balancesDb:    db,
@@ -137,21 +135,21 @@ func (bc *Blockchain) GetWalletState(wallet string) (protobufs.AccountState, err
 	return state, nil
 }
 
-func (bc *BeaconChain) SaveMerkleRoots(mr *protobufs.MerkleRootsSigned) error {
+func (beaconChain *BeaconChain) SaveMerkleRoots(mr *protobufs.MerkleRootsSigned) error {
 	res, _ := proto.Marshal(mr)
 	currShard := mr.GetShard()
 
-	bc.CurrentBlock[currShard]++
-	return bc.MerkleRootsDb[currShard].Put([]byte(strconv.Itoa(int(bc.CurrentBlock[currShard]))), res, nil)
+	beaconChain.CurrentBlock[currShard]++
+	return beaconChain.MerkleRootsDb[currShard].Put([]byte(strconv.Itoa(int(beaconChain.CurrentBlock[currShard]))), res, nil)
 }
 
-func (bc *BeaconChain) GetMerkleRoots(index uint64, shard uint32) ([]byte, error) {
-	return bc.MerkleRootsDb[shard].Get([]byte(strconv.Itoa(int(index))), nil)
+func (beaconChain *BeaconChain) GetMerkleRoots(index uint64, shard uint32) ([]byte, error) {
+	return beaconChain.MerkleRootsDb[shard].Get([]byte(strconv.Itoa(int(index))), nil)
 }
 
 // GetBlockBeacon returns the array of blocks at an index and at a specific shard
-func (bc *BeaconChain) GetBlockBeacon(index int64, shard uint32) ([]byte, error) {
-	return bc.MerkleRootsDb[shard].Get([]byte(strconv.Itoa(int(index))), nil)
+func (beaconChain *BeaconChain) GetBlockBeacon(index int64, shard uint32) ([]byte, error) {
+	return beaconChain.MerkleRootsDb[shard].Get([]byte(strconv.Itoa(int(index))), nil)
 }
 
 // GetBlock returns the array of blocks at an index

@@ -32,9 +32,9 @@ func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transacti
 		return err
 	}
 
+	// save the hash of the transaction and put it on blockdb
 	dbKeyS := sha256.Sum256(transaction)
 	dbKey := dbKeyS[:]
-
 	_, err = bc.BlockDb.Get(dbKey, nil)
 	if err == nil {
 		return errors.New("Already in db")
@@ -50,21 +50,14 @@ func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transacti
 func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *ValidatorsBook) (*protobufs.Block, error) {
 	hash := []byte{}
 
+	// if isn't the genesis block, get the prev block and get the hash
 	if bc.CurrentBlock != 0 {
-		currBlocks := []byte{}
-		var err error
-		// There may be holes in the blockchain. Keep going till you find a block
-		for i := bc.CurrentBlock - 1; i >= 0; i-- {
-			currBlocks, err = bc.GetBlock(i)
-			if err == nil {
-				break
-			}
-		}
-
+		currBlocks, err := bc.GetBlock(bc.CurrentBlock - 1)
+		// there shouldn't be hole in the chain
 		if err != nil {
 			log.Error("Prev block not found")
+			return nil, err
 		}
-
 		bhash := sha256.Sum256(currBlocks)
 		hash = bhash[:]
 	}
@@ -112,7 +105,7 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 			continue
 		}
 
-		// check if the transazion is form my shard
+		// check if the transazion is for my shard
 		senderWallet := wallet.BytesToAddress(rtx.GetSender(), rtx.GetShard())
 		shardSender, err := validators.GetShard(senderWallet)
 		if err != nil {
@@ -168,6 +161,7 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 
 	block.Transactions = transactions
 
+	// create the merkletree with the transactions and get its root
 	merkleRootReceipt := []byte{}
 	if len(transactions) != 0 {
 		merkleRootReceipt, err = GenerateMerkleTree(transactions)
@@ -176,6 +170,7 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 		}
 	}
 
+	// put the merkleroot inside the block
 	block.MerkleRootReceipt = merkleRootReceipt
 
 	return &block, nil

@@ -9,9 +9,10 @@ import (
 	"github.com/onrik/gomerkle"
 )
 
-// GenerateMerkleTree generate a merkletree 
+// GenerateMerkleTree generate a merkletree and return its root
 func GenerateMerkleTree(transactions []*protobufs.Transaction) ([]byte, error) {
 	var dataReceipt [][]byte
+	// For every transaction create its receipt and use it to create the tree
 	for _, t := range transactions {
 		r := &protobufs.Receipt{
 			Sender:    wallet.BytesToAddress(t.GetSender(), t.GetShard()),
