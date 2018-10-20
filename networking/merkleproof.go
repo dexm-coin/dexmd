@@ -100,6 +100,7 @@ func (cs *ConnectionStore) VerifyProof(mp *protobufs.MerkleProof, shard uint32) 
 	rootTransaction := mp.GetRoot()
 	merkleRootFound := false
 	if _, ok := cs.beaconChain.MerkleRootsDb[shard]; !ok {
+		log.Error("if _, ok := cs.beaconChain.MerkleRootsDb[shard]; !ok {")
 		return false
 	}
 	iter := cs.beaconChain.MerkleRootsDb[shard].NewIterator(nil, nil)
@@ -126,6 +127,7 @@ func (cs *ConnectionStore) VerifyProof(mp *protobufs.MerkleProof, shard uint32) 
 	}
 
 	if !merkleRootFound {
+		log.Error("if !merkleRootFound {")
 		return false
 	}
 
@@ -138,9 +140,10 @@ func (cs *ConnectionStore) VerifyProof(mp *protobufs.MerkleProof, shard uint32) 
 	}
 	t, _ := proto.Marshal(mp.GetReceipt())
 
-	equal := reflect.DeepEqual(hash(t), mp.GetLeaf())
+	equal := reflect.DeepEqual(t, mp.GetLeaf())
 	// check if the transaction and Leaf ( hash of the transaction for the proof ) are equal
 	if !equal {
+		log.Error("if !equal {")
 		return false
 	}
 
@@ -156,6 +159,7 @@ func verifyMerkleProof(proof []map[string][]byte, root, value []byte) bool {
 		} else if sibling, exist := p["right"]; exist {
 			proofHash = hash(append(proofHash, sibling...))
 		} else {
+			log.Error("verifyMerkleProof false")
 			return false
 		}
 	}

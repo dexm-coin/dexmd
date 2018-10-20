@@ -880,7 +880,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					}
 
 					for i, _ := range receipts {
-						log.Info("Receipts to prove")
 						merkleProofByte := GenerateMerkleProof(receipts, i, transactions[i])
 						if len(merkleProofByte) == 0 {
 							log.Error("proof failed")
@@ -919,8 +918,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 						dataMerkleProof, _ := proto.Marshal(envMerkleProof)
 						cs.broadcast <- dataMerkleProof
-
-						log.Info("Broadcast_MERKLE_PROOF sent")
 					}
 				}
 			}
