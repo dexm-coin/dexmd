@@ -100,6 +100,7 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 		// Don't include invalid transactions
 		err = bc.ValidateTransaction(rtx)
 		if err != nil {
+			log.Error("ValidateTransaction ", err)
 			continue
 		}
 

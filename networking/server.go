@@ -67,7 +67,6 @@ var upgrader = websocket.Upgrader{
 func (cs *ConnectionStore) Loop() {
 	count := 0
 	for interest := range cs.interests {
-		count++
 		interestInt, err := strconv.Atoi(interest)
 		if err != nil {
 			log.Error(err)
@@ -76,11 +75,15 @@ func (cs *ConnectionStore) Loop() {
 		if interestInt == 0 {
 			continue
 		}
+		count++
+
+		// TODO UpdateChain
 		// log.Info("Staring chain import")
 		// cs.UpdateChain(uint32(interestInt))
 		// log.Info("Done importing")
 
-		if len(cs.interests) == count {
+		// -1 because "0" doesn't count
+		if len(cs.interests)-1 == count {
 			cs.ValidatorLoop(uint32(interestInt))
 		}
 		go cs.ValidatorLoop(uint32(interestInt))
@@ -368,7 +371,27 @@ func (c *client) read() {
 				continue
 			}
 
-			go c.store.handleBroadcast(pb.GetData(), pb.GetShard())
+			broadcastEnvelope := &protoNetwork.Broadcast{}
+			err := proto.Unmarshal(pb.GetData(), broadcastEnvelope)
+			if err != nil {
+				continue
+			}
+			signature := broadcastEnvelope.GetIdentity()
+			bhash := sha256.Sum256(pb.GetData())
+			hashData := bhash[:]
+			if !reflect.DeepEqual(hashData, signature.GetData()) {
+				log.Error("Hash of the data doesn't match with the hash of data inside the signature")
+				continue
+			}
+			valid, err := wallet.SignatureValid(signature.GetPubkey(), signature.GetR(), signature.GetS(), hashData)
+			if !valid {
+				log.Error("The signature of the message is invalid")
+				continue
+			}
+
+			// TODO dentro ogni messaggio controllo se signature.GetPubkey() corrisponde a pb.GetData().GetPubkey()
+
+			go c.store.handleBroadcast(pb.GetData(), pb.GetShard(), signature.GetPubkey())
 
 			// check if the interest exist in interestedClients
 			if _, ok := c.store.interestedClients[fmt.Sprint(pb.GetShard())]; ok {

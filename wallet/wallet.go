@@ -294,7 +294,7 @@ func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32, dat
 
 	w.Balance -= int(amount + uint64(gas))
 
-	x509Encoded, err := x509.MarshalPKIXPublicKey(&w.PrivKey.PublicKey)
+	x509Encoded, err := w.GetPubKey()
 	if err != nil {
 		return nil, err
 	}
@@ -314,19 +314,6 @@ func (w *Wallet) RawTransaction(recipient string, amount uint64, gas uint32, dat
 	if len(data) != 0 {
 		newT.ContractCreation = true
 	}
-
-	result, err := proto.Marshal(newT)
-	if err != nil {
-		return nil, err
-	}
-
-	r, s, err := w.Sign(result)
-	if err != nil {
-		return nil, err
-	}
-
-	newT.R = r.Bytes()
-	newT.S = s.Bytes()
 
 	return newT, nil
 }

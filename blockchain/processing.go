@@ -52,6 +52,7 @@ func NewBeaconChain(dbPath string) (*BeaconChain, error) {
 	mrdb := make(map[uint32]*leveldb.DB)
 	cb := make(map[uint32]uint64)
 
+	// create nShard db for the other shards
 	for i := uint32(1); i < nShard+1; i++ {
 		db, err := leveldb.OpenFile(dbPath+".merkleroots"+strconv.Itoa(int(i)), nil)
 		if err != nil {
@@ -135,6 +136,7 @@ func (bc *Blockchain) GetWalletState(wallet string) (protobufs.AccountState, err
 	return state, nil
 }
 
+// SaveMerkleRoots save merkleroot in BeaconChain
 func (beaconChain *BeaconChain) SaveMerkleRoots(mr *protobufs.MerkleRootsSigned) error {
 	res, _ := proto.Marshal(mr)
 	currShard := mr.GetShard()
@@ -143,6 +145,7 @@ func (beaconChain *BeaconChain) SaveMerkleRoots(mr *protobufs.MerkleRootsSigned)
 	return beaconChain.MerkleRootsDb[currShard].Put([]byte(strconv.Itoa(int(beaconChain.CurrentBlock[currShard]))), res, nil)
 }
 
+// GetMerkleRoots return the merkleroot in a specific index
 func (beaconChain *BeaconChain) GetMerkleRoots(index uint64, shard uint32) ([]byte, error) {
 	return beaconChain.MerkleRootsDb[shard].Get([]byte(strconv.Itoa(int(index))), nil)
 }
@@ -207,6 +210,10 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 			balance = taintedState[sender]
 		}
 
+		if !wallet.IsWalletValid(t.GetRecipient()) {
+			return false, errors.New("Invalid recipient")
+		}
+
 		// Check if balance is sufficient
 		requiredBal, ok := util.AddU64O(t.GetAmount(), uint64(t.GetGas()))
 		if requiredBal > balance.GetBalance() && ok {
@@ -264,17 +271,15 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 		return errors.New("Invalid recipient")
 	}
 
-	result, _ := proto.Marshal(t)
-	bhash := sha256.Sum256(result)
-	hash := bhash[:]
+	// result, _ := proto.Marshal(t)
+	// bhash := sha256.Sum256(result)
+	// hash := bhash[:]
+	// valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
+	// if !valid {
+	// 	return err
+	// }
 
-	valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
-	if !valid {
-		return err
-	}
-
-	balance := protobufs.AccountState{}
-	balance, err = bc.GetWalletState(sender)
+	balance, err := bc.GetWalletState(sender)
 	if err != nil {
 		return err
 	}
