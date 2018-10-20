@@ -184,16 +184,6 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	for i, t := range block.GetTransactions() {
 		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
 
-		// result, _ := proto.Marshal(t)
-		// bhash := sha256.Sum256(result)
-		// hash := bhash[:]
-
-		// valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
-		// if !valid || err != nil {
-		// 	log.Error("SignatureValid ", err)
-		// 	return false, err
-		// }
-
 		var err error
 		balance := protobufs.AccountState{}
 
@@ -220,14 +210,13 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 			return false, errors.New("Balance is insufficient in transaction " + strconv.Itoa(i))
 		}
 
-		// Check if has already been send
+		// Check if the transaction has already been sent
 		res, _ := proto.Marshal(t)
 		dbKeyS := sha256.Sum256(res)
 		dbKey := dbKeyS[:]
 		data, err := bc.BlockDb.Get(dbKey, nil)
 		if err == nil {
 			tr := &protobufs.Transaction{}
-
 			err = proto.Unmarshal(data, tr)
 			if err != nil {
 				return false, errors.New("Transaction was already included in db")
@@ -253,6 +242,7 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	return true, nil
 }
 
+// SetState save the AccountState of a wallet
 func (bc *Blockchain) SetState(wallet string, newState *protobufs.AccountState) error {
 	stateBytes, err := proto.Marshal(newState)
 	if err != nil {
