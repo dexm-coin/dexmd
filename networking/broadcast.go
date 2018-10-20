@@ -265,7 +265,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			return err
 		}
 
-		ok, err := cs.CheckMerkleProof(merkleProof, shard)
+		ok, err := cs.CheckMerkleProof(merkleProof)
 		if err != nil || !ok {
 			log.Error("Proof not verifed", err)
 			return err

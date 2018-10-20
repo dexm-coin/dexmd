@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	maxMessagesSave = 500
+	maxMessagesSave = 5000
 	nShard          = 5
 )
 
@@ -884,7 +884,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 						}
 
 						for i, _ := range receipts {
-							merkleProofByte := GenerateMerkleProof(receipts, i, transactions[i])
+							merkleProofByte := GenerateMerkleProof(receipts, i, transactions[i], currentShard)
 							if len(merkleProofByte) == 0 {
 								log.Error("proof failed")
 								continue

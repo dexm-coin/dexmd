@@ -17,12 +17,13 @@ import (
 // TODO put ReceiptBurned in a file, can't handle this in ram
 var ReceiptBurned = make(map[string]bool)
 
-func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof, shard uint32) (bool, error) {
+func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) (bool, error) {
 	// check if the proof has already be done
 	if val, ok := ReceiptBurned[string(merkleProof.GetLeaf())]; ok && val {
 		log.Error("Double spend!")
 		return false, nil
 	}
+	shard := merkleProof.GetShard()
 
 	log.Info("VerifyProof in shard ", shard)
 
@@ -168,7 +169,7 @@ func verifyMerkleProof(proof []map[string][]byte, root, value []byte) bool {
 	return bytes.Equal(root, proofHash)
 }
 
-func GenerateMerkleProof(receipts []*protobufs.Receipt, indexProof int, transaction *protobufs.Transaction) []byte {
+func GenerateMerkleProof(receipts []*protobufs.Receipt, indexProof int, transaction *protobufs.Transaction, shard uint32) []byte {
 	var data [][]byte
 	for _, t := range receipts {
 		tByte, _ := proto.Marshal(t)
@@ -204,6 +205,7 @@ func GenerateMerkleProof(receipts []*protobufs.Receipt, indexProof int, transact
 		Leaf:        leaf,
 		Receipt:     receipts[indexProof],
 		Transaction: transaction,
+		Shard:       shard,
 	}
 	merkleProofByte, _ := proto.Marshal(merkleProof)
 	return merkleProofByte
