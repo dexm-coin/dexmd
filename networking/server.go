@@ -309,10 +309,11 @@ func checkDuplicatedMessage(msg []byte) bool {
 		log.Error("Fail signatureValid broadcast ", err)
 		return false
 	}
-	if !reflect.DeepEqual(hash, identityBroadcast.GetData()) {
-		log.Error("Hash of the data doesn't match with the hash of data inside the signature")
-		return false
-	}
+	// TODO do the check
+	// if !reflect.DeepEqual(hash, identityBroadcast.GetData()) {
+	// 	log.Error("Hash of the data doesn't match with the hash of data inside the signature")
+	// 	return false
+	// }
 
 	// set TTL to 0, calculate the hash of the message, check if already exist
 	copyBroadcast := *broadcast

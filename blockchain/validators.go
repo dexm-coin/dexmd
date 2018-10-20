@@ -4,7 +4,6 @@ import (
 	"errors"
 	"math/rand"
 	"sort"
-	"strconv"
 
 	wal "github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
@@ -163,7 +162,7 @@ func (v *ValidatorsBook) LenValidators(currentShard uint32) int {
 // AddValidator adds a new validator to the book. If the validator is already
 // registered, overwrites its stake with the new one
 // Return if the validator already exist or not
-func (v *ValidatorsBook) AddValidator(wallet string, dynasty int64, pubSchnorrKey []byte, transaction *protobufs.Transaction) bool {
+func (v *ValidatorsBook) AddValidator(wallet string, dynasty int64, pubSchnorrKey []byte, transaction *protobufs.Transaction, shard uint32) bool {
 	if _, ok := v.valsArray[wallet]; ok {
 		return true
 	}
@@ -176,12 +175,7 @@ func (v *ValidatorsBook) AddValidator(wallet string, dynasty int64, pubSchnorrKe
 		log.Error("Not IsWalletValid")
 		return false
 	}
-	shard, err := strconv.ParseUint(wallet[4:6], 16, 32)
-	if err != nil {
-		log.Error("addvalidator ", err)
-		return false
-	}
-	v.valsArray[wallet] = &Validator{wallet, dynasty, -1, uint32(shard), publicKey}
+	v.valsArray[wallet] = &Validator{wallet, dynasty, -1, shard, publicKey}
 	v.valsWithdraw[wallet] = transaction
 	return false
 }

@@ -2,8 +2,10 @@ package networking
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -131,32 +133,38 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 		state.Balance++
 		wallet1, _ := wallet.ImportWallet("wallet1")
 		cs.shardsChain[shard].SetState("Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2", state)
-		cs.beaconChain.Validators.AddValidator("Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2", -300, wallet1.GetPublicKeySchnorrByte(), fakeTransaction)
+		cs.beaconChain.Validators.AddValidator("Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2", -300, wallet1.GetPublicKeySchnorrByte(), fakeTransaction, 1)
 
 		state.Balance++
 		wallet2, _ := wallet.ImportWallet("wallet2")
 		cs.shardsChain[shard].SetState("Dexm022FK264yvfQuR3AxmbJoeonYnhdRQ94F9E559", state)
-		cs.beaconChain.Validators.AddValidator("Dexm022FK264yvfQuR3AxmbJoeonYnhdRQ94F9E559", -300, wallet2.GetPublicKeySchnorrByte(), fakeTransaction)
+		cs.beaconChain.Validators.AddValidator("Dexm022FK264yvfQuR3AxmbJoeonYnhdRQ94F9E559", -300, wallet2.GetPublicKeySchnorrByte(), fakeTransaction, 2)
 
 		state.Balance++
 		wallet3, _ := wallet.ImportWallet("wallet3")
 		cs.shardsChain[shard].SetState("Dexm032dTkjtWDKFnSJTMUDCBhVCDhDaxp8E2D8EFA", state)
-		cs.beaconChain.Validators.AddValidator("Dexm032dTkjtWDKFnSJTMUDCBhVCDhDaxp8E2D8EFA", -300, wallet3.GetPublicKeySchnorrByte(), fakeTransaction)
+		cs.beaconChain.Validators.AddValidator("Dexm032dTkjtWDKFnSJTMUDCBhVCDhDaxp8E2D8EFA", -300, wallet3.GetPublicKeySchnorrByte(), fakeTransaction, 3)
 
 		state.Balance++
 		wallet4, _ := wallet.ImportWallet("wallet4")
 		cs.shardsChain[shard].SetState("Dexm044RpgEQPTyBbi4YdJ24z7rgr4oA2U9DC18A73", state)
-		cs.beaconChain.Validators.AddValidator("Dexm044RpgEQPTyBbi4YdJ24z7rgr4oA2U9DC18A73", -300, wallet4.GetPublicKeySchnorrByte(), fakeTransaction)
+		cs.beaconChain.Validators.AddValidator("Dexm044RpgEQPTyBbi4YdJ24z7rgr4oA2U9DC18A73", -300, wallet4.GetPublicKeySchnorrByte(), fakeTransaction, 4)
 
 		state.Balance++
 		wallet5, _ := wallet.ImportWallet("wallet5")
 		cs.shardsChain[shard].SetState("Dexm053E479JqUdoHKWc6ie4d1mXv9Gy6M5071B5BA", state)
-		cs.beaconChain.Validators.AddValidator("Dexm053E479JqUdoHKWc6ie4d1mXv9Gy6M5071B5BA", -300, wallet5.GetPublicKeySchnorrByte(), fakeTransaction)
+		cs.beaconChain.Validators.AddValidator("Dexm053E479JqUdoHKWc6ie4d1mXv9Gy6M5071B5BA", -300, wallet5.GetPublicKeySchnorrByte(), fakeTransaction, 5)
 
 		cs.shardsChain[shard].GenesisTimestamp = block.GetTimestamp()
 
 		return nil
 	}
+
+	// generate a seed to generate a shard for the new validators
+	byteBlock, _ := proto.Marshal(block)
+	hash := sha256.Sum256(byteBlock)
+	seed := binary.BigEndian.Uint64(hash[:])
+	rand.Seed(int64(seed))
 
 	for _, t := range block.GetTransactions() {
 		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
@@ -172,7 +180,19 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 		}
 
 		if t.GetRecipient() == "DexmPoS" {
-			exist := cs.beaconChain.Validators.AddValidator(sender, int64(cs.shardsChain[shard].CurrentBlock), t.GetPubSchnorrKey(), t)
+			// your wallet must be in shard 1 to became a validator
+			shardSender, err := strconv.ParseUint(sender[4:6], 16, 32)
+			if err != nil {
+				log.Error("ParseUint ", err)
+				continue
+			}
+			if shardSender != 1 {
+				log.Info("wallet not in shard 1")
+				continue
+			}
+
+			randomShard := uint32(rand.Int31n(nShard) + 1)
+			exist := cs.beaconChain.Validators.AddValidator(sender, int64(cs.shardsChain[shard].CurrentBlock), t.GetPubSchnorrKey(), t, randomShard)
 			if exist {
 				log.Info("slash for ", sender)
 				continue
