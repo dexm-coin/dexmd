@@ -80,6 +80,7 @@ func (cs *ConnectionStore) CheckpointAgreement(SourceHeight, TargetHeight uint64
 		if _, ok := mapVote[pubKey]; ok {
 			userToRemove = append(userToRemove, pubKey)
 		}
+
 		mapVote[pubKey] = true
 	}
 

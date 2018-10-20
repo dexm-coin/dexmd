@@ -264,17 +264,15 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 		return errors.New("Invalid recipient")
 	}
 
-	result, _ := proto.Marshal(t)
-	bhash := sha256.Sum256(result)
-	hash := bhash[:]
+	// result, _ := proto.Marshal(t)
+	// bhash := sha256.Sum256(result)
+	// hash := bhash[:]
+	// valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
+	// if !valid {
+	// 	return err
+	// }
 
-	valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
-	if !valid {
-		return err
-	}
-
-	balance := protobufs.AccountState{}
-	balance, err = bc.GetWalletState(sender)
+	balance, err := bc.GetWalletState(sender)
 	if err != nil {
 		return err
 	}
