@@ -39,11 +39,11 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) 
 
 		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
 
-		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
-		if !valid || err != nil {
-			log.Error("SignatureValid ", err)
-			return false, err
-		}
+		// valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
+		// if !valid || err != nil {
+		// 	log.Error("SignatureValid ", err)
+		// 	return false, err
+		// }
 
 		senderBalance, err := cs.shardsChain[shard].GetWalletState(sender)
 		if err != nil {
