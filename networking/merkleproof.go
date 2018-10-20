@@ -24,6 +24,8 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof, 
 		return false, nil
 	}
 
+	log.Info("VerifyProof in shard ", shard)
+
 	// if not, check the poof and then change the balance of the receiver and sender of the transaction in the proof
 	if cs.VerifyProof(merkleProof, shard) {
 		// mark the hash of the transaction as burned

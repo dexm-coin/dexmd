@@ -851,81 +851,83 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				data, _ := proto.Marshal(env)
 				cs.broadcast <- data
 
-				// send merkle proof of the other shard
-				for i := int64(cs.shardsChain[currentShard].CurrentBlock) - 7; i > int64(cs.shardsChain[currentShard].CurrentBlock)-37; i-- {
-					blockByte, err := cs.shardsChain[currentShard].GetBlock(uint64(i))
-					if err != nil {
-						log.Error(err)
-						continue
-					}
-					block := &protoBlockchain.Block{}
-					proto.Unmarshal(blockByte, block)
+				// wait 10 second and send the merkle proof
+				go func() {
+					time.Sleep(10 * time.Second)
 
-					// generate and send the merkle proof
-					var receipts []*protoBlockchain.Receipt
-					var transactions []*protoBlockchain.Transaction
-					for _, t := range block.GetTransactions() {
-						if t.GetShard() != currentShard {
-							log.Info("not your shard to merkleproof")
-							continue
-						}
-						r := &protoBlockchain.Receipt{
-							Sender:    wallet.BytesToAddress(t.GetSender(), t.GetShard()),
-							Recipient: t.GetRecipient(),
-							Amount:    t.GetAmount(),
-							Nonce:     t.GetNonce(),
-						}
-						receipts = append(receipts, r)
-						transactions = append(transactions, t)
-					}
-
-					for i, _ := range receipts {
-						merkleProofByte := GenerateMerkleProof(receipts, i, transactions[i])
-						if len(merkleProofByte) == 0 {
-							log.Error("proof failed")
-							continue
-						}
-
-						pub, _ := cs.identity.GetPubKey()
-						bhash := sha256.Sum256(merkleProofByte)
-						hash := bhash[:]
-
-						r, s, err := cs.identity.Sign(hash)
+					// send merkle proof of the other shard
+					for i := int64(cs.shardsChain[currentShard].CurrentBlock) - 7; i > int64(cs.shardsChain[currentShard].CurrentBlock)-37; i-- {
+						blockByte, err := cs.shardsChain[currentShard].GetBlock(uint64(i))
 						if err != nil {
 							log.Error(err)
 							continue
 						}
-						signature := &network.Signature{
-							Pubkey: pub,
-							R:      r.Bytes(),
-							S:      s.Bytes(),
-							Data:   hash,
+						block := &protoBlockchain.Block{}
+						proto.Unmarshal(blockByte, block)
+
+						// generate and send the merkle proof
+						var receipts []*protoBlockchain.Receipt
+						var transactions []*protoBlockchain.Transaction
+						for _, t := range block.GetTransactions() {
+							if t.GetShard() != currentShard {
+								log.Info("not your shard to merkleproof")
+								continue
+							}
+							r := &protoBlockchain.Receipt{
+								Sender:    wallet.BytesToAddress(t.GetSender(), t.GetShard()),
+								Recipient: t.GetRecipient(),
+								Amount:    t.GetAmount(),
+								Nonce:     t.GetNonce(),
+							}
+							receipts = append(receipts, r)
+							transactions = append(transactions, t)
 						}
 
-						broadcastMerkleProof := &network.Broadcast{
-							Type:     protoNetwork.Broadcast_MERKLE_PROOF,
-							TTL:      64,
-							Data:     merkleProofByte,
-							Identity: signature,
-						}
-						broadcastMerkleProofByteByte, _ := proto.Marshal(broadcastMerkleProof)
+						for i, _ := range receipts {
+							merkleProofByte := GenerateMerkleProof(receipts, i, transactions[i])
+							if len(merkleProofByte) == 0 {
+								log.Error("proof failed")
+								continue
+							}
 
-						envMerkleProof := &network.Envelope{
-							Type:  network.Envelope_BROADCAST,
-							Data:  broadcastMerkleProofByteByte,
-							Shard: 0,
-						}
+							pub, _ := cs.identity.GetPubKey()
+							bhash := sha256.Sum256(merkleProofByte)
+							hash := bhash[:]
 
-						dataMerkleProof, _ := proto.Marshal(envMerkleProof)
-						cs.broadcast <- dataMerkleProof
+							r, s, err := cs.identity.Sign(hash)
+							if err != nil {
+								log.Error(err)
+								continue
+							}
+							signature := &network.Signature{
+								Pubkey: pub,
+								R:      r.Bytes(),
+								S:      s.Bytes(),
+								Data:   hash,
+							}
+
+							broadcastMerkleProof := &network.Broadcast{
+								Type:     protoNetwork.Broadcast_MERKLE_PROOF,
+								TTL:      64,
+								Data:     merkleProofByte,
+								Identity: signature,
+							}
+							broadcastMerkleProofByteByte, _ := proto.Marshal(broadcastMerkleProof)
+
+							envMerkleProof := &network.Envelope{
+								Type:  network.Envelope_BROADCAST,
+								Data:  broadcastMerkleProofByteByte,
+								Shard: 0,
+							}
+
+							dataMerkleProof, _ := proto.Marshal(envMerkleProof)
+							cs.broadcast <- dataMerkleProof
+						}
 					}
-				}
+				}()
+
 			}
 
-			// reset everything about schnorr for the next message
-			// for k := range cs.beaconChain.CurrentSign {
-			// 	delete(cs.beaconChain.CurrentSign, k)
-			// }
 			for k := range cs.shardsChain[currentShard].Schnorr {
 				delete(cs.shardsChain[currentShard].Schnorr, k)
 			}
