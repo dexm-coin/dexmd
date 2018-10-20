@@ -68,11 +68,11 @@ func (v *ValidatorsBook) CheckWithdraw(wallet string, bc *Blockchain) bool {
 		}
 		// 2419200/5*6 , 1 month*6 divide by 5 (every 5 sec a block)
 		if uint64(v.valsArray[wallet].endDynasty+(2903040)) > bc.CurrentBlock {
+			// TODO maybe it's a problem do it because maybe the shard of that person is different
 			if wal.BytesToAddress(t.GetSender(), t.GetShard()) != wallet {
 				return false
 			}
 
-			// remove wallet from validator and give back his money sent do DexmPoS
 			err := v.RemoveValidator(wallet)
 			if err != nil {
 				log.Error(err)
@@ -150,7 +150,6 @@ func (v *ValidatorsBook) ExportValidatorsBook(dbPath string) error {
 }
 */
 
-// LenValidators return the number of validator on a specific shard
 func (v *ValidatorsBook) LenValidators(currentShard uint32) int {
 	countValidator := 0
 	for _, val := range v.valsArray {
@@ -231,7 +230,6 @@ func (v *ValidatorsBook) GetShard(wallet string) (uint32, error) {
 	return 0, errors.New("Validator " + wallet + " not found")
 }
 
-// simpleValidator used for temporarily store wallet and its stake
 type simpleValidator struct {
 	wallet string
 	stake  uint64
@@ -244,7 +242,6 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 
 	totalstake := uint64(0)
 	var ss []simpleValidator
-	// get all the validator in currentShard
 	for k, val := range v.valsArray {
 		if !v.CheckDynasty(val.wallet, uint64(currentBlock)) {
 			continue

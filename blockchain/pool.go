@@ -47,7 +47,7 @@ func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transacti
 }
 
 // GenerateBlock generates a valid unsigned block with transactions from the mempool
-func (bc *Blockchain) GenerateBlock(miner []byte, shard uint32, validators *ValidatorsBook) (*protobufs.Block, error) {
+func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *ValidatorsBook) (*protobufs.Block, error) {
 	hash := []byte{}
 
 	// get the prev block and calulate the hash
@@ -100,7 +100,6 @@ func (bc *Blockchain) GenerateBlock(miner []byte, shard uint32, validators *Vali
 		// Don't include invalid transactions
 		err = bc.ValidateTransaction(rtx)
 		if err != nil {
-			log.Error("ValidateTransaction ", err)
 			continue
 		}
 
@@ -111,7 +110,12 @@ func (bc *Blockchain) GenerateBlock(miner []byte, shard uint32, validators *Vali
 			log.Error(err)
 			continue
 		}
-		if shardSender != shard {
+		currentShard, err := validators.GetShard(miner)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		if shardSender != currentShard {
 			continue
 		}
 

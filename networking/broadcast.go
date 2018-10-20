@@ -2,7 +2,6 @@ package networking
 
 import (
 	"errors"
-	"reflect"
 	"strconv"
 
 	"github.com/dexm-coin/dexmd/wallet"
@@ -32,12 +31,7 @@ func (cs *ConnectionStore) CheckShard(shard uint32) bool {
 	return false
 }
 
-// CheckWallet check if the wallet of the evelope is equal of wallet inside the broadcast data
-func CheckWallet(walletEnvelope, walletBroadcast []byte) bool {
-	return reflect.DeepEqual(walletEnvelope, walletBroadcast)
-}
-
-func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, senderWallet []byte) error {
+func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 	broadcastEnvelope := &protoNetwork.Broadcast{}
 	err := proto.Unmarshal(data, broadcastEnvelope)
 	if err != nil {
@@ -61,10 +55,6 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, senderWall
 			return nil
 		}
 
-		if !CheckWallet(senderWallet, pb.GetSender()) {
-			return nil
-		}
-
 		log.Printf("New Transaction: %x", broadcastEnvelope.GetData())
 		cs.shardsChain[pb.GetShard()].AddMempoolTransaction(pb, broadcastEnvelope.GetData())
 
@@ -83,10 +73,6 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, senderWall
 			return err
 		}
 
-		if !CheckWallet(senderWallet, block.GetMiner()) {
-			return nil
-		}
-
 		// // save only the block that have cs.shardsChain[shard].currentblock+1
 		// if block.Index != cs.shardsChain[shard].CurrentBlock+1 {
 		// 	log.Error("The index of the block is wrong")
@@ -103,13 +89,19 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, senderWall
 		// blockBytes, _ := proto.Marshal(block)
 		// bhash := sha256.Sum256(blockBytes)
 		// hash := bhash[:]
-		// verifyBlock, err := wallet.SignatureValid()
+		// r, s, err := cs.identity.Sign(hash)
+		// if err != nil {
+		// 	log.Error(err)
+		// 	return err
+		// }
+
+		// TODO change first parameter
+		// verifyBlock, err := wallet.SignatureValid([]byte(cs.shardsChain[shard].CurrentValidator), r.Bytes(), s.Bytes(), hash)
 		// if !verifyBlock || err != nil {
 		// 	log.Error("SignatureValid ", err)
 		// 	return err
 		// }
 
-		// save and import the block
 		err = cs.SaveBlock(block, shard)
 		if err != nil {
 			log.Error("error on saving block")
@@ -121,9 +113,8 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, senderWall
 			return err
 		}
 
-		log.Info("Saved block ", block.Index)
+		log.Info("Save block ", block.Index)
 
-	// Save a casper vote
 	case protoNetwork.Broadcast_CHECKPOINT_VOTE:
 		if !cs.CheckShard(shard) {
 			return nil
@@ -137,12 +128,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, senderWall
 			log.Error(err)
 			return err
 		}
-
-		if !CheckWallet(senderWallet, vote.GetPublicKey()) {
-			return nil
-		}
-
-		if cs.beaconChain.Validators.CheckIsValidator(vote.GetPublicKey()) {
+		if cs.beaconChain.Validators.CheckIsValidator(vote.PublicKey) {
 			err := cs.AddVote(vote, shard)
 			if err != nil {
 				log.Error(err)
@@ -151,7 +137,6 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, senderWall
 			cs.shardsChain[shard].CurrentVote++
 		}
 
-	// Withdraw a validator
 	case protoNetwork.Broadcast_WITHDRAW:
 		log.Printf("New Withdraw: %x", broadcastEnvelope.GetData())
 
@@ -164,15 +149,12 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, senderWall
 
 		cs.beaconChain.Validators.WithdrawValidator(withdrawVal.GetPublicKey(), withdrawVal.GetR(), withdrawVal.GetS(), int64(cs.shardsChain[shard].CurrentBlock))
 
-	// Save Schnor P and R of a validator
 	case protoNetwork.Broadcast_SCHNORR:
 		if !cs.CheckShard(shard) {
 			return nil
 		}
 
 		log.Printf("New Schnorr: %x", broadcastEnvelope.GetData())
-
-		// TODO check that the signature match with wallet that sent the message
 
 		schnorr := &protoBlockchain.Schnorr{}
 		err := proto.Unmarshal(broadcastEnvelope.GetData(), schnorr)
