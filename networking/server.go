@@ -309,6 +309,10 @@ func checkDuplicatedMessage(msg []byte) bool {
 		log.Error("Fail signatureValid broadcast ", err)
 		return false
 	}
+	if !reflect.DeepEqual(hash, identityBroadcast.GetData()) {
+		log.Error("Hash of the data doesn't match with the hash of data inside the signature")
+		return false
+	}
 
 	// set TTL to 0, calculate the hash of the message, check if already exist
 	copyBroadcast := *broadcast
@@ -371,23 +375,6 @@ func (c *client) read() {
 				continue
 			}
 
-			broadcastEnvelope := &protoNetwork.Broadcast{}
-			err := proto.Unmarshal(pb.GetData(), broadcastEnvelope)
-			if err != nil {
-				continue
-			}
-			signature := broadcastEnvelope.GetIdentity()
-			bhash := sha256.Sum256(pb.GetData())
-			hashData := bhash[:]
-			if !reflect.DeepEqual(hashData, signature.GetData()) {
-				log.Error("Hash of the data doesn't match with the hash of data inside the signature")
-				continue
-			}
-			valid, err := wallet.SignatureValid(signature.GetPubkey(), signature.GetR(), signature.GetS(), hashData)
-			if !valid {
-				log.Error("The signature of the message is invalid")
-				continue
-			}
 			// TODO dentro ogni messaggio controllo se signature.GetPubkey() corrisponde a pb.GetData().GetPubkey()
 			go c.store.handleBroadcast(pb.GetData(), pb.GetShard())
 

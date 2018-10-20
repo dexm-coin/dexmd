@@ -24,9 +24,6 @@ timestamp = requests.get("http://35.211.241.218:5000/submit_addr", params={
 }).text
 timestamp = int(timestamp)
 
-# wait for hackney to start
-sleep(40)
-
 def send_dexmpos():
     sleep(timestamp-time()+30)
     req = requests.get("http://35.211.241.218:5000/send_money", params={
