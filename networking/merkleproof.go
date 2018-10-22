@@ -47,6 +47,9 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) 
 		// }
 
 		for interest := range cs.interests {
+			if interest == "0" {
+				continue
+			}
 			shardInt, err := strconv.Atoi(interest)
 			if err != nil {
 				log.Error(err)
