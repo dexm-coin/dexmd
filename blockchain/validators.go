@@ -231,7 +231,7 @@ type simpleValidator struct {
 
 // ChooseValidator returns a validator's wallet, chosen randomly
 // and proportionally to the stake
-func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32, bc *Blockchain) (string, error) {
+func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32, bc *Blockchain) ([]string, error) {
 	rand.Seed(currentBlock)
 
 	totalstake := uint64(0)
@@ -253,7 +253,7 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 		totalstake += stateWallet.GetBalance()
 	}
 	if totalstake < 1 {
-		return "", errors.New("Not enough stake")
+		return nil, errors.New("Not enough stake")
 	}
 
 	// shuffle validators
@@ -270,14 +270,28 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 	})
 
 	level := rand.Float64() * float64(totalstake)
-	var counter uint64
+	counter := uint64(0)
+	sequenceValidators := []string{}
+	takeNext := false
 	for _, kv := range ret {
 		counter += kv.stake
+		if len(sequenceValidators) == 10 {
+			break
+		}
+		if takeNext {
+			sequenceValidators = append(sequenceValidators, kv.wallet)
+			continue
+		}
 		if float64(counter) >= level {
-			return kv.wallet, nil
+			takeNext = true
+			sequenceValidators = append(sequenceValidators, kv.wallet)
 		}
 	}
-	return "", errors.New("Validator could not be chosen")
+
+	if len(sequenceValidators) != 10 {
+		return nil, errors.New("Validator could not be chosen")
+	}
+	return sequenceValidators, nil
 }
 
 // ChooseShard calulate the shard for every validators

@@ -32,16 +32,20 @@ type Wallet struct {
 	Balance        int
 	PrivKeySchnorr []byte
 	PubKeySchnorr  []byte
+	PrivKeyBls     []byte
+	PubKeyBls      []byte
 }
 
 type file struct {
 	// content to be converted in json
-	PrivKeyString        string
-	Address              string
-	Balance              int
-	Shard                uint8
-	PrivKeySchnorrString []byte
-	PubKeySchnorrString  []byte
+	PrivKeyString  string
+	Address        string
+	Balance        int
+	Shard          uint8
+	PrivKeySchnorr []byte
+	PubKeySchnorr  []byte
+	PrivKeyBls     []byte
+	PubKeyBls      []byte
 }
 
 // GenerateWallet generates a new random wallet with a 0 balance
@@ -57,16 +61,19 @@ func GenerateWallet(shard uint8) (*Wallet, error) {
 		log.Error(err)
 		return nil, err
 	}
-
 	pByte, err := p.MarshalBinary()
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
 
-	// shard := uint8(rand.Int31n(10) + 1)
-	// shardA := make([]byte, 1)
-	// rand.Read(shardA)
+	pubBls, privBls, _ := GenerateKey(rand.Reader)
+	privBlsByte := GetByteX(privBls)
+	pubBlsByte, err := pubBls.MarshalBinary()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
 
 	return &Wallet{
 		PrivKey:        priv,
@@ -74,6 +81,8 @@ func GenerateWallet(shard uint8) (*Wallet, error) {
 		Balance:        0,
 		PrivKeySchnorr: xByte,
 		PubKeySchnorr:  pByte,
+		PrivKeyBls:     privBlsByte,
+		PubKeyBls:      pubBlsByte,
 	}, nil
 }
 
@@ -90,6 +99,18 @@ func (w *Wallet) GetPublicKeySchnorr() (kyber.Point, error) {
 // GetPrivateKeySchnorr return the private schnorr key to the wallet
 func (w *Wallet) GetPublicKeySchnorrByte() []byte {
 	return w.PubKeySchnorr
+}
+
+func (w *Wallet) GetPrivateKeyBls() {
+
+}
+
+func (w *Wallet) GetPublicKeyBls() {
+
+}
+
+func (w *Wallet) GetPublicKeyBlsByte() []byte {
+
 }
 
 // GetShardWallet return the shard to the wallet
@@ -131,9 +152,11 @@ func jsonKeyToStruct(walletJSON []byte) (*Wallet, error) {
 	return &Wallet{
 		PrivKey:        key,
 		Balance:        walletfile.Balance,
-		PrivKeySchnorr: walletfile.PrivKeySchnorrString,
-		PubKeySchnorr:  walletfile.PubKeySchnorrString,
+		PrivKeySchnorr: walletfile.PrivKeySchnorr,
+		PubKeySchnorr:  walletfile.PubKeySchnorr,
 		Shard:          walletfile.Shard,
+		PrivKeyBls:     walletfile.PrivKeyBls,
+		PubKeyBls:      walletfile.PubKeyBls,
 	}, nil
 }
 
@@ -172,12 +195,14 @@ func (w *Wallet) GetEncodedWallet() ([]byte, error) {
 	// }
 
 	walletfile := file{
-		Address:              add,
-		PrivKeyString:        string(pemEncoded),
-		Balance:              w.Balance,
-		Shard:                w.Shard,
-		PrivKeySchnorrString: w.PrivKeySchnorr,
-		PubKeySchnorrString:  w.PubKeySchnorr,
+		Address:        add,
+		PrivKeyString:  string(pemEncoded),
+		Balance:        w.Balance,
+		Shard:          w.Shard,
+		PrivKeySchnorr: w.PrivKeySchnorr,
+		PubKeySchnorr:  w.PubKeySchnorr,
+		PrivKeyBls:     w.PrivKeyBls,
+		PubKeyBls:      w.PubKeyBls,
 	}
 
 	return json.Marshal(walletfile)
