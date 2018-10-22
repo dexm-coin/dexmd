@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"reflect"
+	"strconv"
 
 	"github.com/dexm-coin/dexmd/util"
 	"github.com/dexm-coin/dexmd/wallet"
@@ -23,68 +24,65 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) 
 		log.Error("Double spend!")
 		return false, nil
 	}
-	shard := merkleProof.GetShard()
+	shardMessage := merkleProof.GetShard()
 
-	log.Info("VerifyProof in shard ", shard)
+	log.Info("VerifyProof in shard ", shardMessage)
 
 	// if not, check the poof and then change the balance of the receiver and sender of the transaction in the proof
-	if cs.VerifyProof(merkleProof, shard) {
+	if cs.VerifyProof(merkleProof, shardMessage) {
 		// mark the hash of the transaction as burned
 		ReceiptBurned[string(merkleProof.GetLeaf())] = true
 
 		t := merkleProof.GetTransaction()
-		result, _ := proto.Marshal(t)
-		bhash := sha256.Sum256(result)
-		hash := bhash[:]
-
 		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
 
+		// TODO check signature
+		// result, _ := proto.Marshal(t)
+		// bhash := sha256.Sum256(result)
+		// hash := bhash[:]
 		// valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
 		// if !valid || err != nil {
 		// 	log.Error("SignatureValid ", err)
 		// 	return false, err
 		// }
 
-		senderBalance, err := cs.shardsChain[shard].GetWalletState(sender)
-		if err != nil {
-			log.Error(err)
-			return false, err
-		}
-		// Check if balance is sufficient
-		requiredBal, ok := util.AddU64O(t.GetAmount(), uint64(t.GetGas()))
-		if requiredBal > senderBalance.GetBalance() && ok {
-			return false, errors.New("Balance is insufficient in transaction")
-		}
-
-		// Check if has already been sent
-		data, err := cs.shardsChain[shard].BlockDb.Get(hash, nil)
-		if err == nil {
-			tr := &protobufs.Transaction{}
-
-			err = proto.Unmarshal(data, tr)
+		for interest := range cs.interests {
+			shardInt, err := strconv.Atoi(interest)
 			if err != nil {
-				return false, errors.New("Transaction was already included in db")
+				log.Error(err)
+				continue
+			}
+			shard := uint32(shardInt)
+
+			senderBalance, err := cs.shardsChain[shard].GetWalletState(sender)
+			if err != nil {
+				log.Error(err)
+				return false, err
+			}
+			// Check if balance is sufficient
+			requiredBal, ok := util.AddU64O(t.GetAmount(), uint64(t.GetGas()))
+			if requiredBal > senderBalance.GetBalance() && ok {
+				return false, errors.New("Balance is insufficient in transaction")
+			}
+
+			receiver := t.GetRecipient()
+			// Ignore error because if the wallet doesn't exist yet we don't care
+			reciverBalance, _ := cs.shardsChain[shard].GetWalletState(receiver)
+
+			senderBalance.Balance -= t.GetAmount() + uint64(t.GetGas())
+			reciverBalance.Balance += t.GetAmount()
+
+			err = cs.shardsChain[shard].SetState(sender, &senderBalance)
+			if err != nil {
+				log.Error(err)
+				return false, err
+			}
+			err = cs.shardsChain[shard].SetState(receiver, &reciverBalance)
+			if err != nil {
+				log.Error(err)
+				return false, err
 			}
 		}
-
-		receiver := t.GetRecipient()
-		// Ignore error because if the wallet doesn't exist yet we don't care
-		reciverBalance, _ := cs.shardsChain[shard].GetWalletState(receiver)
-
-		senderBalance.Balance -= t.GetAmount() + uint64(t.GetGas())
-		reciverBalance.Balance += t.GetAmount()
-
-		err = cs.shardsChain[shard].SetState(sender, &senderBalance)
-		if err != nil {
-			log.Error(err)
-			return false, err
-		}
-		err = cs.shardsChain[shard].SetState(receiver, &reciverBalance)
-		if err != nil {
-			log.Error(err)
-			return false, err
-		}
-
 		return true, nil
 	}
 	return false, nil
@@ -147,8 +145,7 @@ func (cs *ConnectionStore) VerifyProof(mp *protobufs.MerkleProof, shard uint32) 
 	// check if the transaction and Leaf ( hash of the transaction for the proof ) are equal
 	if !equal {
 		log.Error("if !equal {")
-		// TODO uncomment
-		//return false
+		return false
 	}
 
 	return verifyMerkleProof(mapProof, mp.GetRoot(), mp.GetLeaf())
