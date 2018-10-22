@@ -16,4 +16,4 @@ RUN apt-get update && apt-get install -y python-pip
 RUN pip install requests 
 EXPOSE 3141:3141
 
-# CMD ["python", "app.py"]
+CMD ["python", "app.py"]
