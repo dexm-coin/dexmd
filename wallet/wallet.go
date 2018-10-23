@@ -67,7 +67,7 @@ func GenerateWallet(shard uint8) (*Wallet, error) {
 		return nil, err
 	}
 
-	pubBls, privBls, _ := GenerateKey(rand.Reader)
+	pubBls, privBls, _ := GenerateKeyBls(rand.Reader)
 	privBlsByte := GetByteX(privBls)
 	pubBlsByte, err := pubBls.MarshalBinary()
 	if err != nil {
@@ -101,16 +101,21 @@ func (w *Wallet) GetPublicKeySchnorrByte() []byte {
 	return w.PubKeySchnorr
 }
 
-func (w *Wallet) GetPrivateKeyBls() {
-
+func (w *Wallet) GetPrivateKeyBls() *big.Int {
+	return new(big.Int).SetBytes(w.PrivKeyBls)
 }
 
-func (w *Wallet) GetPublicKeyBls() {
-
+func (w *Wallet) GetPublicKeyBls() (*PublicKeyBls, error) {
+	key, err := UnmarshalBinaryBls(w.PubKeyBls)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	return key, nil
 }
 
 func (w *Wallet) GetPublicKeyBlsByte() []byte {
-
+	return w.PubKeyBls
 }
 
 // GetShardWallet return the shard to the wallet

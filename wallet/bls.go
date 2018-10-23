@@ -31,7 +31,7 @@ type PublicKeyBls struct {
 	gx *bn256.G2
 }
 
-type Signature []byte
+// type Signature []byte
 
 var g2gen = new(bn256.G2).ScalarBaseMult(big.NewInt(1))
 
@@ -39,7 +39,7 @@ func GetByteX(p *PrivateKeyBls) []byte {
 	return p.x.Bytes()
 }
 
-func GenerateKey(rand io.Reader) (*PublicKeyBls, *PrivateKeyBls, error) {
+func GenerateKeyBls(rand io.Reader) (*PublicKeyBls, *PrivateKeyBls, error) {
 	x, gx, err := bn256.RandomG2(rand)
 	if err != nil {
 		return nil, nil, err
@@ -48,15 +48,15 @@ func GenerateKey(rand io.Reader) (*PublicKeyBls, *PrivateKeyBls, error) {
 	return &PublicKeyBls{gx}, &PrivateKeyBls{x}, nil
 }
 
-func Sign(PrivateKeyBls *PrivateKeyBls, message []byte) Signature {
+func SignBls(PrivateKeyBls *PrivateKeyBls, message []byte) []byte {
 	h := new(bn256.G1).HashToPoint(message)
 	hx := new(bn256.G1).ScalarMult(h, PrivateKeyBls.x)
-	return Signature(hx.Marshal())
+	return hx.Marshal()
 }
 
 // Aggregate combines signatures on distinct messages.  The messages must
 // be distinct, otherwise the scheme is vulnerable to chosen-key attack.
-func Aggregate(sigs ...Signature) Signature {
+func AggregateBls(sigs ...[]byte) []byte {
 	var sum *bn256.G1
 	for i, sig := range sigs {
 		hx, ok := new(bn256.G1).Unmarshal(sig)
@@ -69,20 +69,20 @@ func Aggregate(sigs ...Signature) Signature {
 			sum.Add(sum, hx)
 		}
 	}
-	return Signature(sum.Marshal())
+	return sum.Marshal()
 }
 
 // Compress reduces the size of a signature by dropping its y-coordinate.
-func (sig Signature) Compress() *[CompressedSize]byte {
-	// only keep the x-coordinate
-	var compressed [CompressedSize]byte
-	copy(compressed[:], sig[0:32])
-	return &compressed
-}
+// func (sig []byte) Compress() *[CompressedSize]byte {
+// 	// only keep the x-coordinate
+// 	var compressed [CompressedSize]byte
+// 	copy(compressed[:], sig[0:32])
+// 	return &compressed
+// }
 
 // Verify verifies an aggregate signature.  Returns false if messages
 // are not distinct or if sig is not a valid signature.
-func Verify(keys []*PublicKeyBls, messages [][]byte, sig Signature) bool {
+func VerifyBls(keys []*PublicKeyBls, messages [][]byte, sig []byte) bool {
 	hx, ok := new(bn256.G1).Unmarshal(sig)
 	if !ok {
 		return false
@@ -109,7 +109,7 @@ func Verify(keys []*PublicKeyBls, messages [][]byte, sig Signature) bool {
 
 // VerifyCompressed verifies a compressed aggregate signature.  Returns
 // false if messages are not distinct.
-func VerifyCompressed(keys []*PublicKeyBls, messages [][]byte, sig *[CompressedSize]byte) bool {
+func VerifyCompressedBls(keys []*PublicKeyBls, messages [][]byte, sig *[CompressedSize]byte) bool {
 	if !distinct(messages) {
 		return false
 	}
@@ -176,13 +176,14 @@ func (pk *PublicKeyBls) MarshalBinary() ([]byte, error) {
 	return pk.gx.Marshal(), nil
 }
 
-func (pk *PublicKeyBls) UnmarshalBinary(data []byte) error {
+func UnmarshalBinaryBls(data []byte) (*PublicKeyBls, error) {
+	pk := &PublicKeyBls{}
 	pk.gx = new(bn256.G2)
 	_, ok := pk.gx.Unmarshal(data)
 	if !ok {
-		return errors.New("bls.PublicKeyBls: failed to unmarshal underlying point")
+		return nil, errors.New("bls.PublicKeyBls: failed to unmarshal underlying point")
 	}
-	return nil
+	return pk, nil
 }
 
 func encodeToText(data []byte) []byte {

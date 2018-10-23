@@ -66,12 +66,14 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 
 		log.Printf("New Block: %x", broadcastEnvelope.GetData())
 
-		block := &bcp.Block{}
+		bls := &bcp.Bls{}
 		err := proto.Unmarshal(broadcastEnvelope.GetData(), block)
 		if err != nil {
 			log.Error("error on Unmarshal")
 			return err
 		}
+
+		cs.shardsChain[shard].BlocksProposal = append(cs.shardsChain[shard].BlocksProposal, bls.GetBlock())
 
 		// // save only the block that have cs.shardsChain[shard].currentblock+1
 		// if block.Index != cs.shardsChain[shard].CurrentBlock+1 {
@@ -102,16 +104,16 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// 	return err
 		// }
 
-		err = cs.SaveBlock(block, shard)
-		if err != nil {
-			log.Error("error on saving block")
-			return err
-		}
-		err = cs.ImportBlock(block, uint32(shard))
-		if err != nil {
-			log.Error("error on importing block")
-			return err
-		}
+		// err = cs.SaveBlock(block, shard)
+		// if err != nil {
+		// 	log.Error("error on saving block")
+		// 	return err
+		// }
+		// err = cs.ImportBlock(block, uint32(shard))
+		// if err != nil {
+		// 	log.Error("error on importing block")
+		// 	return err
+		// }
 
 		log.Info("Save block ", block.Index)
 
