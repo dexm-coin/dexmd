@@ -31,13 +31,11 @@ type Blockchain struct {
 	PSchnorr        [][]byte
 	MessagesReceipt [][]byte
 
-	BlocksProposal []*protobufs.Block
-
 	GenesisTimestamp uint64
 
 	CurrentBlock      uint64
 	CurrentCheckpoint uint64
-	CurrentValidator  map[uint64][]string
+	CurrentValidator  map[uint64]string
 	CurrentVote       uint64
 }
 
@@ -101,8 +99,8 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 	// 1MB blocks
 	mp := newMempool(1000000, 100)
 
-	currentValidators := make(map[uint64][]string)
-	currentValidators[1] = []string{}
+	currentValidators := make(map[uint64]string)
+	currentValidators[1] = ""
 
 	return &Blockchain{
 		balancesDb:    db,
@@ -118,8 +116,6 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		RSchnorr:        [][]byte{},
 		PSchnorr:        [][]byte{},
 		MessagesReceipt: [][]byte{},
-
-		BlocksProposal: []string{},
 
 		CurrentValidator:  currentValidators,
 		CurrentBlock:      index,

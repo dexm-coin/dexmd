@@ -522,14 +522,14 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		log.Info("Current block ", cs.shardsChain[currentShard].CurrentBlock, " in shard ", currentShard)
 
 		// chose a validator based on stake
-		validators, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardsChain[currentShard].CurrentBlock), currentShard, cs.shardsChain[currentShard])
+		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardsChain[currentShard].CurrentBlock), currentShard, cs.shardsChain[currentShard])
 		if err != nil {
 			log.Error(err)
 			continue
 		}
 
 		// Start accepting the block from the new validator
-		cs.shardsChain[currentShard].CurrentValidator[cs.shardsChain[currentShard].CurrentBlock] = validators
+		cs.shardsChain[currentShard].CurrentValidator[cs.shardsChain[currentShard].CurrentBlock] = validator
 
 		// after max 100 rounds send all your list of ips to every client that you know
 		if int(rand.Float64()*100) > 100-int(cs.shardsChain[currentShard].CurrentBlock%100) {
@@ -610,63 +610,52 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// If this node is the validator then generate a block, sign it, and send the signature with the block
-		for validator := range validators {
-			if wal == validator {
-				log.Info("I'm the miner ", wal)
-				block, err := cs.shardsChain[currentShard].GenerateBlock(wal, currentShard, cs.beaconChain.Validators)
-				if err != nil {
-					log.Error(err)
-					continue
-				}
-				blockBytes, _ := proto.Marshal(block)
-
-				// TODO make the signature and send a blt message
-
-				// Sign the new block
-				pub, _ := cs.identity.GetPubKey()
-				bhash := sha256.Sum256(blockBytes)
-				hash := bhash[:]
-				r, s, err := cs.identity.Sign(hash)
-				if err != nil {
-					log.Error(err)
-				}
-
-				signature := &network.Signature{
-					Pubkey: pub,
-					R:      r.Bytes(),
-					S:      s.Bytes(),
-					Data:   hash,
-				}
-
-				signatureBls := wallet.SignBls(wallet.GetPrivateKeyBls(), blockBytes)
-				blsMessage := &protoBlockchain.Bls{
-					Block:     block,
-					Signature: signatureBls,
-					PubKey:    wallet.GetPublicKeyBlsByte(),
-				}
-				blsBytes, _ := proto.Marshal(blsMessage)
-
-				// Create a broadcast message and send it to the network
-				broadcast := &network.Broadcast{
-					Data:     blsBytes,
-					Type:     network.Broadcast_BLOCK_PROPOSAL,
-					Identity: signature,
-					TTL:      64,
-				}
-
-				broadcastBytes, _ := proto.Marshal(broadcast)
-
-				env := &network.Envelope{
-					Data:  broadcastBytes,
-					Type:  network.Envelope_BROADCAST,
-					Shard: currentShard,
-				}
-
-				data, _ := proto.Marshal(env)
-				cs.broadcast <- data
-				log.Info("Block generated")
-				break
+		if wal == validator {
+			log.Info("I'm the miner ", wal)
+			block, err := cs.shardsChain[currentShard].GenerateBlock(wal, currentShard, cs.beaconChain.Validators)
+			if err != nil {
+				log.Error(err)
+				continue
 			}
+			blockBytes, _ := proto.Marshal(block)
+
+			// TODO make the signature and send a blt message
+
+			// Sign the new block
+			pub, _ := cs.identity.GetPubKey()
+			bhash := sha256.Sum256(blockBytes)
+			hash := bhash[:]
+			r, s, err := cs.identity.Sign(hash)
+			if err != nil {
+				log.Error(err)
+			}
+
+			signature := &network.Signature{
+				Pubkey: pub,
+				R:      r.Bytes(),
+				S:      s.Bytes(),
+				Data:   hash,
+			}
+
+			// Create a broadcast message and send it to the network
+			broadcast := &network.Broadcast{
+				Data:     blockBytes,
+				Type:     network.Broadcast_BLOCK_PROPOSAL,
+				Identity: signature,
+				TTL:      64,
+			}
+
+			broadcastBytes, _ := proto.Marshal(broadcast)
+
+			env := &network.Envelope{
+				Data:  broadcastBytes,
+				Type:  network.Envelope_BROADCAST,
+				Shard: currentShard,
+			}
+
+			data, _ := proto.Marshal(env)
+			cs.broadcast <- data
+			log.Info("Block generated")
 		}
 
 		// every 30 blocks do the merkle root signature

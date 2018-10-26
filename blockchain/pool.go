@@ -49,16 +49,25 @@ func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transacti
 // GenerateBlock generates a valid unsigned block with transactions from the mempool
 func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *ValidatorsBook) (*protobufs.Block, error) {
 	hash := []byte{}
+	// for i := bc.CurrentBlock - 1; i >= 0; i-- {
+	// 	currBlock, err := bc.GetBlock(i)
+	// 	if err != nil {
+	// 		continue
+	// 	}
+	// 	bhash := sha256.Sum256(currBlock)
+	// 	hash = bhash[:]
+	// }
 
-	// get the prev block and calulate the hash
-	currBlocks, err := bc.GetBlock(bc.CurrentBlock - 1)
-	// there shouldn't be hole in the chain
-	if err != nil {
-		log.Error("Prev block not found")
-		return nil, err
+	index := bc.CurrentBlock
+
+	for {
+		index--
+		currBlock, err := bc.GetBlock(index)
+		if err != nil {
+			// TODO ASAP fai request a tutti di quell'indice e controlla il match della signature sia del validator scelto
+		}
+		break
 	}
-	bhash := sha256.Sum256(currBlocks)
-	hash = bhash[:]
 
 	block := protobufs.Block{
 		Index:     bc.CurrentBlock,

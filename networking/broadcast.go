@@ -1,7 +1,9 @@
 package networking
 
 import (
+	"crypto/sha256"
 	"errors"
+	"reflect"
 	"strconv"
 
 	"github.com/dexm-coin/dexmd/wallet"
@@ -66,26 +68,50 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 
 		log.Printf("New Block: %x", broadcastEnvelope.GetData())
 
-		bls := &bcp.Bls{}
+		block := &bcp.Block{}
 		err := proto.Unmarshal(broadcastEnvelope.GetData(), block)
 		if err != nil {
 			log.Error("error on Unmarshal")
 			return err
 		}
 
-		cs.shardsChain[shard].BlocksProposal = append(cs.shardsChain[shard].BlocksProposal, bls.GetBlock())
-
-		// // save only the block that have cs.shardsChain[shard].currentblock+1
-		// if block.Index != cs.shardsChain[shard].CurrentBlock+1 {
-		// 	log.Error("The index of the block is wrong")
-		// }
-
 		// TODO the message arrive too fast so CurrentValidator didn't get update to check if it is right
 		// check if the miner of the block that should be cs.shardsChain[shard].CurrentValidator[block.GetIndex()]
-		// if block.Miner != cs.shardsChain[shard].CurrentValidator[block.GetIndex()] {
-		// 	log.Error("The miner is wrong")
-		// 	return err
-		// }
+		if block.Miner != cs.shardsChain[shard].CurrentValidator[block.GetIndex()] {
+			log.Error("The miner is wrong")
+			return err
+		}
+
+		bc := cs.shardsChain[shard]
+		// save only the block that have cs.shardsChain[shard].currentblock
+		if block.Index != cs.shardsChain[shard].CurrentBlock {
+			log.Error("The index of the block is wrong")
+			return err
+		}
+
+		fakePrevHash := true
+		for i := bc.CurrentBlock - 1; i >= 0; i-- {
+			currBlock, err := bc.GetBlock(i)
+			if err != nil {
+				continue
+			}
+			bhash := sha256.Sum256(currBlock)
+			hash := bhash[:]
+			equal := reflect.DeepEqual(hash, block.GetPrevHash())
+			if !equal {
+				// TODO ASAP ask to the network if my prevhash (of currentblock) exist
+				log.Error("the prev hash doen't match with the block")
+			} else {
+				if i != bc.CurrentBlock-1 {
+					// TODO ASAP
+				}
+			}
+			fakePrevHash := false
+		}
+		if fakePrevHahs {
+			log.Error("Fake prev hash")
+			return err
+		}
 
 		// TODO check signature
 		// blockBytes, _ := proto.Marshal(block)
