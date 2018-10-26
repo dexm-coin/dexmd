@@ -612,7 +612,25 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		// If this node is the validator then generate a block, sign it, and send the signature with the block
 		if wal == validator {
 			log.Info("I'm the miner ", wal)
-			block, err := cs.shardsChain[currentShard].GenerateBlock(wal, currentShard, cs.beaconChain.Validators)
+
+			hashOldBlock := []byte{}
+			bc := cs.shardsChain[currentShard]
+			index := bc.CurrentBlock
+			for {
+				index--
+				currBlock, err := bc.GetBlock(index)
+				if err != nil {
+					// TODO ASAP fai request a tutti di quell'indice e controlla il match della signature sia del validator scelto
+					block, verify := cs.RequestMissingBlock(currentShard, index)
+					if verify && block != nil {
+						bhash := sha256.Sum256(currBlock)
+						hashOldBlock = bhash[:]
+						break
+					}
+				}
+			}
+
+			block, err := cs.shardsChain[currentShard].GenerateBlock(wal, currentShard, cs.beaconChain.Validators, hashOldBlock)
 			if err != nil {
 				log.Error(err)
 				continue

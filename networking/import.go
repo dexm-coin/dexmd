@@ -6,13 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dexm-coin/dexmd/blockchain"
 	"github.com/dexm-coin/dexmd/wallet"
 	"github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
+	"github.com/gorilla/websocket"
 
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	log "github.com/sirupsen/logrus"
@@ -70,17 +73,19 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 
 			// Download new blocks up to MaxBlockPeer
 			for i := cb; i < min(cb+MaxBlockPeer, flen); i++ {
-				req = &network.Request{
-					Type:  network.Request_GET_BLOCK,
-					Index: i,
+				env := &network.Envelope{
+					Type:  network.Envelope_REQUEST,
+					Data:  []byte{byte(i)},
+					Shard: nextShard,
 				}
 
-				d, err = makeReqEnvelope(req, currentShard)
-				if err != nil {
-					break
+				req := &network.Request{
+					Type: network.Request_GET_BLOCK,
+					Data: env,
 				}
+				reqD, _ := proto.Marshal(req)
 
-				k.send <- d
+				k.send <- reqD
 
 				block, err := k.GetResponse(300 * time.Millisecond)
 				if err != nil {
@@ -104,6 +109,91 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 		}
 	}
 	return nil
+}
+
+func (cs *ConnectionStore) RequestHashBlock(shard uint32, indexBlock uint64, hashBlock []byte) (*protobufs.Block, bool) {
+
+	// TODO ASAP non chiedo a tutti i client ma solo ai validator nella mia shard
+	for c := range cs.clients {
+		fullIP := c.conn.RemoteAddr().String()
+		ip := strings.Split(fullIP, ":")[0]
+
+		env := &network.Envelope{
+			Type:  network.Envelope_REQUEST,
+			Data:  []byte{byte(indexBlock)},
+			Shard: shard,
+		}
+
+		req := &network.Request{
+			Type: network.Request_HASH_EXIST,
+			Data: env,
+		}
+		reqD, _ := proto.Marshal(req)
+
+		err := c.conn.WriteMessage(websocket.BinaryMessage, reqD)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		hashBlockReceived, err := c.GetResponse(100 * time.Millisecond)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		equal := reflect.DeepEqual(hashBlock, hashBlockReceived)
+		if equal {
+			// TODO ASAP in base allo stake conta quanti ti hanno dato il blocco e quello giusto
+		}
+	}
+}
+
+func (cs *ConnectionStore) RequestMissingBlock(shard uint32, indexBlock uint64) (*protobufs.Block, bool) {
+
+	// TODO ASAP non chiedo a tutti i client ma solo ai validator nella mia shard
+	for c := range cs.clients {
+		fullIP := c.conn.RemoteAddr().String()
+		ip := strings.Split(fullIP, ":")[0]
+
+		env := &network.Envelope{
+			Type:  network.Envelope_REQUEST,
+			Data:  []byte{byte(indexBlock)},
+			Shard: shard,
+		}
+
+		req := &network.Request{
+			Type: network.Request_GET_BLOCK,
+			Data: env,
+		}
+		reqD, _ := proto.Marshal(req)
+
+		err := c.conn.WriteMessage(websocket.BinaryMessage, reqD)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		// TODO the request of the block can be substitue with zk snark that give you the proof that this block exist
+		// without recive the whole block
+		byteBlock, err := c.GetResponse(200 * time.Millisecond)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		block := &protobufs.Block{}
+		err = proto.Unmarshal(byteBlock, block)
+		if err != nil {
+			log.Error("error on Unmarshal")
+			continue
+		}
+
+		verify, err := cs.shardsChain[shard].ValidateBlock(block)
+		if verify {
+			// TODO ASAP in base allo stake conta quanti ti hanno dato il blocco e quello giusto
+		}
+	}
+
+	return nil, false
 }
 
 // SaveBlock saves an unvalidated block into the blockchain to be used with Casper

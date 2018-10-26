@@ -36,39 +36,24 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 			continue
 		}
 
-		req := &network.Request{
-			Type: network.Request_GET_WALLET_STATUS,
-		}
-
-		reqD, _ := proto.Marshal(req)
-
-		env := &network.Envelope{
-			Type:  network.Envelope_REQUEST,
-			Data:  reqD,
-			Shard: shard,
-		}
-
-		// GET_WALLET_STATUS requires to first send a request and then the address
-		envD, _ := proto.Marshal(env)
-		err = conn.WriteMessage(websocket.BinaryMessage, envD)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-
 		senderAddr, err := senderWallet.GetWallet()
 		if err != nil {
 			log.Error(err)
 		}
-		senderEnv := &network.Envelope{
-			Type:  network.Envelope_OTHER,
+
+		env := &network.Envelope{
+			Type:  network.Envelope_REQUEST,
 			Data:  []byte(senderAddr),
 			Shard: shard,
 		}
 
-		senderAddrD, _ := proto.Marshal(senderEnv)
+		req := &network.Request{
+			Type: network.Request_GET_WALLET_STATUS,
+			Data: env,
+		}
+		reqD, _ := proto.Marshal(req)
 
-		err = conn.WriteMessage(websocket.BinaryMessage, []byte(senderAddrD))
+		err = conn.WriteMessage(websocket.BinaryMessage, reqD)
 		if err != nil {
 			log.Error(err)
 			continue

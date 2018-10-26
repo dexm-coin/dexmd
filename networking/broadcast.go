@@ -89,7 +89,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			return err
 		}
 
-		fakePrevHash := true
+		blockValid := true
 		for i := bc.CurrentBlock - 1; i >= 0; i-- {
 			currBlock, err := bc.GetBlock(i)
 			if err != nil {
@@ -101,15 +101,20 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			if !equal {
 				// TODO ASAP ask to the network if my prevhash (of currentblock) exist
 				log.Error("the prev hash doen't match with the block")
+				cs.RequestHashBlock(shard, i, hash)
+				if verify {
+					// the network agree with me that this block doesn't exist, so is a fake
+					blockValid = false
+				} else {
+					// replace the block in this index with the new one
+				}
 			} else {
 				if i != bc.CurrentBlock-1 {
-					// TODO ASAP
+					// TODO ASAP remove the previous blocks if they exists
 				}
 			}
-			fakePrevHash := false
 		}
-		if fakePrevHahs {
-			log.Error("Fake prev hash")
+		if !blockValid {
 			return err
 		}
 

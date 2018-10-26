@@ -3,7 +3,6 @@ package networking
 import (
 	"fmt"
 	"strconv"
-	"time"
 
 	protobufs "github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
@@ -11,6 +10,8 @@ import (
 )
 
 func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard uint32) []byte {
+	dataMessage := pb.GetData()
+
 	switch pb.GetType() {
 	// GET_BLOCKCHAIN_LEN returns the current block index
 	case protobufs.Request_GET_BLOCKCHAIN_LEN:
@@ -41,7 +42,13 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 			return []byte("Error")
 		}
 
-		block, err := cs.shardsChain[shard].GetBlock(pb.GetIndex())
+		if len(dataMessage.GetData()) != 1 {
+			return []byte("Error")
+		}
+
+		index := uint64(dataMessage.GetData()[0])
+
+		block, err := cs.shardsChain[shard].GetBlock(index)
 		if err != nil {
 			return []byte("Error")
 		}
@@ -53,13 +60,7 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 			return []byte("Error")
 		}
 
-		walletAddr, err := c.GetResponse(100 * time.Millisecond)
-		if err != nil {
-			log.Error(err)
-			return []byte{}
-		}
-
-		state, err := cs.shardsChain[shard].GetWalletState(fmt.Sprintf("%s", walletAddr))
+		state, err := cs.shardsChain[shard].GetWalletState(fmt.Sprintf("%s", dataMessage.GetData()))
 		if err != nil {
 			return []byte("Error")
 		}
@@ -80,13 +81,7 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 			return []byte("Error")
 		}
 
-		contractAddr, err := c.GetResponse(100 * time.Millisecond)
-		if err != nil {
-			log.Error(err)
-			return []byte{}
-		}
-
-		code, err := cs.shardsChain[shard].GetContractCode(contractAddr)
+		code, err := cs.shardsChain[shard].GetContractCode(dataMessage.GetData())
 		if err != nil {
 			return []byte("Error")
 		}
