@@ -111,6 +111,27 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 	return nil
 }
 
+func MakeSpecificRequest(shard uint32, dataEnvelope []byte, t network.Request_MessageTypes, conn *Conn) error {
+	env := &network.Envelope{
+		Type:  network.Envelope_REQUEST,
+		Data:  dataEnvelope,
+		Shard: shard,
+	}
+
+	req := &network.Request{
+		Type: t,
+		Data: env,
+	}
+	reqD, _ := proto.Marshal(req)
+
+	err := conn.WriteMessage(websocket.BinaryMessage, reqD)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return nil
+}
+
 func (cs *ConnectionStore) RequestHashBlock(shard uint32, indexBlock uint64, hashBlock []byte) (*protobufs.Block, bool) {
 
 	// TODO ASAP non chiedo a tutti i client ma solo ai validator nella mia shard
@@ -118,19 +139,7 @@ func (cs *ConnectionStore) RequestHashBlock(shard uint32, indexBlock uint64, has
 		fullIP := c.conn.RemoteAddr().String()
 		ip := strings.Split(fullIP, ":")[0]
 
-		env := &network.Envelope{
-			Type:  network.Envelope_REQUEST,
-			Data:  []byte{byte(indexBlock)},
-			Shard: shard,
-		}
-
-		req := &network.Request{
-			Type: network.Request_HASH_EXIST,
-			Data: env,
-		}
-		reqD, _ := proto.Marshal(req)
-
-		err := c.conn.WriteMessage(websocket.BinaryMessage, reqD)
+		err := MakeSpecificRequest(shard, []byte{byte(indexBlock)}, network.Request_HASH_EXIST, c.conn)
 		if err != nil {
 			log.Error(err)
 			continue
@@ -155,19 +164,7 @@ func (cs *ConnectionStore) RequestMissingBlock(shard uint32, indexBlock uint64) 
 		fullIP := c.conn.RemoteAddr().String()
 		ip := strings.Split(fullIP, ":")[0]
 
-		env := &network.Envelope{
-			Type:  network.Envelope_REQUEST,
-			Data:  []byte{byte(indexBlock)},
-			Shard: shard,
-		}
-
-		req := &network.Request{
-			Type: network.Request_GET_BLOCK,
-			Data: env,
-		}
-		reqD, _ := proto.Marshal(req)
-
-		err := c.conn.WriteMessage(websocket.BinaryMessage, reqD)
+		err := MakeSpecificRequest(shard, []byte{byte(indexBlock)}, network.Request_GET_BLOCK, c.conn)
 		if err != nil {
 			log.Error(err)
 			continue

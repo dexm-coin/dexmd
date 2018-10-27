@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	cryptoMath "crypto/rand"
 
 	"gopkg.in/dedis/kyber.v2"
 
@@ -31,7 +32,7 @@ const (
 
 // ConnectionStore handles peer messaging
 type ConnectionStore struct {
-	clients   map[*client]bool
+	clients   map[*client]string
 	broadcast chan []byte
 
 	register   chan *client
@@ -56,6 +57,7 @@ type client struct {
 	wg        sync.WaitGroup
 	interest  []string
 	isOpen    bool
+	wallet    string
 }
 
 var upgrader = websocket.Upgrader{
@@ -93,7 +95,7 @@ func (cs *ConnectionStore) Loop() {
 // StartServer creates a new ConnectionStore, which handles network peers
 func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockchain, beaconChain *blockchain.BeaconChain, idn *wallet.Wallet) (*ConnectionStore, error) {
 	store := &ConnectionStore{
-		clients:           make(map[*client]bool),
+		clients:           make(map[*client]string),
 		broadcast:         make(chan []byte),
 		register:          make(chan *client),
 		unregister:        make(chan *client),
@@ -113,6 +115,7 @@ func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockc
 		log.Info("New connection")
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
+			log.Error(err)
 			return
 		}
 
@@ -123,6 +126,24 @@ func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockc
 			store:     store,
 			isOpen:    true,
 		}
+
+		msg := make([]byte, 1000)
+		cryptoMath.Read(msg)
+
+		// TODO ASAP quando qualcuno si connette gli chiedo subito il suo wallet
+		err = MakeSpecificRequest(0, msg, protoNetwork.Request_GET_WALLET, conn)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		walletClientByte, err := c.GetResponse(100 * time.Millisecond)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		c.wallet = 
 
 		store.register <- &c
 
@@ -161,6 +182,8 @@ func (cs *ConnectionStore) Connect(ip string) error {
 		store:     cs,
 		isOpen:    true,
 	}
+
+	// TODO ASAP quando qualcuno si connette gli chiedo subito il suo wallet
 
 	cs.register <- &c
 
@@ -209,14 +232,12 @@ func (cs *ConnectionStore) run() {
 			p := &network.Interests{
 				Keys: keys,
 			}
-
 			d, _ := proto.Marshal(p)
 
 			e := &network.Envelope{
 				Type: network.Envelope_INTERESTS,
 				Data: d,
 			}
-
 			ed, _ := proto.Marshal(e)
 
 			if client.isOpen {

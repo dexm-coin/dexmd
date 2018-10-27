@@ -103,6 +103,38 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 
 		d, _ := proto.Marshal(p)
 		return d
+
+	case protobufs.Request_HASH_EXIST:
+		// rivece un indice di un blocco, e deve ritornare l'hash di quel blocco
+		// TODO ASAP
+
+	case protobufs.Request_GET_WALLET:
+		// riceve un messaggio casuale, che deve firmare, e deve anche mandare la sua chiave pubblica per poter decifrare
+		// TODO ASAP
+		randomMessage := dataMessage.GetData()
+
+		msg := &protobufs.RandomMessage{
+			Pubkey: cs.identity.GetPubKey(),
+			Data:   randomMessage,
+		}
+		byteMsg, _ := proto.Marshal(msg)
+
+		r, s, err := cs.identity.Sign(byteMsg)
+		if err != nil {
+			log.Error(err)
+			return []byte{"Error"}
+		}
+
+		signature := &protobufs.Signature{
+			PubKey: cs.identity.GetPubKey(),
+			R:      r,
+			S:      s,
+			Data:   byteMsg,
+			Shard:  shard,
+		}
+		d, _ := proto.Marshal(signature)
+		return d
+
 	}
 
 	return []byte{}

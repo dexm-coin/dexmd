@@ -41,19 +41,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 			log.Error(err)
 		}
 
-		env := &network.Envelope{
-			Type:  network.Envelope_REQUEST,
-			Data:  []byte(senderAddr),
-			Shard: shard,
-		}
-
-		req := &network.Request{
-			Type: network.Request_GET_WALLET_STATUS,
-			Data: env,
-		}
-		reqD, _ := proto.Marshal(req)
-
-		err = conn.WriteMessage(websocket.BinaryMessage, reqD)
+		err = MakeSpecificRequest(shard, []byte(senderAddr), network.Request_GET_WALLET_STATUS, conn)
 		if err != nil {
 			log.Error(err)
 			continue
