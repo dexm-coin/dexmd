@@ -1,6 +1,8 @@
 package networking
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"strconv"
 
@@ -42,11 +44,13 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 			return []byte("Error")
 		}
 
-		if len(dataMessage.GetData()) != 1 {
+		var index uint64
+		buff := bytes.NewReader(dataMessage.GetData())
+		err := binary.Read(buff, binary.LittleEndian, &index)
+		if err != nil {
+			log.Error("binary.Read failed:", err)
 			return []byte("Error")
 		}
-
-		index := uint64(dataMessage.GetData()[0])
 
 		block, err := cs.shardsChain[shard].GetBlock(index)
 		if err != nil {
@@ -104,36 +108,36 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 		d, _ := proto.Marshal(p)
 		return d
 
-	case protobufs.Request_HASH_EXIST:
-		// rivece un indice di un blocco, e deve ritornare l'hash di quel blocco
-		// TODO ASAP
+	// case protobufs.Request_HASH_EXIST:
+	// 	// rivece un indice di un blocco, e deve ritornare l'hash di quel blocco
+	// 	// TODO ASAP
 
-	case protobufs.Request_GET_WALLET:
-		// riceve un messaggio casuale, che deve firmare, e deve anche mandare la sua chiave pubblica per poter decifrare
-		// TODO ASAP
-		randomMessage := dataMessage.GetData()
+	// case protobufs.Request_GET_WALLET:
+	// 	// riceve un messaggio casuale, che deve firmare, e deve anche mandare la sua chiave pubblica per poter decifrare
+	// 	// TODO ASAP cambia il messaggio con un ts e controlla che sia valido
+	// 	randomMessage := dataMessage.GetData()
 
-		msg := &protobufs.RandomMessage{
-			Pubkey: cs.identity.GetPubKey(),
-			Data:   randomMessage,
-		}
-		byteMsg, _ := proto.Marshal(msg)
+	// 	msg := &protobufs.RandomMessage{
+	// 		Pubkey: cs.identity.GetPubKey(),
+	// 		Data:   randomMessage,
+	// 	}
+	// 	byteMsg, _ := proto.Marshal(msg)
 
-		r, s, err := cs.identity.Sign(byteMsg)
-		if err != nil {
-			log.Error(err)
-			return []byte{"Error"}
-		}
+	// 	r, s, err := cs.identity.Sign(byteMsg)
+	// 	if err != nil {
+	// 		log.Error(err)
+	// 		return []byte{"Error"}
+	// 	}
 
-		signature := &protobufs.Signature{
-			PubKey: cs.identity.GetPubKey(),
-			R:      r,
-			S:      s,
-			Data:   byteMsg,
-			Shard:  shard,
-		}
-		d, _ := proto.Marshal(signature)
-		return d
+	// 	signature := &protobufs.Signature{
+	// 		PubKey: cs.identity.GetPubKey(),
+	// 		R:      r,
+	// 		S:      s,
+	// 		Data:   byteMsg,
+	// 		Shard:  shard,
+	// 	}
+	// 	d, _ := proto.Marshal(signature)
+	// 	return d
 
 	}
 

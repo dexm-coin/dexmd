@@ -11,9 +11,32 @@ import (
 	"github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/golang/protobuf/proto"
+	pq "github.com/jupp0r/go-priority-queue"
 	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
 )
+
+type MissingBlockStruct struct {
+	sequenceBlock uint64
+	arrivalOrder  float64
+	hightestBlock string
+}
+
+func (mb MissingBlockStruct) GetMBSequenceBlock() uint64 {
+	return mb.sequenceBlock
+}
+func (mb MissingBlockStruct) GetMBArrivalOrder() float64 {
+	return mb.arrivalOrder
+}
+func (bc *Blockchain) ModifyMissingBlock(key string, mb MissingBlockStruct) {
+	bc.MissingBlock[key] = MissingBlockStruct{mb.sequenceBlock + 1, mb.arrivalOrder, mb.hightestBlock}
+}
+func (bc *Blockchain) AddMissingBlock(key string, arrivalOrder float64, hightestBlock string) {
+	bc.MissingBlock[key] = MissingBlockStruct{1, arrivalOrder, hightestBlock}
+}
+func (mb MissingBlockStruct) GetMBHightestBlock() string {
+	return mb.hightestBlock
+}
 
 // Blockchain is an internal representation of a blockchain
 type Blockchain struct {
@@ -34,9 +57,14 @@ type Blockchain struct {
 	GenesisTimestamp uint64
 
 	CurrentBlock      uint64
-	CurrentCheckpoint uint64
-	CurrentValidator  map[uint64]string
 	CurrentVote       uint64
+	CurrentCheckpoint uint64
+
+	CurrentValidator map[uint64]string
+
+	PriorityBlocks pq.PriorityQueue
+	MissingBlock   map[string]MissingBlockStruct
+	HashBlocks     map[string]uint64
 }
 
 // BeaconChain is an internal representation of a beacon chain
@@ -117,10 +145,15 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 		PSchnorr:        [][]byte{},
 		MessagesReceipt: [][]byte{},
 
-		CurrentValidator:  currentValidators,
 		CurrentBlock:      index,
 		CurrentCheckpoint: 0,
 		CurrentVote:       0,
+
+		CurrentValidator: currentValidators,
+
+		PriorityBlocks: pq.New(),
+		MissingBlock:   make(map[string]MissingBlockStruct),
+		HashBlocks:     make(map[string]uint64),
 	}, err
 }
 

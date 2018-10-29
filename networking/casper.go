@@ -154,7 +154,7 @@ func (cs *ConnectionStore) AddVote(vote *protobufs.CasperVote, shard uint32) err
 	if err != nil {
 		return err
 	}
-	return cs.shardsChain[shard].CasperVotesDb.Put([]byte(string(cs.shardsChain[shard].CurrentVote)), res, nil)
+	return cs.shardsChain[shard].CasperVotesDb.Put([]byte(fmt.Sprintf("%d", cs.shardsChain[shard].CurrentVote)), res, nil)
 }
 
 // GetCasperVote get a casper vote inside CasperVotesDb

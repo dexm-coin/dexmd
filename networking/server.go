@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-	cryptoMath "crypto/rand"
 
 	"gopkg.in/dedis/kyber.v2"
 
@@ -32,7 +31,7 @@ const (
 
 // ConnectionStore handles peer messaging
 type ConnectionStore struct {
-	clients   map[*client]string
+	clients   map[*client]bool
 	broadcast chan []byte
 
 	register   chan *client
@@ -57,7 +56,7 @@ type client struct {
 	wg        sync.WaitGroup
 	interest  []string
 	isOpen    bool
-	wallet    string
+	// wallet    string
 }
 
 var upgrader = websocket.Upgrader{
@@ -95,7 +94,7 @@ func (cs *ConnectionStore) Loop() {
 // StartServer creates a new ConnectionStore, which handles network peers
 func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockchain, beaconChain *blockchain.BeaconChain, idn *wallet.Wallet) (*ConnectionStore, error) {
 	store := &ConnectionStore{
-		clients:           make(map[*client]string),
+		clients:           make(map[*client]bool),
 		broadcast:         make(chan []byte),
 		register:          make(chan *client),
 		unregister:        make(chan *client),
@@ -127,23 +126,45 @@ func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockc
 			isOpen:    true,
 		}
 
-		msg := make([]byte, 1000)
-		cryptoMath.Read(msg)
+		// ts := uint64(time.Now().Unix())
+		// byteTs := make([]byte, 4)
+		// binary.LittleEndian.PutUint64(byteTs, ts)
 
-		// TODO ASAP quando qualcuno si connette gli chiedo subito il suo wallet
-		err = MakeSpecificRequest(0, msg, protoNetwork.Request_GET_WALLET, conn)
-		if err != nil {
-			log.Error(err)
-			return
-		}
+		// // TODO ASAP quando qualcuno si connette gli chiedo subito il suo wallet
+		// err = MakeSpecificRequest(0, byteTs, protoNetwork.Request_GET_WALLET, conn)
+		// if err != nil {
+		// 	log.Error(err)
+		// 	return
+		// }
 
-		walletClientByte, err := c.GetResponse(100 * time.Millisecond)
-		if err != nil {
-			log.Error(err)
-			return
-		}
+		// signatureByte, err := c.GetResponse(100 * time.Millisecond)
+		// if err != nil {
+		// 	log.Error(err)
+		// 	return
+		// }
 
-		c.wallet = 
+		// signature := &protoNetwork.Signature{}
+		// err = proto.Unmarshal(signatureByte, signature)
+		// if err != nil {
+		// 	log.Error(err)
+		// 	return
+		// }	
+		// walletSender := wallet.BytesToAddress(signature.GetPubkey(), signature.GetShard())
+		// if !wallet.IsWalletValid(walletSender) {
+		// 	log.Error("Not a valid wallet")
+		// 	return
+		// }
+		
+		// for _, wallet := range store.clients {
+		// 	if wallet == walletSender {
+		// 		log.Error("Wallet already register")
+		// 		return
+		// 	}
+		// }
+
+		// msg := &protoNetwork.RandomMessage{}
+
+		// c.wallet = 
 
 		store.register <- &c
 
@@ -512,31 +533,31 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		sleepTime := 1 + 4 - time.Now().Unix()%5
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 
-		// check if the block with index cs.shardsChain[currentShard].CurrentBlock have been saved, otherwise save an empty block
-		_, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock)
-		if err != nil {
-			prevBlockByte, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock - 1)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-			bhash := sha256.Sum256(prevBlockByte)
+		// // check if the block with index cs.shardsChain[currentShard].CurrentBlock have been saved, otherwise save an empty block
+		// _, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock)
+		// if err != nil {
+		// 	prevBlockByte, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock - 1)
+		// 	if err != nil {
+		// 		log.Error(err)
+		// 		continue
+		// 	}
+		// 	bhash := sha256.Sum256(prevBlockByte)
 
-			emptyBlock := &protoBlockchain.Block{
-				Index:    cs.shardsChain[currentShard].CurrentBlock,
-				PrevHash: bhash[:],
-				Shard:    currentShard,
-			}
+		// 	emptyBlock := &protoBlockchain.Block{
+		// 		Index:    cs.shardsChain[currentShard].CurrentBlock,
+		// 		PrevHash: bhash[:],
+		// 		Shard:    currentShard,
+		// 	}
 
-			err = cs.SaveBlock(emptyBlock, currentShard)
-			if err != nil {
-				log.Error(err)
-			}
-			err = cs.ImportBlock(emptyBlock, currentShard)
-			if err != nil {
-				log.Error(err)
-			}
-		}
+		// 	err = cs.SaveBlock(emptyBlock, currentShard)
+		// 	if err != nil {
+		// 		log.Error(err)
+		// 	}
+		// 	err = cs.ImportBlock(emptyBlock, currentShard)
+		// 	if err != nil {
+		// 		log.Error(err)
+		// 	}
+		// }
 
 		// increment the block number
 		cs.shardsChain[currentShard].CurrentBlock++
@@ -639,15 +660,20 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			index := bc.CurrentBlock
 			for {
 				index--
-				currBlock, err := bc.GetBlock(index)
-				if err != nil {
-					// TODO ASAP fai request a tutti di quell'indice e controlla il match della signature sia del validator scelto
-					block, verify := cs.RequestMissingBlock(currentShard, index)
-					if verify && block != nil {
-						bhash := sha256.Sum256(currBlock)
-						hashOldBlock = bhash[:]
-						break
-					}
+				byteBlock, err := bc.GetBlock(index)
+				// if err != nil {
+				// 	// TODO ASAP fai request a tutti di quell'indice e controlla il match della signature sia del validator scelto
+				// 	block, verify := cs.RequestMissingBlock(currentShard, index)
+				// 	if verify && block != nil {
+				// 		bhash := sha256.Sum256(currBlock)
+				// 		hashOldBlock = bhash[:]
+				// 		break
+				// 	}
+				// }
+				if err == nil {
+					bhash := sha256.Sum256(byteBlock)
+					hashOldBlock = bhash[:]
+					break
 				}
 			}
 

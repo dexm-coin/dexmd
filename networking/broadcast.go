@@ -2,9 +2,10 @@ package networking
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
-	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/dexm-coin/dexmd/wallet"
 	bcp "github.com/dexm-coin/protobufs/build/blockchain"
@@ -65,15 +66,18 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		if !cs.CheckShard(shard) {
 			return nil
 		}
+		byteBlock := broadcastEnvelope.GetData()
 
-		log.Printf("New Block: %x", broadcastEnvelope.GetData())
+		log.Printf("New Block: %x", byteBlock)
 
 		block := &bcp.Block{}
-		err := proto.Unmarshal(broadcastEnvelope.GetData(), block)
+		err := proto.Unmarshal(byteBlock, block)
 		if err != nil {
 			log.Error("error on Unmarshal")
 			return err
 		}
+
+		// TODO check the sitgnature before check everything
 
 		// TODO the message arrive too fast so CurrentValidator didn't get update to check if it is right
 		// check if the miner of the block that should be cs.shardsChain[shard].CurrentValidator[block.GetIndex()]
@@ -83,40 +87,88 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		}
 
 		bc := cs.shardsChain[shard]
-		// save only the block that have cs.shardsChain[shard].currentblock
-		if block.Index != cs.shardsChain[shard].CurrentBlock {
-			log.Error("The index of the block is wrong")
-			return err
+
+		prevHash := block.GetPrevHash()
+		h := sha256.New()
+		h.Write(prevHash)
+		hashPrevBlock := hex.EncodeToString(h.Sum(nil))
+		h2 := sha256.New()
+		h2.Write(byteBlock)
+		hashCurrentBlock := hex.EncodeToString(h.Sum(nil))
+
+		// calulate the priotity, based on when is arrived
+		arrivalOrder := float64(500-(time.Now().UnixNano()/int64(time.Millisecond))%500) * 0.001
+		// check if this block is arrived after a block that point to this block
+		if missingBlockValue, ok := bc.MissingBlock[hashCurrentBlock]; ok {
+			// if the prevhash of this block has already arrived
+			// if you have [1, 2, ?, 4] and now is arrived 3
+			if _, ok2 := bc.HashBlocks[hashPrevBlock]; ok2 {
+				// calulate the height of the hightest block and insert it on HashBlocks
+				hightestBlock := bc.MissingBlock[hashCurrentBlock].GetMBHightestBlock()
+				// TODO before take bc.HashBlocks[hashPrevBlock] i have to recalculate it, based on height of prev block of this prev block
+				bc.HashBlocks[hightestBlock] = bc.MissingBlock[hashCurrentBlock].GetMBSequenceBlock() + bc.HashBlocks[hashPrevBlock]
+				// remove hashCurrentBlock from MissingBlock, and add the hightest block to the queue
+				// key = hash highest block (in this case 4), value = height of the hightest block + the arrival order (that is (500-ts%500)*0.001)
+				finalPriotityBlock := float64(bc.HashBlocks[hightestBlock]) + bc.MissingBlock[hashCurrentBlock].GetMBArrivalOrder()
+				bc.PriorityBlocks.Insert(bc.MissingBlock[hashCurrentBlock].GetMBHightestBlock(), finalPriotityBlock)
+				delete(bc.MissingBlock, hashCurrentBlock)
+			} else {
+				// if hasn't arrived remove the previous block (so this one) and add this new one, but adding 1 to the sequence
+				// if you have [1, ?, ?, 4] and now is arrived 3
+				bc.ModifyMissingBlock(hashPrevBlock, missingBlockValue)
+				// TODO shouldn't be 1, it should change when block 2 arrive, otherwise block 4 is only euqal to 1(block3) + 1(block4),
+				// but should be equal to 2(block1 + block2) + 1(block3) + 1(block4)
+				bc.HashBlocks[hashCurrentBlock] = 1
+				delete(bc.MissingBlock, hashCurrentBlock)
+			}
+		} else {
+			// if you have [1, 2, ?] and now is arrived 3
+			if _, ok := bc.HashBlocks[hashPrevBlock]; ok {
+				// calulate the priotity and add it to PriorityBlocks
+				bc.PriorityBlocks.Insert(hashCurrentBlock, float64(bc.HashBlocks[hashPrevBlock])+arrivalOrder)
+				// also add it to the block added with height prev block + 1
+				bc.HashBlocks[hashCurrentBlock] = bc.HashBlocks[hashPrevBlock] + 1
+			} else {
+				// if you have [1, 2, ?, ?] and now is arrived 4
+				// add it to the missing blocks
+				bc.AddMissingBlock(hashPrevBlock, arrivalOrder, hashCurrentBlock)
+			}
 		}
 
-		blockValid := true
-		for i := bc.CurrentBlock - 1; i >= 0; i-- {
-			currBlock, err := bc.GetBlock(i)
-			if err != nil {
-				continue
-			}
-			bhash := sha256.Sum256(currBlock)
-			hash := bhash[:]
-			equal := reflect.DeepEqual(hash, block.GetPrevHash())
-			if !equal {
-				// TODO ASAP ask to the network if my prevhash (of currentblock) exist
-				log.Error("the prev hash doen't match with the block")
-				cs.RequestHashBlock(shard, i, hash)
-				if verify {
-					// the network agree with me that this block doesn't exist, so is a fake
-					blockValid = false
-				} else {
-					// replace the block in this index with the new one
-				}
-			} else {
-				if i != bc.CurrentBlock-1 {
-					// TODO ASAP remove the previous blocks if they exists
-				}
-			}
-		}
-		if !blockValid {
-			return err
-		}
+		// // save only the block that have cs.shardsChain[shard].currentblock
+		// if block.Index != cs.shardsChain[shard].CurrentBlock {
+		// 	log.Error("The index of the block is wrong")
+		// 	return err
+		// }
+
+		// blockValid := true
+		// for i := bc.CurrentBlock - 1; i >= 0; i-- {
+		// 	currBlock, err := bc.GetBlock(i)
+		// 	if err != nil {
+		// 		continue
+		// 	}
+		// 	bhash := sha256.Sum256(currBlock)
+		// 	hash := bhash[:]
+		// 	equal := reflect.DeepEqual(hash, block.GetPrevHash())
+		// 	if !equal {
+		// 		// TODO ASAP ask to the network if my prevhash (of currentblock) exist
+		// 		log.Error("the prev hash doen't match with the block")
+		// 		cs.RequestHashBlock(shard, i, hash)
+		// 		if verify {
+		// 			// the network agree with me that this block doesn't exist, so is a fake
+		// 			blockValid = false
+		// 		} else {
+		// 			// replace the block in this index with the new one
+		// 		}
+		// 	} else {
+		// 		if i != bc.CurrentBlock-1 {
+		// 			// TODO ASAP remove the previous blocks if they exists
+		// 		}
+		// 	}
+		// }
+		// if !blockValid {
+		// 	return err
+		// }
 
 		// TODO check signature
 		// blockBytes, _ := proto.Marshal(block)
@@ -148,27 +200,27 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 
 		log.Info("Save block ", block.Index)
 
-	case protoNetwork.Broadcast_CHECKPOINT_VOTE:
-		if !cs.CheckShard(shard) {
-			return nil
-		}
+	// case protoNetwork.Broadcast_CHECKPOINT_VOTE:
+	// 	if !cs.CheckShard(shard) {
+	// 		return nil
+	// 	}
 
-		log.Printf("New CasperVote: %x", broadcastEnvelope.GetData())
+	// 	log.Printf("New CasperVote: %x", broadcastEnvelope.GetData())
 
-		vote := &protoBlockchain.CasperVote{}
-		err := proto.Unmarshal(broadcastEnvelope.GetData(), vote)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		if cs.beaconChain.Validators.CheckIsValidator(vote.PublicKey) {
-			err := cs.AddVote(vote, shard)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			cs.shardsChain[shard].CurrentVote++
-		}
+	// 	vote := &protoBlockchain.CasperVote{}
+	// 	err := proto.Unmarshal(broadcastEnvelope.GetData(), vote)
+	// 	if err != nil {
+	// 		log.Error(err)
+	// 		return err
+	// 	}
+	// 	if cs.beaconChain.Validators.CheckIsValidator(vote.PublicKey) {
+	// 		err := cs.AddVote(vote, shard)
+	// 		if err != nil {
+	// 			log.Error(err)
+	// 			return err
+	// 		}
+	// 		cs.shardsChain[shard].CurrentVote++
+	// 	}
 
 	case protoNetwork.Broadcast_WITHDRAW:
 		log.Printf("New Withdraw: %x", broadcastEnvelope.GetData())
@@ -289,12 +341,19 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		log.Info("MerkleRootSigned Verified")
 
 	case protoNetwork.Broadcast_MERKLE_PROOF:
+
 		log.Printf("New Merkle Proof: %x", broadcastEnvelope.GetData())
 
 		merkleProof := &protoBlockchain.MerkleProof{}
 		err := proto.Unmarshal(broadcastEnvelope.GetData(), merkleProof)
 		if err != nil {
 			log.Error(err)
+			return err
+		}
+
+		// TODO this is wrong maybe, i have to check the shard
+		if !cs.CheckShard(merkleProof.GetShard()) {
+			log.Error("Not your shard")
 			return err
 		}
 

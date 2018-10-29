@@ -23,10 +23,10 @@ type ValidatorsBook struct {
 
 // Validator is a representation of a validator node
 type Validator struct {
-	wallet       string
-	startDynasty int64
-	endDynasty   int64
-
+	wallet           string
+	startDynasty     int64
+	endDynasty       int64
+	stake            uint64
 	shard            uint32
 	schnorrPublicKey kyber.Point
 }
@@ -175,7 +175,7 @@ func (v *ValidatorsBook) AddValidator(wallet string, dynasty int64, pubSchnorrKe
 		log.Error("Not IsWalletValid")
 		return false
 	}
-	v.valsArray[wallet] = &Validator{wallet, dynasty, -1, shard, publicKey}
+	v.valsArray[wallet] = &Validator{wallet, dynasty, -1, transaction.GetAmount(), shard, publicKey}
 	v.valsWithdraw[wallet] = transaction
 	return false
 }
@@ -244,13 +244,8 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 		if val.shard != currentShard {
 			continue
 		}
-		stateWallet, err := bc.GetWalletState(val.wallet)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-		ss = append(ss, simpleValidator{k, stateWallet.GetBalance()})
-		totalstake += stateWallet.GetBalance()
+		ss = append(ss, simpleValidator{k, val.stake})
+		totalstake += val.stake
 	}
 	if totalstake < 1 {
 		return "", errors.New("Not enough stake")
@@ -290,12 +285,7 @@ func (v *ValidatorsBook) ChooseShard(seed int64, wallet string, bc *Blockchain) 
 		if !v.CheckDynasty(val.wallet, uint64(currentBlock)) {
 			continue
 		}
-		stateWallet, err := bc.GetWalletState(val.wallet)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-		ss = append(ss, simpleValidator{k, stateWallet.GetBalance()})
+		ss = append(ss, simpleValidator{k, val.stake})
 	}
 
 	// suffle the validator with a seed

@@ -1,13 +1,13 @@
 package tests
 
-import (
-	"crypto/rand"
-	"testing"
+// import (
+// 	"crypto/rand"
+// 	"testing"
 
-	// "golang.org/x/crypto/sha3"
-	"vuvuzela.io/crypto/bls"
-	// bls "github.com/enzoh/go-bls"
-)
+// 	// "golang.org/x/crypto/sha3"
+// 	"vuvuzela.io/crypto/bls"
+// 	// bls "github.com/enzoh/go-bls"
+// )
 
 // func TestSignVerify(t *testing.T) {
 // 	for i := 0; i < 100; i++ {
@@ -61,38 +61,38 @@ import (
 // 	}
 // }
 
-func TestAggregate(t *testing.T) {
-	msg1 := randomMessage()
-	msg2 := randomMessage()
-	msg3 := randomMessage()
+// func TestAggregate(t *testing.T) {
+// 	msg1 := randomMessage()
+// 	msg2 := randomMessage()
+// 	msg3 := randomMessage()
 
-	pub1, priv1, _ := bls.GenerateKey(rand.Reader)
-	pub2, priv2, _ := bls.GenerateKey(rand.Reader)
-	pub3, priv3, _ := bls.GenerateKey(rand.Reader)
+// 	pub1, priv1, _ := bls.GenerateKey(rand.Reader)
+// 	pub2, priv2, _ := bls.GenerateKey(rand.Reader)
+// 	pub3, priv3, _ := bls.GenerateKey(rand.Reader)
 
-	sig1 := bls.Sign(priv1, msg1)
-	sig2 := bls.Sign(priv2, msg2)
-	sig3 := bls.Sign(priv3, msg3)
+// 	sig1 := bls.Sign(priv1, msg1)
+// 	sig2 := bls.Sign(priv2, msg2)
+// 	sig3 := bls.Sign(priv3, msg3)
 
-	sig := bls.Aggregate(sig1, sig2, sig3)
+// 	sig := bls.Aggregate(sig1, sig2, sig3)
 
-	ok := bls.Verify([]*bls.PublicKey{pub1, pub2, pub3}, [][]byte{msg1, msg2, msg3}, sig)
-	if !ok {
-		t.Fatalf("failed to verify aggregate signature")
-	}
+// 	ok := bls.Verify([]*bls.PublicKey{pub1, pub2, pub3}, [][]byte{msg1, msg2, msg3}, sig)
+// 	if !ok {
+// 		t.Fatalf("failed to verify aggregate signature")
+// 	}
 
-	shortSig := sig.Compress()
-	ok = bls.VerifyCompressed([]*bls.PublicKey{pub1, pub2, pub3}, [][]byte{msg1, msg2, msg3}, shortSig)
-	if !ok {
-		t.Fatalf("failed to verify compressed aggregate signature")
-	}
-}
+// 	shortSig := sig.Compress()
+// 	ok = bls.VerifyCompressed([]*bls.PublicKey{pub1, pub2, pub3}, [][]byte{msg1, msg2, msg3}, shortSig)
+// 	if !ok {
+// 		t.Fatalf("failed to verify compressed aggregate signature")
+// 	}
+// }
 
-func randomMessage() []byte {
-	msg := make([]byte, 1000000)
-	rand.Read(msg)
-	return msg
-}
+// func randomMessage() []byte {
+// 	msg := make([]byte, 1000000)
+// 	rand.Read(msg)
+// 	return msg
+// }
 
 // func TestKnownAnswer(t *testing.T) {
 // 	msg := []byte("test message")
