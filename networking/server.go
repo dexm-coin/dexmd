@@ -183,7 +183,6 @@ func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockc
 // broadcasts and avoid sending everything to everyone
 func (cs *ConnectionStore) AddInterest(key string) {
 	cs.interests[key] = true
-
 }
 
 func (cs *ConnectionStore) AddGenesisToQueue(block *protoBlockchain.Block, shard uint32) {
@@ -196,6 +195,7 @@ func (cs *ConnectionStore) AddGenesisToQueue(block *protoBlockchain.Block, shard
 	hashBlock := hex.EncodeToString(h.Sum(nil))
 
 	cs.shardsChain[shard].PriorityBlocks.Insert(hashBlock, 0)
+	cs.shardsChain[shard].HashBlocks[hashBlock] = 0
 }
 
 // Connect connects to a server and adds it to the connectionStore
@@ -544,7 +544,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 	for {
 		// The validator changes every time the unix timestamp is a multiple of 5
-		sleepTime := 3 + time.Now().Unix()%5
+		sleepTime := 2 + time.Now().Unix()%5
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 
 		// // check if the block with index cs.shardsChain[currentShard].CurrentBlock have been saved, otherwise save an empty block
@@ -586,6 +586,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 		// Start accepting the block from the new validator
 		cs.shardsChain[currentShard].CurrentValidator[cs.shardsChain[currentShard].CurrentBlock] = validator
+
+		time.Sleep(time.Duration(1) * time.Second)
 
 		// after max 100 rounds send all your list of ips to every client that you know
 		if int(rand.Float64()*100) > 100-int(cs.shardsChain[currentShard].CurrentBlock%100) {
@@ -697,12 +699,22 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			}
 			blockBytes, _ := proto.Marshal(block)
 
-			// TODO make the signature and send a blt message
-
-			// Sign the new block
 			pub, _ := cs.identity.GetPubKey()
 			bhash := sha256.Sum256(blockBytes)
 			hash := bhash[:]
+
+			prevHash := block.GetPrevHash()
+			h := sha256.New()
+			h.Write(prevHash)
+			hashPrevBlockString := hex.EncodeToString(h.Sum(nil))
+			h2 := sha256.New()
+			h2.Write(hash)
+			hashCurrentBlockString := hex.EncodeToString(h.Sum(nil))
+
+			cs.shardsChain[currentShard].HashBlocks[hashCurrentBlockString] = cs.shardsChain[currentShard].HashBlocks[hashPrevBlockString] + 1
+
+			// TODO make the signature
+			// Sign the new block
 			r, s, err := cs.identity.Sign(hash)
 			if err != nil {
 				log.Error(err)
