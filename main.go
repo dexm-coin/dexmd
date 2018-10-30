@@ -25,11 +25,8 @@ const (
 )
 
 var (
-	// -- start
-	PUBLIC_PEERSERVER = true
+	PUBLIC_PEERSERVER = false
 	TS                = uint64(1540029481)
-
-// -- start
 )
 
 /*

@@ -544,8 +544,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 	for {
 		// The validator changes every time the unix timestamp is a multiple of 5
-		sleepTime := 300 + (time.Now().UnixNano()/int64(time.Millisecond))%500
-		time.Sleep(time.Duration(sleepTime) * time.Millisecond)
+		sleepTime := 3 + time.Now().Unix()%5
+		time.Sleep(time.Duration(sleepTime) * time.Second)
 
 		// // check if the block with index cs.shardsChain[currentShard].CurrentBlock have been saved, otherwise save an empty block
 		// _, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock)
@@ -810,7 +810,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					}
 					p, err := cs.identity.GetPublicKeySchnorr()
 					if err != nil {
-						log.Error("GetSchnorrPublicKey ", err)
+						log.Error("GetPublicKeySchnorr ", err)
 						continue
 					}
 					myP, err = p.MarshalBinary()

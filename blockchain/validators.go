@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/rand"
 	"sort"
+	"strconv"
 
 	wal "github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
@@ -175,7 +176,17 @@ func (v *ValidatorsBook) AddValidator(wallet string, dynasty int64, pubSchnorrKe
 		log.Error("Not IsWalletValid")
 		return false
 	}
-	v.valsArray[wallet] = &Validator{wallet, dynasty, -1, transaction.GetAmount(), shard, publicKey}
+	// your wallet must be in shard 1 to became a validator
+	shardSender, err := strconv.ParseUint(wallet[4:6], 16, 32)
+	if err != nil {
+		log.Error("ParseUint ", err)
+		return false
+	}
+	if shardSender != 1 {
+		log.Info("wallet not in shard 1")
+		return false
+	}
+	v.valsArray[wallet] = &Validator{wallet, dynasty, -1, transaction.GetAmount(), 1, publicKey}
 	v.valsWithdraw[wallet] = transaction
 	return false
 }
