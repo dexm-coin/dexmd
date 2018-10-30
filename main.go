@@ -183,6 +183,7 @@ func main() {
 						Miner:     "Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2",
 						// Shard:     uint32(sInt),
 					}
+					cs.AddGenesisToQueue(genesisBlock, uint32(sInt))
 					cs.SaveBlock(genesisBlock, uint32(sInt))
 					cs.ImportBlock(genesisBlock, uint32(sInt))
 					cs.AddInterest(shard)

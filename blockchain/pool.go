@@ -47,7 +47,16 @@ func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transacti
 }
 
 // GenerateBlock generates a valid unsigned block with transactions from the mempool
-func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *ValidatorsBook, hash []byte) (*protobufs.Block, error) {
+func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *ValidatorsBook) (*protobufs.Block, error) {
+	
+	hash := []byte{}
+	hashInterface, err := bc.PriorityBlocks.Pop()
+	if err != nil {
+		
+	}
+	hashString := interface{}(hashInterface).(*string)
+	hash = []byte(*hashString)
+
 	block := protobufs.Block{
 		Index:     bc.CurrentBlock,
 		Timestamp: uint64(time.Now().Unix()),

@@ -148,13 +148,13 @@ func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockc
 		// if err != nil {
 		// 	log.Error(err)
 		// 	return
-		// }	
+		// }
 		// walletSender := wallet.BytesToAddress(signature.GetPubkey(), signature.GetShard())
 		// if !wallet.IsWalletValid(walletSender) {
 		// 	log.Error("Not a valid wallet")
 		// 	return
 		// }
-		
+
 		// for _, wallet := range store.clients {
 		// 	if wallet == walletSender {
 		// 		log.Error("Wallet already register")
@@ -164,7 +164,7 @@ func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockc
 
 		// msg := &protoNetwork.RandomMessage{}
 
-		// c.wallet = 
+		// c.wallet =
 
 		store.register <- &c
 
@@ -182,6 +182,13 @@ func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockc
 // broadcasts and avoid sending everything to everyone
 func (cs *ConnectionStore) AddInterest(key string) {
 	cs.interests[key] = true
+
+}
+
+func (cs *ConnectionStore) AddGenesisToQueue(block *protoBlockchain.Block, shard uint32) {
+	res, _ := proto.Marshal(block)
+	bhash := sha256.Sum256(res)
+	cs.shardsChain[shard].PriorityBlocks.Insert(bhash[:], 0)
 }
 
 // Connect connects to a server and adds it to the connectionStore
@@ -530,8 +537,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 	for {
 		// The validator changes every time the unix timestamp is a multiple of 5
-		sleepTime := 1 + 4 - time.Now().Unix()%5
-		time.Sleep(time.Duration(sleepTime) * time.Second)
+		sleepTime := 300 + (time.Now().UnixNano()/int64(time.Millisecond))%500
+		time.Sleep(time.Duration(sleepTime) * time.Millisecond)
 
 		// // check if the block with index cs.shardsChain[currentShard].CurrentBlock have been saved, otherwise save an empty block
 		// _, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock)
@@ -655,29 +662,24 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		if wal == validator {
 			log.Info("I'm the miner ", wal)
 
-			hashOldBlock := []byte{}
-			bc := cs.shardsChain[currentShard]
-			index := bc.CurrentBlock
-			for {
-				index--
-				byteBlock, err := bc.GetBlock(index)
-				// if err != nil {
-				// 	// TODO ASAP fai request a tutti di quell'indice e controlla il match della signature sia del validator scelto
-				// 	block, verify := cs.RequestMissingBlock(currentShard, index)
-				// 	if verify && block != nil {
-				// 		bhash := sha256.Sum256(currBlock)
-				// 		hashOldBlock = bhash[:]
-				// 		break
-				// 	}
-				// }
-				if err == nil {
-					bhash := sha256.Sum256(byteBlock)
-					hashOldBlock = bhash[:]
-					break
-				}
-			}
+			// hashOldBlock := []byte{}PriorityBlocks
+			// bc := cs.shardsChain[currentShard]
+			// index := bc.CurrentBlock
+			// for {
+			// 	index--
+			// 	byteBlock, err := bc.GetBlock(index)
+			// 	if err != nil {
+			// 		// TODO ASAP fai request a tutti di quell'indice e controlla il match della signature sia del validator scelto
+			// 		block, verify := cs.RequestMissingBlock(currentShard, index)
+			// 		if verify && block != nil {
+			// 			bhash := sha256.Sum256(currBlock)
+			// 			hashOldBlock = bhash[:]
+			// 			break
+			// 		}
+			// 	}
+			// }
 
-			block, err := cs.shardsChain[currentShard].GenerateBlock(wal, currentShard, cs.beaconChain.Validators, hashOldBlock)
+			block, err := cs.shardsChain[currentShard].GenerateBlock(wal, currentShard, cs.beaconChain.Validators)
 			if err != nil {
 				log.Error(err)
 				continue

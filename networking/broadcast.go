@@ -99,37 +99,38 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// calulate the priotity, based on when is arrived
 		arrivalOrder := float64(500-(time.Now().UnixNano()/int64(time.Millisecond))%500) * 0.001
 		// check if this block is arrived after a block that point to this block
-		if missingBlockValue, ok := bc.MissingBlock[hashCurrentBlock]; ok {
+		if missingCurrentBlockValue, ok := bc.MissingBlock[hashCurrentBlock]; ok {
 			// if the prevhash of this block has already arrived
 			// if you have [1, 2, ?, 4] and now is arrived 3
 			if _, ok2 := bc.HashBlocks[hashPrevBlock]; ok2 {
+				//  recalculate the height of every block that was inside blocksToRecalculate
+				lenBlocks := len(missingCurrentBlockValue.GetMBbBlocksToRecalculate())
+				for index, blockToRecalulate := range missingCurrentBlockValue.GetMBbBlocksToRecalculate() {
+					bc.HashBlocks[blockToRecalulate] = bc.HashBlocks[hashPrevBlock] + uint64(lenBlocks-index)
+				}
 				// calulate the height of the hightest block and insert it on HashBlocks
-				hightestBlock := bc.MissingBlock[hashCurrentBlock].GetMBHightestBlock()
-				// TODO before take bc.HashBlocks[hashPrevBlock] i have to recalculate it, based on height of prev block of this prev block
-				bc.HashBlocks[hightestBlock] = bc.MissingBlock[hashCurrentBlock].GetMBSequenceBlock() + bc.HashBlocks[hashPrevBlock]
+				hightestBlock := missingCurrentBlockValue.GetMBHightestBlock()
+				bc.HashBlocks[hightestBlock] = missingCurrentBlockValue.GetMBSequenceBlock() + bc.HashBlocks[hashPrevBlock]
 				// remove hashCurrentBlock from MissingBlock, and add the hightest block to the queue
 				// key = hash highest block (in this case 4), value = height of the hightest block + the arrival order (that is (500-ts%500)*0.001)
-				finalPriotityBlock := float64(bc.HashBlocks[hightestBlock]) + bc.MissingBlock[hashCurrentBlock].GetMBArrivalOrder()
-				bc.PriorityBlocks.Insert(bc.MissingBlock[hashCurrentBlock].GetMBHightestBlock(), finalPriotityBlock)
+				finalPriotityBlock := float64(bc.HashBlocks[hightestBlock]) + missingCurrentBlockValue.GetMBArrivalOrder()
+				bc.PriorityBlocks.Insert(missingCurrentBlockValue.GetMBHightestBlock(), finalPriotityBlock)
 				delete(bc.MissingBlock, hashCurrentBlock)
 			} else {
 				// if hasn't arrived remove the previous block (so this one) and add this new one, but adding 1 to the sequence
 				// if you have [1, ?, ?, 4] and now is arrived 3
-				bc.ModifyMissingBlock(hashPrevBlock, missingBlockValue)
-				// TODO shouldn't be 1, it should change when block 2 arrive, otherwise block 4 is only euqal to 1(block3) + 1(block4),
-				// but should be equal to 2(block1 + block2) + 1(block3) + 1(block4)
-				bc.HashBlocks[hashCurrentBlock] = 1
+				bc.ModifyMissingBlock(hashPrevBlock, missingCurrentBlockValue, hashCurrentBlock)
 				delete(bc.MissingBlock, hashCurrentBlock)
 			}
 		} else {
 			// if you have [1, 2, ?] and now is arrived 3
 			if _, ok := bc.HashBlocks[hashPrevBlock]; ok {
 				// calulate the priotity and add it to PriorityBlocks
-				bc.PriorityBlocks.Insert(hashCurrentBlock, float64(bc.HashBlocks[hashPrevBlock])+arrivalOrder)
+				bc.PriorityBlocks.Insert(hashCurrentBlock, float64(bc.HashBlocks[hashPrevBlock])+1+arrivalOrder)
 				// also add it to the block added with height prev block + 1
 				bc.HashBlocks[hashCurrentBlock] = bc.HashBlocks[hashPrevBlock] + 1
 			} else {
-				// if you have [1, 2, ?, ?] and now is arrived 4
+				// if you have [1, ?, ?] and now is arrived 3
 				// add it to the missing blocks
 				bc.AddMissingBlock(hashPrevBlock, arrivalOrder, hashCurrentBlock)
 			}
@@ -187,11 +188,11 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 		// 	return err
 		// }
 
-		// err = cs.SaveBlock(block, shard)
-		// if err != nil {
-		// 	log.Error("error on saving block")
-		// 	return err
-		// }
+		err = cs.SaveBlock(block, shard)
+		if err != nil {
+			log.Error("error on saving block")
+			return err
+		}
 		// err = cs.ImportBlock(block, uint32(shard))
 		// if err != nil {
 		// 	log.Error("error on importing block")

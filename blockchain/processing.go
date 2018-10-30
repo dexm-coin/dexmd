@@ -17,9 +17,10 @@ import (
 )
 
 type MissingBlockStruct struct {
-	sequenceBlock uint64
-	arrivalOrder  float64
-	hightestBlock string
+	sequenceBlock       uint64
+	arrivalOrder        float64
+	hightestBlock       string
+	blocksToRecalculate []string
 }
 
 func (mb MissingBlockStruct) GetMBSequenceBlock() uint64 {
@@ -28,14 +29,18 @@ func (mb MissingBlockStruct) GetMBSequenceBlock() uint64 {
 func (mb MissingBlockStruct) GetMBArrivalOrder() float64 {
 	return mb.arrivalOrder
 }
-func (bc *Blockchain) ModifyMissingBlock(key string, mb MissingBlockStruct) {
-	bc.MissingBlock[key] = MissingBlockStruct{mb.sequenceBlock + 1, mb.arrivalOrder, mb.hightestBlock}
-}
-func (bc *Blockchain) AddMissingBlock(key string, arrivalOrder float64, hightestBlock string) {
-	bc.MissingBlock[key] = MissingBlockStruct{1, arrivalOrder, hightestBlock}
-}
 func (mb MissingBlockStruct) GetMBHightestBlock() string {
 	return mb.hightestBlock
+}
+func (mb MissingBlockStruct) GetMBbBlocksToRecalculate() []string {
+	return mb.blocksToRecalculate
+}
+
+func (bc *Blockchain) ModifyMissingBlock(key string, mb MissingBlockStruct, hashCurrentBlock string) {
+	bc.MissingBlock[key] = MissingBlockStruct{mb.sequenceBlock + 1, mb.arrivalOrder, mb.hightestBlock, append(mb.blocksToRecalculate, hashCurrentBlock)}
+}
+func (bc *Blockchain) AddMissingBlock(key string, arrivalOrder float64, hightestBlock string) {
+	bc.MissingBlock[key] = MissingBlockStruct{1, arrivalOrder, hightestBlock, []string{}}
 }
 
 // Blockchain is an internal representation of a blockchain
