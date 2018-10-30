@@ -54,8 +54,8 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 	if err != nil {
 		
 	}
-	hashString := interface{}(hashInterface).(*string)
-	hash = []byte(*hashString)
+	hashString := interface{}(hashInterface).(string)
+	hash = []byte(hashString)
 
 	block := protobufs.Block{
 		Index:     bc.CurrentBlock,

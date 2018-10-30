@@ -617,6 +617,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// Change shard
+		// TODO add || cs.shardsChain[currentShard].CurrentBlock == 1
 		if cs.shardsChain[currentShard].CurrentBlock%10000 == 0 {
 			// calulate the hash of the previous 100 blocks from current block - 1
 			var hashBlocks []byte
@@ -641,7 +642,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 			// choose the next shard with a seed
 			seed := binary.BigEndian.Uint64(finalHash[:])
-			newShard, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardsChain[currentShard])
+			// TODO _ = newShard
+			_, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardsChain[currentShard])
 			if err != nil {
 				log.Error(err)
 			}
@@ -651,12 +653,14 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			// remove the older blockchain and create a new one
 			os.RemoveAll(".dexm/shard")
 			os.MkdirAll(".dexm/shard", os.ModePerm)
-			cs.shardsChain[currentShard], err = blockchain.NewBlockchain(".dexm/shard/", 0)
+			// TODO change 1 with 0
+			cs.shardsChain[currentShard], err = blockchain.NewBlockchain(".dexm/shard/", 1)
 			if err != nil {
 				log.Fatal("NewBlockchain ", err)
 			}
 			// ask for the chain that corrispond to newShard shard
-			cs.UpdateChain(newShard)
+			// TODO uncomment
+			// cs.UpdateChain(newShard)
 		}
 
 		// check if you are a validator or not, if not don't continue with the other messages

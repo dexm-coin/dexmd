@@ -216,6 +216,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 	if block.GetIndex() == 0 {
 		// TODO cange this import wallet because we don't want that people know the private key of those 2 wallet
 		fakeTransaction := &protobufs.Transaction{}
+		fakeTransaction.Amount = 10000
 		state := &protobufs.AccountState{
 			Balance: 20000,
 		}

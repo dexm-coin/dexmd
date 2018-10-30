@@ -43,7 +43,7 @@ thread.start()
 
 # check if you are a validator
 if validator != 0:
-    os.system("./dexmd sn wallet" + str(validator) + " " + str(timestamp))
+    os.system("./dexmd sn wallet" + str(validator) + " " + str(timestamp) + " hackney true")
 else:
     # wait for all the other validator to start
     sleep(60)
