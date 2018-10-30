@@ -575,7 +575,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 		// increment the block number
 		cs.shardsChain[currentShard].CurrentBlock++
-		log.Info("Current block ", cs.shardsChain[currentShard].CurrentBlock, " in shard ", currentShard)
 
 		// chose a validator based on stake
 		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardsChain[currentShard].CurrentBlock), currentShard, cs.shardsChain[currentShard])
@@ -583,6 +582,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			log.Error(err)
 			continue
 		}
+		log.Info("Block ", cs.shardsChain[currentShard].CurrentBlock, " in shard ", currentShard, " ChooseValidator ", validator)
 
 		// Start accepting the block from the new validator
 		cs.shardsChain[currentShard].CurrentValidator[cs.shardsChain[currentShard].CurrentBlock] = validator

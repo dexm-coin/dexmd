@@ -77,12 +77,15 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 			return err
 		}
 
+		log.Info("New Block from ", block.GetMiner())
+
 		// TODO check the sitgnature before check everything
 
 		// TODO the message arrive too fast so CurrentValidator didn't get update to check if it is right
 		// check if the miner of the block that should be cs.shardsChain[shard].CurrentValidator[block.GetIndex()]
-		if block.Miner != cs.shardsChain[shard].CurrentValidator[block.GetIndex()] {
+		if block.GetMiner() != cs.shardsChain[shard].CurrentValidator[block.GetIndex()] {
 			log.Error("The miner is wrong")
+			log.Error("Should be ", cs.shardsChain[shard].CurrentValidator[block.GetIndex()])
 			return err
 		}
 
