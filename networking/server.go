@@ -3,6 +3,7 @@ package networking
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -182,13 +183,19 @@ func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockc
 // broadcasts and avoid sending everything to everyone
 func (cs *ConnectionStore) AddInterest(key string) {
 	cs.interests[key] = true
-
 }
 
 func (cs *ConnectionStore) AddGenesisToQueue(block *protoBlockchain.Block, shard uint32) {
 	res, _ := proto.Marshal(block)
 	bhash := sha256.Sum256(res)
-	cs.shardsChain[shard].PriorityBlocks.Insert(bhash[:], 0)
+	hash := bhash[:]
+
+	h := sha256.New()
+	h.Write(hash)
+	hashBlock := hex.EncodeToString(h.Sum(nil))
+
+	cs.shardsChain[shard].PriorityBlocks.Insert(hashBlock, 0)
+	cs.shardsChain[shard].HashBlocks[hashBlock] = 0
 }
 
 // Connect connects to a server and adds it to the connectionStore
@@ -537,8 +544,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 	for {
 		// The validator changes every time the unix timestamp is a multiple of 5
-		sleepTime := 300 + (time.Now().UnixNano()/int64(time.Millisecond))%500
-		time.Sleep(time.Duration(sleepTime) * time.Millisecond)
+		sleepTime := 2 + time.Now().Unix()%5
+		time.Sleep(time.Duration(sleepTime) * time.Second)
 
 		// // check if the block with index cs.shardsChain[currentShard].CurrentBlock have been saved, otherwise save an empty block
 		// _, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock)
@@ -568,7 +575,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 		// increment the block number
 		cs.shardsChain[currentShard].CurrentBlock++
-		log.Info("Current block ", cs.shardsChain[currentShard].CurrentBlock, " in shard ", currentShard)
 
 		// chose a validator based on stake
 		validator, err := cs.beaconChain.Validators.ChooseValidator(int64(cs.shardsChain[currentShard].CurrentBlock), currentShard, cs.shardsChain[currentShard])
@@ -576,9 +582,12 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			log.Error(err)
 			continue
 		}
+		log.Info("Block ", cs.shardsChain[currentShard].CurrentBlock, " in shard ", currentShard, " ChooseValidator ", validator)
 
 		// Start accepting the block from the new validator
 		cs.shardsChain[currentShard].CurrentValidator[cs.shardsChain[currentShard].CurrentBlock] = validator
+
+		time.Sleep(time.Duration(1) * time.Second)
 
 		// after max 100 rounds send all your list of ips to every client that you know
 		if int(rand.Float64()*100) > 100-int(cs.shardsChain[currentShard].CurrentBlock%100) {
@@ -610,6 +619,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// Change shard
+		// TODO add || cs.shardsChain[currentShard].CurrentBlock == 1
 		if cs.shardsChain[currentShard].CurrentBlock%10000 == 0 {
 			// calulate the hash of the previous 100 blocks from current block - 1
 			var hashBlocks []byte
@@ -634,7 +644,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 			// choose the next shard with a seed
 			seed := binary.BigEndian.Uint64(finalHash[:])
-			newShard, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardsChain[currentShard])
+			// TODO _ = newShard
+			_, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardsChain[currentShard])
 			if err != nil {
 				log.Error(err)
 			}
@@ -644,12 +655,14 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			// remove the older blockchain and create a new one
 			os.RemoveAll(".dexm/shard")
 			os.MkdirAll(".dexm/shard", os.ModePerm)
-			cs.shardsChain[currentShard], err = blockchain.NewBlockchain(".dexm/shard/", 0)
+			// TODO change 1 with 0
+			cs.shardsChain[currentShard], err = blockchain.NewBlockchain(".dexm/shard/", 1)
 			if err != nil {
 				log.Fatal("NewBlockchain ", err)
 			}
 			// ask for the chain that corrispond to newShard shard
-			cs.UpdateChain(newShard)
+			// TODO uncomment
+			// cs.UpdateChain(newShard)
 		}
 
 		// check if you are a validator or not, if not don't continue with the other messages
@@ -686,12 +699,22 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			}
 			blockBytes, _ := proto.Marshal(block)
 
-			// TODO make the signature and send a blt message
-
-			// Sign the new block
 			pub, _ := cs.identity.GetPubKey()
 			bhash := sha256.Sum256(blockBytes)
 			hash := bhash[:]
+
+			prevHash := block.GetPrevHash()
+			h := sha256.New()
+			h.Write(prevHash)
+			hashPrevBlockString := hex.EncodeToString(h.Sum(nil))
+			h2 := sha256.New()
+			h2.Write(hash)
+			hashCurrentBlockString := hex.EncodeToString(h.Sum(nil))
+
+			cs.shardsChain[currentShard].HashBlocks[hashCurrentBlockString] = cs.shardsChain[currentShard].HashBlocks[hashPrevBlockString] + 1
+
+			// TODO make the signature
+			// Sign the new block
 			r, s, err := cs.identity.Sign(hash)
 			if err != nil {
 				log.Error(err)
@@ -803,7 +826,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					}
 					p, err := cs.identity.GetPublicKeySchnorr()
 					if err != nil {
-						log.Error("GetSchnorrPublicKey ", err)
+						log.Error("GetPublicKeySchnorr ", err)
 						continue
 					}
 					myP, err = p.MarshalBinary()

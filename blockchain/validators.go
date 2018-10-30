@@ -3,7 +3,7 @@ package blockchain
 import (
 	"errors"
 	"math/rand"
-	"sort"
+	"strconv"
 
 	wal "github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
@@ -175,7 +175,17 @@ func (v *ValidatorsBook) AddValidator(wallet string, dynasty int64, pubSchnorrKe
 		log.Error("Not IsWalletValid")
 		return false
 	}
-	v.valsArray[wallet] = &Validator{wallet, dynasty, -1, transaction.GetAmount(), shard, publicKey}
+	// your wallet must be in shard 1 to became a validator
+	shardSender, err := strconv.ParseUint(wallet[4:6], 16, 32)
+	if err != nil {
+		log.Error("ParseUint ", err)
+		return false
+	}
+	if shardSender != 1 {
+		log.Info("wallet not in shard 1")
+		return false
+	}
+	v.valsArray[wallet] = &Validator{wallet, dynasty, -1, transaction.GetAmount(), 1, publicKey}
 	v.valsWithdraw[wallet] = transaction
 	return false
 }
@@ -260,9 +270,9 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 	}
 
 	// sort validators
-	sort.Slice(ret, func(i, j int) bool {
-		return ret[i].stake > ret[j].stake
-	})
+	// sort.Slice(ret, func(i, j int) bool {
+	// 	return ret[i].stake > ret[j].stake
+	// })
 
 	level := rand.Float64() * float64(totalstake)
 	counter := uint64(0)

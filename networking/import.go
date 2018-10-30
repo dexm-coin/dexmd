@@ -216,34 +216,35 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 	if block.GetIndex() == 0 {
 		// TODO cange this import wallet because we don't want that people know the private key of those 2 wallet
 		fakeTransaction := &protobufs.Transaction{}
+		fakeTransaction.Amount = 10000
 		state := &protobufs.AccountState{
 			Balance: 20000,
 		}
 
 		state.Balance++
 		wallet1, _ := wallet.ImportWallet("wallet1")
-		cs.shardsChain[shard].SetState("Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2", state)
-		cs.beaconChain.Validators.AddValidator("Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2", -300, wallet1.GetPublicKeySchnorrByte(), fakeTransaction, 1)
+		cs.shardsChain[shard].SetState("Dexm013PiLMNGVKNadoqwtSw7YRtSrz4UTBD913CA2", state)
+		cs.beaconChain.Validators.AddValidator("Dexm013PiLMNGVKNadoqwtSw7YRtSrz4UTBD913CA2", -300, wallet1.GetPublicKeySchnorrByte(), fakeTransaction, 1)
 
 		state.Balance++
 		wallet2, _ := wallet.ImportWallet("wallet2")
-		cs.shardsChain[shard].SetState("Dexm022FK264yvfQuR3AxmbJoeonYnhdRQ94F9E559", state)
-		cs.beaconChain.Validators.AddValidator("Dexm022FK264yvfQuR3AxmbJoeonYnhdRQ94F9E559", -300, wallet2.GetPublicKeySchnorrByte(), fakeTransaction, 2)
+		cs.shardsChain[shard].SetState("Dexm013gEt9eb3bGYTgZ2qxDcyutqqN3dbD5A02B8D", state)
+		cs.beaconChain.Validators.AddValidator("Dexm013gEt9eb3bGYTgZ2qxDcyutqqN3dbD5A02B8D", -300, wallet2.GetPublicKeySchnorrByte(), fakeTransaction, 2)
 
 		state.Balance++
 		wallet3, _ := wallet.ImportWallet("wallet3")
-		cs.shardsChain[shard].SetState("Dexm032dTkjtWDKFnSJTMUDCBhVCDhDaxp8E2D8EFA", state)
-		cs.beaconChain.Validators.AddValidator("Dexm032dTkjtWDKFnSJTMUDCBhVCDhDaxp8E2D8EFA", -300, wallet3.GetPublicKeySchnorrByte(), fakeTransaction, 3)
+		cs.shardsChain[shard].SetState("Dexm014WmVd63Vn7aWYNRqNN4x7bATPTZ533213654", state)
+		cs.beaconChain.Validators.AddValidator("Dexm014WmVd63Vn7aWYNRqNN4x7bATPTZ533213654", -300, wallet3.GetPublicKeySchnorrByte(), fakeTransaction, 3)
 
 		state.Balance++
 		wallet4, _ := wallet.ImportWallet("wallet4")
-		cs.shardsChain[shard].SetState("Dexm044RpgEQPTyBbi4YdJ24z7rgr4oA2U9DC18A73", state)
-		cs.beaconChain.Validators.AddValidator("Dexm044RpgEQPTyBbi4YdJ24z7rgr4oA2U9DC18A73", -300, wallet4.GetPublicKeySchnorrByte(), fakeTransaction, 4)
+		cs.shardsChain[shard].SetState("Dexm014JwVstwpuarTFEPJmYjDFeRyphtS96055C71", state)
+		cs.beaconChain.Validators.AddValidator("Dexm014JwVstwpuarTFEPJmYjDFeRyphtS96055C71", -300, wallet4.GetPublicKeySchnorrByte(), fakeTransaction, 4)
 
 		state.Balance++
 		wallet5, _ := wallet.ImportWallet("wallet5")
-		cs.shardsChain[shard].SetState("Dexm053E479JqUdoHKWc6ie4d1mXv9Gy6M5071B5BA", state)
-		cs.beaconChain.Validators.AddValidator("Dexm053E479JqUdoHKWc6ie4d1mXv9Gy6M5071B5BA", -300, wallet5.GetPublicKeySchnorrByte(), fakeTransaction, 5)
+		cs.shardsChain[shard].SetState("Dexm012o1Rf35adWwZF3FKZyb2R77mpLJH185FEBB6", state)
+		cs.beaconChain.Validators.AddValidator("Dexm012o1Rf35adWwZF3FKZyb2R77mpLJH185FEBB6", -300, wallet5.GetPublicKeySchnorrByte(), fakeTransaction, 5)
 
 		cs.shardsChain[shard].GenesisTimestamp = block.GetTimestamp()
 

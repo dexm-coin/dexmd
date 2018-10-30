@@ -32,8 +32,8 @@ type Wallet struct {
 	Balance        int
 	PrivKeySchnorr []byte
 	PubKeySchnorr  []byte
-	PrivKeyBls     []byte
-	PubKeyBls      []byte
+	// PrivKeyBls     []byte
+	// PubKeyBls      []byte
 }
 
 type file struct {
@@ -44,8 +44,8 @@ type file struct {
 	Shard          uint8
 	PrivKeySchnorr []byte
 	PubKeySchnorr  []byte
-	PrivKeyBls     []byte
-	PubKeyBls      []byte
+	// PrivKeyBls     []byte
+	// PubKeyBls      []byte
 }
 
 // GenerateWallet generates a new random wallet with a 0 balance
@@ -67,13 +67,13 @@ func GenerateWallet(shard uint8) (*Wallet, error) {
 		return nil, err
 	}
 
-	pubBls, privBls, _ := GenerateKeyBls(rand.Reader)
-	privBlsByte := GetByteX(privBls)
-	pubBlsByte, err := pubBls.MarshalBinary()
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
+	// pubBls, privBls, _ := GenerateKeyBls(rand.Reader)
+	// privBlsByte := GetByteX(privBls)
+	// pubBlsByte, err := pubBls.MarshalBinary()
+	// if err != nil {
+	// 	log.Error(err)
+	// 	return nil, err
+	// }
 
 	return &Wallet{
 		PrivKey:        priv,
@@ -81,8 +81,8 @@ func GenerateWallet(shard uint8) (*Wallet, error) {
 		Balance:        0,
 		PrivKeySchnorr: xByte,
 		PubKeySchnorr:  pByte,
-		PrivKeyBls:     privBlsByte,
-		PubKeyBls:      pubBlsByte,
+		// PrivKeyBls:     privBlsByte,
+		// PubKeyBls:      pubBlsByte,
 	}, nil
 }
 
@@ -101,22 +101,22 @@ func (w *Wallet) GetPublicKeySchnorrByte() []byte {
 	return w.PubKeySchnorr
 }
 
-func (w *Wallet) GetPrivateKeyBls() *big.Int {
-	return new(big.Int).SetBytes(w.PrivKeyBls)
-}
+// func (w *Wallet) GetPrivateKeyBls() *big.Int {
+// 	return new(big.Int).SetBytes(w.PrivKeyBls)
+// }
 
-func (w *Wallet) GetPublicKeyBls() (*PublicKeyBls, error) {
-	key, err := UnmarshalBinaryBls(w.PubKeyBls)
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
-	return key, nil
-}
+// func (w *Wallet) GetPublicKeyBls() (*PublicKeyBls, error) {
+// 	key, err := UnmarshalBinaryBls(w.PubKeyBls)
+// 	if err != nil {
+// 		log.Error(err)
+// 		return nil, err
+// 	}
+// 	return key, nil
+// }
 
-func (w *Wallet) GetPublicKeyBlsByte() []byte {
-	return w.PubKeyBls
-}
+// func (w *Wallet) GetPublicKeyBlsByte() []byte {
+// 	return w.PubKeyBls
+// }
 
 // GetShardWallet return the shard to the wallet
 func (w *Wallet) GetShardWallet() uint8 {
@@ -160,8 +160,8 @@ func jsonKeyToStruct(walletJSON []byte) (*Wallet, error) {
 		PrivKeySchnorr: walletfile.PrivKeySchnorr,
 		PubKeySchnorr:  walletfile.PubKeySchnorr,
 		Shard:          walletfile.Shard,
-		PrivKeyBls:     walletfile.PrivKeyBls,
-		PubKeyBls:      walletfile.PubKeyBls,
+		// PrivKeyBls:     walletfile.PrivKeyBls,
+		// PubKeyBls:      walletfile.PubKeyBls,
 	}, nil
 }
 
@@ -206,8 +206,8 @@ func (w *Wallet) GetEncodedWallet() ([]byte, error) {
 		Shard:          w.Shard,
 		PrivKeySchnorr: w.PrivKeySchnorr,
 		PubKeySchnorr:  w.PubKeySchnorr,
-		PrivKeyBls:     w.PrivKeyBls,
-		PubKeyBls:      w.PubKeyBls,
+		// PrivKeyBls:     w.PrivKeyBls,
+		// PubKeyBls:      w.PubKeyBls,
 	}
 
 	return json.Marshal(walletfile)
