@@ -3,7 +3,6 @@ package blockchain
 import (
 	"errors"
 	"math/rand"
-	"sort"
 	"strconv"
 
 	wal "github.com/dexm-coin/dexmd/wallet"
@@ -271,9 +270,9 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 	}
 
 	// sort validators
-	sort.Slice(ret, func(i, j int) bool {
-		return ret[i].stake > ret[j].stake
-	})
+	// sort.Slice(ret, func(i, j int) bool {
+	// 	return ret[i].stake > ret[j].stake
+	// })
 
 	level := rand.Float64() * float64(totalstake)
 	counter := uint64(0)
