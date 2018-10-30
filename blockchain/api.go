@@ -44,7 +44,7 @@ func value(proc *exec.Process) int64 {
 // sender saves the caller of the current function to the specified pointer.
 // if len(sender) > len then an error will be thrown. This is done to avoid
 // memory corruption inside the contract.
-func sender(proc *exec.Process, to, maxLen int32) int64 {
+func sender(proc *exec.Process, to, maxLen int32) {
 	senderAddr := wallet.BytesToAddress(currentContract.Transaction.Sender, currentContract.Transaction.Shard)
 
 	if len(senderAddr) > int(maxLen) {
@@ -52,7 +52,6 @@ func sender(proc *exec.Process, to, maxLen int32) int64 {
 	}
 
 	proc.WriteAt([]byte(senderAddr), int64(to))
-	return 0
 }
 
 // Executes the transaction

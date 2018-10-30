@@ -120,7 +120,7 @@ func (c *Contract) ExecuteContract(exportName string, arguments []uint64) *Retur
 	log.Info(exportName, calledFunction.Index)
 
 	// Call the function with passed arguments
-	_, err := c.VM.ExecCode(int64(calledFunction.Index))
+	_, err := c.VM.ExecCode(int64(calledFunction.Index), arguments...)
 	if err != nil {
 		c.Return.Reverted = true
 		return c.Return
@@ -163,10 +163,10 @@ func setupImport(name string) (*wasm.Module, error) {
 				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI64},
 			},
 
-			// pay(to_ptr: i64, amnt: i64, gas : i64)
+			// pay(to_ptr: i32, amnt: i64, gas : i64)
 			{
 				Form: 2,
-				ParamTypes: []wasm.ValueType{wasm.ValueTypeI64,
+				ParamTypes: []wasm.ValueType{wasm.ValueTypeI32,
 					wasm.ValueTypeI64, wasm.ValueTypeI64},
 				ReturnTypes: []wasm.ValueType{},
 			},
@@ -178,11 +178,11 @@ func setupImport(name string) (*wasm.Module, error) {
 				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI64},
 			},
 
-			// sender(ptr: i64, size: i64) : i64
+			// sender(ptr, size: i32)
 			{
 				Form:        4,
-				ParamTypes:  []wasm.ValueType{wasm.ValueTypeI64, wasm.ValueTypeI64},
-				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI64},
+				ParamTypes:  []wasm.ValueType{wasm.ValueTypeI32, wasm.ValueTypeI32},
+				ReturnTypes: []wasm.ValueType{},
 			},
 
 			// value() : i64
@@ -190,6 +190,29 @@ func setupImport(name string) (*wasm.Module, error) {
 				Form:        5,
 				ParamTypes:  []wasm.ValueType{},
 				ReturnTypes: []wasm.ValueType{wasm.ValueTypeI64},
+			},
+
+			// get(table, tlen, key, klen, dest, dlen: i32)
+			{
+				Form: 6,
+				ParamTypes: []wasm.ValueType{wasm.ValueTypeI32, wasm.ValueTypeI32,
+					wasm.ValueTypeI32, wasm.ValueTypeI32,
+					wasm.ValueTypeI32, wasm.ValueTypeI32},
+				ReturnTypes: []wasm.ValueType{},
+			},
+			// put(table, tlen, key, klen, data, dlen: i32)
+			{
+				Form: 7,
+				ParamTypes: []wasm.ValueType{wasm.ValueTypeI32, wasm.ValueTypeI32,
+					wasm.ValueTypeI32, wasm.ValueTypeI32,
+					wasm.ValueTypeI32, wasm.ValueTypeI32},
+				ReturnTypes: []wasm.ValueType{},
+			},
+			// data(to, sz: i32)
+			{
+				Form:        8,
+				ParamTypes:  []wasm.ValueType{wasm.ValueTypeI32, wasm.ValueTypeI32},
+				ReturnTypes: []wasm.ValueType{},
 			},
 		},
 	}
@@ -236,6 +259,27 @@ func setupImport(name string) (*wasm.Module, error) {
 			Host: reflect.ValueOf(value),
 			Body: &wasm.FunctionBody{},
 		},
+
+		// get(table, tlen, key, klen, dest, dlen: i32)
+		{
+			Sig:  &m.Types.Entries[6],
+			Host: reflect.ValueOf(get),
+			Body: &wasm.FunctionBody{},
+		},
+
+		// put(table, tlen, key, klen, data, dlen: i32)
+		{
+			Sig:  &m.Types.Entries[7],
+			Host: reflect.ValueOf(put),
+			Body: &wasm.FunctionBody{},
+		},
+
+		// data(to, sz: i32)
+		{
+			Sig:  &m.Types.Entries[8],
+			Host: reflect.ValueOf(data),
+			Body: &wasm.FunctionBody{},
+		},
 	}
 
 	m.Export = &wasm.SectionExports{
@@ -273,6 +317,21 @@ func setupImport(name string) (*wasm.Module, error) {
 				FieldStr: "value",
 				Kind:     wasm.ExternalFunction,
 				Index:    5,
+			},
+			"get": {
+				FieldStr: "get",
+				Kind:     wasm.ExternalFunction,
+				Index:    6,
+			},
+			"put": {
+				FieldStr: "put",
+				Kind:     wasm.ExternalFunction,
+				Index:    7,
+			},
+			"data": {
+				FieldStr: "data",
+				Kind:     wasm.ExternalFunction,
+				Index:    8,
 			},
 		},
 	}
