@@ -26,10 +26,11 @@ const (
 
 var (
 	// -- start
-        PUBLIC_PEERSERVER = true
-        TS                = uint64(1540029481)
-        // -- start
-        )
+	PUBLIC_PEERSERVER = true
+	TS                = uint64(1540029481)
+
+// -- start
+)
 
 /*
 	optimize everything with pprof
@@ -166,6 +167,11 @@ func main() {
 					log.Fatal("start", err)
 				}
 
+				genesisBlock := &bp.Block{
+					Index:     0,
+					Timestamp: TS,
+					Miner:     "Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2",
+				}
 				for _, shard := range shardInterest {
 					if shard == "0" {
 						cs.AddInterest(shard)
@@ -177,12 +183,7 @@ func main() {
 						log.Error(shard, " is not a valid shard")
 						continue
 					}
-					genesisBlock := &bp.Block{
-						Index:     0,
-						Timestamp: TS,
-						Miner:     "Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2",
-						// Shard:     uint32(sInt),
-					}
+
 					cs.AddGenesisToQueue(genesisBlock, uint32(sInt))
 					cs.SaveBlock(genesisBlock, uint32(sInt))
 					cs.ImportBlock(genesisBlock, uint32(sInt))

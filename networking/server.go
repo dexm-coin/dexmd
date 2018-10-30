@@ -3,6 +3,7 @@ package networking
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -188,7 +189,13 @@ func (cs *ConnectionStore) AddInterest(key string) {
 func (cs *ConnectionStore) AddGenesisToQueue(block *protoBlockchain.Block, shard uint32) {
 	res, _ := proto.Marshal(block)
 	bhash := sha256.Sum256(res)
-	cs.shardsChain[shard].PriorityBlocks.Insert(bhash[:], 0)
+	hash := bhash[:]
+
+	h := sha256.New()
+	h.Write(hash)
+	hashBlock := hex.EncodeToString(h.Sum(nil))
+
+	cs.shardsChain[shard].PriorityBlocks.Insert(hashBlock, 0)
 }
 
 // Connect connects to a server and adds it to the connectionStore
