@@ -15,3 +15,7 @@ func AddU64O(a, b uint64) (uint64, bool) {
 func SubU64O(a, b uint64) (uint64, bool) {
 	return (a - b), !(a-b > a)
 }
+
+func AddI64O(a, b int64) (int64, bool) {
+	return (a + b), !(a+b < a)
+}

@@ -321,7 +321,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 
 		// If a function identifier is specified then fetch the contract and execute
 		if t.GetFunction() != "" {
-			c, err := blockchain.GetContract(t.GetRecipient(), cs.shardsChain[shard].ContractDb, cs.shardsChain[shard].StateDb, cs.shardsChain[shard], t)
+			c, err := blockchain.GetContract(t.GetRecipient(), cs.shardsChain[shard], t)
 			if err != nil {
 				return err
 			}

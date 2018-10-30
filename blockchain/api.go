@@ -4,9 +4,10 @@ import (
 	"crypto/sha256"
 	"strings"
 
+	"github.com/dexm-coin/dexmd/util"
 	"github.com/dexm-coin/dexmd/wallet"
+	bp "github.com/dexm-coin/protobufs/build/blockchain"
 	"github.com/dexm-coin/wagon/exec"
-	log "github.com/sirupsen/logrus"
 )
 
 func revert(proc *exec.Process) {
@@ -27,8 +28,9 @@ func balance(proc *exec.Process) int64 {
 		return 0
 	}
 
-	if currentContract.TempBalance == 0 {
+	if !currentContract.IsTempBalanceSet {
 		currentContract.TempBalance = state.Balance
+		currentContract.IsTempBalanceSet = true
 	}
 
 	return int64(state.Balance)
@@ -53,13 +55,40 @@ func sender(proc *exec.Process, to, maxLen int32) int64 {
 	return 0
 }
 
+// Executes the transaction
 func pay(proc *exec.Process, to int32, amnt, gas int64) {
 	reciver := readString(proc, to)
-	log.Info("Transaction in contract to ", reciver, amnt, gas)
+
+	// Don't allow sending money to invalid wallets.
+	if !wallet.IsWalletValid(reciver) {
+		revert(proc)
+	}
+
+	// If the temp balance is not set then save it inside the struct
+	if !currentContract.IsTempBalanceSet {
+		balance(proc)
+	}
+
+	// Avoid overflows while summing balance
+	requiredBal, overflow := util.AddI64O(amnt, gas)
+	if overflow {
+		revert(proc)
+		return
+	}
+
+	// Check if balance is sufficient
+	if uint64(requiredBal) >= currentContract.TempBalance {
+		revert(proc)
+		return
+	}
+
+	receipt := &bp.Receipt{}
+	currentContract.Return.Outputs = append(currentContract.Return.Outputs, receipt)
+
 	return
 }
 
-// KV Database within the contract, this is public
+// Queries data from the KV Database within the contract, this is public
 func get(proc *exec.Process, tableName, tableLen, key, keyLen, dest, destLen int32) int32 {
 	// Limit destination size
 	if destLen > 2048 {
@@ -91,6 +120,7 @@ func get(proc *exec.Process, tableName, tableLen, key, keyLen, dest, destLen int
 	return 1
 }
 
+// Saves data in the K/V Database
 func put(proc *exec.Process, table, tableLen, key, keyLen, data, dataLen int32) {
 	if dataLen > 2048 {
 		revert(proc)
@@ -156,7 +186,7 @@ func sha(proc *exec.Process, data, sz, dest int32) {}
 
 // Approves a binary patch to the contract by passing a BLAKE2b hash of the
 // diff to this function. Afterwards it can be included inside a block and it
-// will be accepted. Patching also locks the contract for a block.
+// will be accepted. Patching also locks the contract for a block. TODO
 func approvePatch(proc *exec.Process, hashPtr int32) {
 	// This assumes a BLAKE-2b hash
 	hash := make([]byte, 32)

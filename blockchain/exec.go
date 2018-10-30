@@ -36,8 +36,9 @@ type Contract struct {
 	Return      *ReturnState
 	Sender      string
 
-	TempDB      map[string][]byte
-	TempBalance uint64
+	TempDB           map[string][]byte
+	TempBalance      uint64
+	IsTempBalanceSet bool
 
 	Module *wasm.Module
 	VM     *exec.VM
@@ -45,8 +46,8 @@ type Contract struct {
 
 // GetContract loads the code and state from the DB and returns an error if there
 // is no code. In case there is no state an empty one will be generated
-func GetContract(address string, contractDb, stateDb *leveldb.DB, bc *Blockchain, tr *bp.Transaction) (*Contract, error) {
-	code, err := contractDb.Get([]byte(address), nil)
+func GetContract(address string, bc *Blockchain, tr *bp.Transaction) (*Contract, error) {
+	code, err := bc.ContractDb.Get([]byte(address), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -63,10 +64,13 @@ func GetContract(address string, contractDb, stateDb *leveldb.DB, bc *Blockchain
 		return nil, err
 	}
 
+	// Don't panic, error instead
+	vm.RecoverPanic = true
+
 	state := bp.ContractState{}
 
 	// Fetch from DB and use empty state if there is no state in the DB
-	encodedState, err := stateDb.Get([]byte(address), nil)
+	encodedState, err := bc.StateDb.Get([]byte(address), nil)
 	if err != nil {
 		state.Memory = vm.Memory()
 		state.Globals = vm.Globals()
@@ -77,20 +81,19 @@ func GetContract(address string, contractDb, stateDb *leveldb.DB, bc *Blockchain
 	senderAddr := wallet.BytesToAddress(tr.Sender, tr.Shard)
 
 	return &Contract{
-		ContractDb: contractDb,
-		StateDb:    stateDb,
-		Code:       code,
-		Address:    []byte(address),
-		State:      &state,
-		Return:     &ReturnState{},
+		Code:    code,
+		Address: []byte(address),
+		State:   &state,
+		Return:  &ReturnState{},
 
-		Module:      m,
-		VM:          vm,
-		Chain:       bc,
-		Sender:      senderAddr,
-		Transaction: tr,
-		TempDB:      make(map[string][]byte),
-		TempBalance: 0,
+		Module:           m,
+		VM:               vm,
+		Chain:            bc,
+		Sender:           senderAddr,
+		Transaction:      tr,
+		TempDB:           make(map[string][]byte),
+		TempBalance:      0,
+		IsTempBalanceSet: false,
 	}, nil
 }
 
