@@ -304,28 +304,18 @@ func (cs *ConnectionStore) run() {
 		// algorithm but it could be optimized using ASNs as an overlay network
 		case message := <-cs.broadcast:
 			env := &network.Envelope{}
-			broadcastEnvelope := &network.Broadcast{}
 			proto.Unmarshal(message, env)
-			proto.Unmarshal(env.Data, broadcastEnvelope)
+
+			// TODO check signature message
 
 			shard := env.GetShard()
 
-			broadcastEnvelope.TTL--
-			if broadcastEnvelope.TTL < 1 || broadcastEnvelope.TTL > 64 {
+			env.TTL--
+			if env.TTL < 1 || env.TTL > 64 {
 				continue
 			}
 
-			broadcastBytes, err := proto.Marshal(broadcastEnvelope)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-			newEnv := &protoNetwork.Envelope{
-				Type:  protoNetwork.Envelope_BROADCAST,
-				Data:  broadcastBytes,
-				Shard: shard,
-			}
-			dataByte, err := proto.Marshal(newEnv)
+			dataByte, err := proto.Marshal(env)
 			if err != nil {
 				log.Error(err)
 				continue
@@ -354,28 +344,16 @@ func checkDuplicatedMessage(msg []byte) bool {
 	env := &network.Envelope{}
 	broadcast := &network.Broadcast{}
 	proto.Unmarshal(msg, env)
-	proto.Unmarshal(env.Data, broadcast)
+	proto.Unmarshal(env.GetData(), broadcast)
 
-	// check signature
-	bhash := sha256.Sum256(broadcast.GetData())
+	bhash := sha256.Sum256(env.GetData())
 	hash := bhash[:]
-	identityBroadcast := broadcast.GetIdentity()
-	signatureValid, err := wallet.SignatureValid(identityBroadcast.GetPubkey(), identityBroadcast.GetR(), identityBroadcast.GetS(), hash)
-	if !signatureValid || err != nil {
-		log.Error("Fail signatureValid broadcast ", err)
-		return false
+	identity := env.GetIdentity()
+	if !reflect.DeepEqual(broadcast.GetAddress(), identity.GetPubkey()) {
+		log.Error("broadcast.GetAddress() != identity.GetPubkey()")
+		return true
 	}
-	// TODO do the check
-	// if !reflect.DeepEqual(hash, identityBroadcast.GetData()) {
-	// 	log.Error("Hash of the data doesn't match with the hash of data inside the signature")
-	// 	return false
-	// }
 
-	// set TTL to 0, calculate the hash of the message, check if already exist
-	copyBroadcast := *broadcast
-	copyBroadcast.TTL = 0
-	bhash = sha256.Sum256([]byte(fmt.Sprintf("%v", copyBroadcast)))
-	hash = bhash[:]
 	alreadyReceived := false
 	for _, h := range hashMessages {
 		equal := reflect.DeepEqual(h, hash)
@@ -385,7 +363,7 @@ func checkDuplicatedMessage(msg []byte) bool {
 		}
 	}
 	if alreadyReceived {
-		// log.Info("skip message")
+		// skip the message
 		return true
 	}
 	hashMessages = append(hashMessages, hash)
@@ -424,8 +402,20 @@ func (c *client) read() {
 			continue
 		}
 
-		switch pb.GetType() {
+		bhash := sha256.Sum256(pb.GetData())
+		hash := bhash[:]
+		identity := pb.GetIdentity()
+		signatureValid, err := wallet.SignatureValid(identity.GetPubkey(), identity.GetR(), identity.GetS(), hash)
+		if !signatureValid || err != nil {
+			log.Error("Fail signatureValid broadcast ", err)
+			continue
+		}
+		if !reflect.DeepEqual(hash, identity.GetData()) {
+			log.Error("Hash of the data doesn't match with the hash of data inside the signature")
+			continue
+		}
 
+		switch pb.GetType() {
 		case protoNetwork.Envelope_BROADCAST:
 			skip := checkDuplicatedMessage(msg)
 			if skip {
@@ -442,6 +432,7 @@ func (c *client) read() {
 
 		// If the ContentType is a request then try to parse it as such and handle it
 		case protoNetwork.Envelope_REQUEST:
+			// TODO if !reflect.DeepEqual(broadcast.GetAddress(), identity.GetPubkey()) {
 			request := protoNetwork.Request{}
 			err = proto.Unmarshal(pb.GetData(), &request)
 			if err != nil {
@@ -475,9 +466,11 @@ func (c *client) read() {
 
 		// Other data can be channeled so other parts of code can use it
 		case protoNetwork.Envelope_OTHER:
+			// TODO if !reflect.DeepEqual(broadcast.GetAddress(), identity.GetPubkey()) {
 			c.readOther <- pb.GetData()
 
 		case protoNetwork.Envelope_INTERESTS:
+			// TODO if !reflect.DeepEqual(broadcast.GetAddress(), identity.GetPubkey()) {
 			intr := &protoNetwork.Interests{}
 
 			err := proto.Unmarshal(pb.Data, intr)
@@ -496,6 +489,7 @@ func (c *client) read() {
 			}
 
 		case protoNetwork.Envelope_NEIGHBOUR_INTERESTS:
+			// TODO if !reflect.DeepEqual(broadcast.GetAddress(), identity.GetPubkey()) {
 			peers := &protoNetwork.PeersAndInterests{}
 
 			// create a connection with the peers that my neighbour know
@@ -714,37 +708,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			cs.shardsChain[currentShard].HashBlocks[hashCurrentBlockString] = cs.shardsChain[currentShard].HashBlocks[hashPrevBlockString] + 1
 			cs.shardsChain[currentShard].PriorityBlocks.Insert(hashCurrentBlockString, float64(cs.shardsChain[currentShard].HashBlocks[hashCurrentBlockString])+0.5)
 
-			// Sign the new block
-			r, s, err := cs.identity.Sign(hash)
-			if err != nil {
-				log.Error(err)
-			}
-
-			signature := &network.Signature{
-				Pubkey: pub,
-				R:      r.Bytes(),
-				S:      s.Bytes(),
-				Data:   hash,
-				Shard:  1, // A validator must be in shard 1
-			}
-
-			// Create a broadcast message and send it to the network
-			broadcast := &network.Broadcast{
-				Data:     blockBytes,
-				Type:     network.Broadcast_BLOCK_PROPOSAL,
-				Identity: signature,
-				TTL:      64,
-			}
-
-			broadcastBytes, _ := proto.Marshal(broadcast)
-
-			env := &network.Envelope{
-				Data:  broadcastBytes,
-				Type:  network.Envelope_BROADCAST,
-				Shard: currentShard,
-			}
-
-			data, _ := proto.Marshal(env)
+			data := cs.MakeEnvelopeBroadcast(blockBytes, network.Broadcast_BLOCK_PROPOSAL, pub, 1, currentShard)
 			cs.broadcast <- data
 			log.Info("Block generated")
 		}
@@ -765,38 +729,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			schnorrPByte, _ := proto.Marshal(schnorrP)
 
 			pub, _ := cs.identity.GetPubKey()
-			bhash := sha256.Sum256(schnorrPByte)
-			hash := bhash[:]
 
-			r, s, err := cs.identity.Sign(hash)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-			signature := &network.Signature{
-				Pubkey: pub,
-				R:      r.Bytes(),
-				S:      s.Bytes(),
-				Data:   hash,
-				Shard:  1,
-			}
-
-			// broadcast schnorr message
-			broadcastSchnorr := &network.Broadcast{
-				Type:     protoNetwork.Broadcast_SCHNORR,
-				TTL:      64,
-				Identity: signature,
-				Data:     schnorrPByte,
-			}
-			broadcastSchnorrByte, _ := proto.Marshal(broadcastSchnorr)
-
-			env := &network.Envelope{
-				Type:  network.Envelope_BROADCAST,
-				Data:  broadcastSchnorrByte,
-				Shard: currentShard,
-			}
-
-			data, _ := proto.Marshal(env)
+			data := cs.MakeEnvelopeBroadcast(schnorrPByte, protoNetwork.Broadcast_SCHNORR, pub, 1, currentShard)
 			cs.broadcast <- data
 		}
 
@@ -876,37 +810,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			signSchorrByte, _ := proto.Marshal(signSchorrP)
 
 			pub, _ := cs.identity.GetPubKey()
-			bhash := sha256.Sum256(signSchorrByte)
-			hash := bhash[:]
 
-			r, s, err := cs.identity.Sign(hash)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-			signature := &network.Signature{
-				Pubkey: pub,
-				R:      r.Bytes(),
-				S:      s.Bytes(),
-				Data:   hash,
-				Shard:  1,
-			}
-
-			broadcastSignSchorr := &network.Broadcast{
-				Type:     protoNetwork.Broadcast_SIGN_SCHNORR,
-				TTL:      64,
-				Identity: signature,
-				Data:     signSchorrByte,
-			}
-			broadcastMrByte, _ := proto.Marshal(broadcastSignSchorr)
-
-			env := &network.Envelope{
-				Type:  network.Envelope_BROADCAST,
-				Data:  broadcastMrByte,
-				Shard: currentShard,
-			}
-
-			data, _ := proto.Marshal(env)
+			data := cs.MakeEnvelopeBroadcast(signSchorrByte, protoNetwork.Broadcast_SIGN_SCHNORR, pub, 1, currentShard)
 			cs.broadcast <- data
 		}
 
@@ -961,37 +866,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				mrByte, _ := proto.Marshal(mr)
 
 				pub, _ := cs.identity.GetPubKey()
-				bhash := sha256.Sum256(mrByte)
-				hash := bhash[:]
 
-				r, s, err := cs.identity.Sign(hash)
-				if err != nil {
-					log.Error(err)
-					continue
-				}
-				signature := &network.Signature{
-					Pubkey: pub,
-					R:      r.Bytes(),
-					S:      s.Bytes(),
-					Data:   hash,
-					Shard:  1,
-				}
-
-				broadcastMr := &network.Broadcast{
-					Type:     protoNetwork.Broadcast_MERKLE_ROOTS_SIGNED,
-					TTL:      64,
-					Identity: signature,
-					Data:     mrByte,
-				}
-				broadcastMrByte, _ := proto.Marshal(broadcastMr)
-
-				env := &network.Envelope{
-					Type:  network.Envelope_BROADCAST,
-					Data:  broadcastMrByte,
-					Shard: 0,
-				}
-
-				data, _ := proto.Marshal(env)
+				data := cs.MakeEnvelopeBroadcast(mrByte, protoNetwork.Broadcast_MERKLE_ROOTS_SIGNED, pub, 1, 0)
 				cs.broadcast <- data
 
 				// wait 10 second and send the merkle proof
@@ -1034,37 +910,8 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 							}
 
 							pub, _ := cs.identity.GetPubKey()
-							bhash := sha256.Sum256(merkleProofByte)
-							hash := bhash[:]
 
-							r, s, err := cs.identity.Sign(hash)
-							if err != nil {
-								log.Error(err)
-								continue
-							}
-							signature := &network.Signature{
-								Pubkey: pub,
-								R:      r.Bytes(),
-								S:      s.Bytes(),
-								Data:   hash,
-								Shard:  1,
-							}
-
-							broadcastMerkleProof := &network.Broadcast{
-								Type:     protoNetwork.Broadcast_MERKLE_PROOF,
-								TTL:      64,
-								Data:     merkleProofByte,
-								Identity: signature,
-							}
-							broadcastMerkleProofByteByte, _ := proto.Marshal(broadcastMerkleProof)
-
-							envMerkleProof := &network.Envelope{
-								Type:  network.Envelope_BROADCAST,
-								Data:  broadcastMerkleProofByteByte,
-								Shard: 0,
-							}
-
-							dataMerkleProof, _ := proto.Marshal(envMerkleProof)
+							dataMerkleProof := cs.MakeEnvelopeBroadcast(merkleProofByte, protoNetwork.Broadcast_MERKLE_PROOF, pub, 1, 0)
 							cs.broadcast <- dataMerkleProof
 						}
 					}
@@ -1082,78 +929,78 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		}
 
 		// Checkpoint Agreement
-		if cs.shardsChain[currentShard].CurrentBlock%100 == 0 && cs.shardsChain[currentShard].CurrentBlock%10000 != 0 {
-			// check if it is a validator, also check that the dynasty are correct
-			if cs.beaconChain.Validators.CheckDynasty(wal, cs.shardsChain[currentShard].CurrentBlock) {
-				// get source and target block in the blockchain
-				souceBlockByte, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentCheckpoint)
-				if err != nil {
-					log.Error("Get block ", err)
-					continue
-				}
-				targetBlockByte, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock - 1)
-				if err != nil {
-					log.Error("Get block ", err)
-					continue
-				}
+		// if cs.shardsChain[currentShard].CurrentBlock%100 == 0 && cs.shardsChain[currentShard].CurrentBlock%10000 != 0 {
+		// 	// check if it is a validator, also check that the dynasty are correct
+		// 	if cs.beaconChain.Validators.CheckDynasty(wal, cs.shardsChain[currentShard].CurrentBlock) {
+		// 		// get source and target block in the blockchain
+		// 		souceBlockByte, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentCheckpoint)
+		// 		if err != nil {
+		// 			log.Error("Get block ", err)
+		// 			continue
+		// 		}
+		// 		targetBlockByte, err := cs.shardsChain[currentShard].GetBlock(cs.shardsChain[currentShard].CurrentBlock - 1)
+		// 		if err != nil {
+		// 			log.Error("Get block ", err)
+		// 			continue
+		// 		}
 
-				source := &protoBlockchain.Block{}
-				target := &protoBlockchain.Block{}
-				proto.Unmarshal(souceBlockByte, source)
-				proto.Unmarshal(targetBlockByte, target)
+		// 		source := &protoBlockchain.Block{}
+		// 		target := &protoBlockchain.Block{}
+		// 		proto.Unmarshal(souceBlockByte, source)
+		// 		proto.Unmarshal(targetBlockByte, target)
 
-				bhash1 := sha256.Sum256(souceBlockByte)
-				hashSource := bhash1[:]
-				bhash2 := sha256.Sum256(targetBlockByte)
-				hashTarget := bhash2[:]
+		// 		bhash1 := sha256.Sum256(souceBlockByte)
+		// 		hashSource := bhash1[:]
+		// 		bhash2 := sha256.Sum256(targetBlockByte)
+		// 		hashTarget := bhash2[:]
 
-				// create the casper vote for the agreement of checkpoint
-				vote := CreateVote(hashSource, hashTarget, cs.shardsChain[currentShard].CurrentCheckpoint, cs.shardsChain[currentShard].CurrentBlock-1, cs.identity)
+		// 		// create the casper vote for the agreement of checkpoint
+		// 		vote := CreateVote(hashSource, hashTarget, cs.shardsChain[currentShard].CurrentCheckpoint, cs.shardsChain[currentShard].CurrentBlock-1, cs.identity)
 
-				// read all the incoming vote and store it, after 15 second call CheckpointAgreement
-				go func() {
-					currentBlockCheckpoint := cs.shardsChain[currentShard].CurrentBlock - 1
-					time.Sleep(15 * time.Second)
-					check := cs.CheckpointAgreement(cs.shardsChain[currentShard].CurrentCheckpoint, currentBlockCheckpoint, currentShard)
-					log.Info("CheckpointAgreement ", check)
-				}()
+		// 		// read all the incoming vote and store it, after 15 second call CheckpointAgreement
+		// 		go func() {
+		// 			currentBlockCheckpoint := cs.shardsChain[currentShard].CurrentBlock - 1
+		// 			time.Sleep(15 * time.Second)
+		// 			check := cs.CheckpointAgreement(cs.shardsChain[currentShard].CurrentCheckpoint, currentBlockCheckpoint, currentShard)
+		// 			log.Info("CheckpointAgreement ", check)
+		// 		}()
 
-				voteBytes, _ := proto.Marshal(&vote)
-				pub, _ := cs.identity.GetPubKey()
-				bhash := sha256.Sum256(voteBytes)
-				hash := bhash[:]
+		// 		voteBytes, _ := proto.Marshal(&vote)
+		// 		pub, _ := cs.identity.GetPubKey()
+		// 		bhash := sha256.Sum256(voteBytes)
+		// 		hash := bhash[:]
 
-				r, s, err := cs.identity.Sign(hash)
-				if err != nil {
-					log.Error(err)
-					continue
-				}
-				signature := &network.Signature{
-					Pubkey: pub,
-					R:      r.Bytes(),
-					S:      s.Bytes(),
-					Data:   hash,
-					Shard:  1,
-				}
+		// 		r, s, err := cs.identity.Sign(hash)
+		// 		if err != nil {
+		// 			log.Error(err)
+		// 			continue
+		// 		}
+		// 		signature := &network.Signature{
+		// 			Pubkey: pub,
+		// 			R:      r.Bytes(),
+		// 			S:      s.Bytes(),
+		// 			Data:   hash,
+		// 			Shard:  1,
+		// 		}
 
-				broadcast := &network.Broadcast{
-					Data:     voteBytes,
-					Type:     network.Broadcast_CHECKPOINT_VOTE,
-					Identity: signature,
-					TTL:      64,
-				}
-				broadcastBytes, _ := proto.Marshal(broadcast)
+		// 		broadcast := &network.Broadcast{
+		// 			Data:     voteBytes,
+		// 			Type:     network.Broadcast_CHECKPOINT_VOTE,
+		// 			Identity: signature,
+		// 			TTL:      64,
+		// 		}
+		// 		broadcastBytes, _ := proto.Marshal(broadcast)
 
-				env := &network.Envelope{
-					Type:  network.Envelope_BROADCAST,
-					Data:  broadcastBytes,
-					Shard: currentShard,
-				}
+		// 		env := &network.Envelope{
+		// 			Type:  network.Envelope_BROADCAST,
+		// 			Data:  broadcastBytes,
+		// 			Shard: currentShard,
+		// 		}
 
-				data, _ := proto.Marshal(env)
-				cs.broadcast <- data
-			}
-		}
+		// 		data := cs.MakeEnvelopeBroadcast(merkleProofByte, protoNetwork.Broadcast_MERKLE_PROOF, pub, 1, 0)
+		// 		cs.broadcast <- data
+		// 	}
+		// }
 
 	}
 }

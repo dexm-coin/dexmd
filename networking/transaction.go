@@ -81,7 +81,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 			continue
 		}
 
-		ShardAddress, err := wallet.GetShardFromAddress(senderAddr)
+		shardAddress, err := wallet.GetShardFromAddress(senderAddr)
 		if err != nil {
 			log.Error(err)
 			continue
@@ -101,21 +101,22 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 			R:      r.Bytes(),
 			S:      s.Bytes(),
 			Data:   hash,
-			Shard:  ShardAddress,
 		}
 
 		trBroad := &network.Broadcast{
-			Type:     network.Broadcast_TRANSACTION,
-			Data:     trans,
-			Identity: signature,
-			TTL:      64,
+			Type:         network.Broadcast_TRANSACTION,
+			Data:         trans,
+			Address:      pub,
+			ShardAddress: shardAddress,
 		}
 		brD, _ := proto.Marshal(trBroad)
 
 		trEnv := &network.Envelope{
-			Type:  network.Envelope_BROADCAST,
-			Data:  brD,
-			Shard: 0,
+			Type:     network.Envelope_BROADCAST,
+			Data:     brD,
+			Identity: signature,
+			Shard:    0,
+			TTL:      64,
 		}
 
 		finalD, _ := proto.Marshal(trEnv)

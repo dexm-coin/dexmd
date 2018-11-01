@@ -134,6 +134,43 @@ func MakeSpecificRequest(shard uint32, dataEnvelope []byte, t network.Request_Me
 	return nil
 }
 
+func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroadcast network.Broadcast_BroadcastType, pubKey []byte, shardAddress uint32, shardEnvelope uint32) []byte {
+	// Create a broadcast message and send it to the network
+	broadcast := &network.Broadcast{
+		Data:         dataBroadcast,
+		Type:         network.Broadcast_BLOCK_PROPOSAL,
+		Address:      pubKey,
+		ShardAddress: shardAddress,
+	}
+	broadcastBytes, _ := proto.Marshal(broadcast)
+	bhashBroadcast := sha256.Sum256(broadcastBytes)
+	hashBroadcast := bhashBroadcast[:]
+
+	// Sign the new block
+	r, s, err := cs.identity.Sign(hashBroadcast)
+	if err != nil {
+		log.Error(err)
+	}
+
+	signature := &network.Signature{
+		Pubkey: pubKey,
+		R:      r.Bytes(),
+		S:      s.Bytes(),
+		Data:   hashBroadcast,
+	}
+
+	env := &network.Envelope{
+		Data:     broadcastBytes,
+		Type:     network.Envelope_BROADCAST,
+		Shard:    shardEnvelope,
+		Identity: signature,
+		TTL:      64,
+	}
+
+	data, _ := proto.Marshal(env)
+	return data
+}
+
 func (cs *ConnectionStore) RequestHashBlock(shard uint32, indexBlock uint64, hashBlock []byte) (*protobufs.Block, bool) {
 
 	// TODO ASAP non chiedo a tutti i client ma solo ai validator nella mia shard
