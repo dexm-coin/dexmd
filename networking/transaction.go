@@ -81,6 +81,12 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 			continue
 		}
 
+		ShardAddress, err := wallet.GetShardFromAddress(senderAddr)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
 		pub, _ := senderWallet.GetPubKey()
 		bhash := sha256.Sum256(trans)
 		hash := bhash[:]
@@ -95,6 +101,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 			R:      r.Bytes(),
 			S:      s.Bytes(),
 			Data:   hash,
+			Shard:  ShardAddress,
 		}
 
 		trBroad := &network.Broadcast{

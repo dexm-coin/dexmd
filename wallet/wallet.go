@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	mathRand "math/rand"
+	"strconv"
 	"sync"
 
 	"gopkg.in/dedis/kyber.v2"
@@ -240,6 +241,15 @@ func IsWalletValid(wallet string) bool {
 	// Make a crc of the wallet excluding the header and shard
 	sum := crc32.ChecksumIEEE([]byte(wallet[6 : len(wallet)-8]))
 	return fmt.Sprintf("%08X", sum) == wallet[len(wallet)-8:len(wallet)]
+}
+
+func GetShardFromAddress(w string) (uint32, error) {
+	shardSender, err := strconv.ParseUint(w[4:6], 16, 32)
+	if err != nil {
+		log.Error("ParseUint ", err)
+		return 0, err
+	}
+	return uint32(shardSender), err
 }
 
 // BytesToAddress converts the bytes of the PublicKey into a wallet address

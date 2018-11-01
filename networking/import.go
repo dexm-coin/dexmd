@@ -271,17 +271,6 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 		}
 
 		if t.GetRecipient() == "DexmPoS" {
-			// your wallet must be in shard 1 to became a validator
-			shardSender, err := strconv.ParseUint(sender[4:6], 16, 32)
-			if err != nil {
-				log.Error("ParseUint ", err)
-				continue
-			}
-			if shardSender != 1 {
-				log.Info("wallet not in shard 1")
-				continue
-			}
-
 			randomShard := uint32(rand.Int31n(nShard) + 1)
 			exist := cs.beaconChain.Validators.AddValidator(sender, int64(cs.shardsChain[shard].CurrentBlock), t.GetPubSchnorrKey(), t, randomShard)
 			if exist {

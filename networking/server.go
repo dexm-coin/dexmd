@@ -713,7 +713,6 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 			cs.shardsChain[currentShard].HashBlocks[hashCurrentBlockString] = cs.shardsChain[currentShard].HashBlocks[hashPrevBlockString] + 1
 
-			// TODO make the signature
 			// Sign the new block
 			r, s, err := cs.identity.Sign(hash)
 			if err != nil {
@@ -725,6 +724,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				R:      r.Bytes(),
 				S:      s.Bytes(),
 				Data:   hash,
+				Shard:  1, // A validator must be in shard 1
 			}
 
 			// Create a broadcast message and send it to the network
@@ -777,6 +777,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				R:      r.Bytes(),
 				S:      s.Bytes(),
 				Data:   hash,
+				Shard:  1,
 			}
 
 			// broadcast schnorr message
@@ -887,6 +888,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				R:      r.Bytes(),
 				S:      s.Bytes(),
 				Data:   hash,
+				Shard:  1,
 			}
 
 			broadcastSignSchorr := &network.Broadcast{
@@ -971,6 +973,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					R:      r.Bytes(),
 					S:      s.Bytes(),
 					Data:   hash,
+					Shard:  1,
 				}
 
 				broadcastMr := &network.Broadcast{
@@ -1043,6 +1046,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 								R:      r.Bytes(),
 								S:      s.Bytes(),
 								Data:   hash,
+								Shard:  1,
 							}
 
 							broadcastMerkleProof := &network.Broadcast{
@@ -1128,6 +1132,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 					R:      r.Bytes(),
 					S:      s.Bytes(),
 					Data:   hash,
+					Shard:  1,
 				}
 
 				broadcast := &network.Broadcast{

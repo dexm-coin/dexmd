@@ -243,10 +243,6 @@ func main() {
 				if !wallet.IsWalletValid(recipient) {
 					log.Fatal("Not IsWalletValid")
 				}
-				// shard, err := strconv.ParseUint(recipient[4:6], 10, 32)
-				// if err != nil {
-				// 	log.Fatal(err)
-				// }
 
 				networking.SendTransaction(senderWallet, recipient, "", amount, uint64(gas), cdata, ccreation, uint32(senderWallet.GetShardWallet()))
 				// networking.SendTransaction(senderWallet, recipient, "", amount, uint64(gas), cdata, ccreation, uint32(shard))
