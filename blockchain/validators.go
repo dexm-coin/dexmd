@@ -274,13 +274,7 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 		ret[i] = ss[randIndex]
 	}
 
-	// sort validators
-	// sort.Slice(ret, func(i, j int) bool {
-	// 	return ret[i].stake > ret[j].stake
-	// })
-
 	level := rand.Float64() * float64(totalstake)
-	log.Info("CurrentShard ", currentShard, " seed ", currentBlock, " perm ", perm, " ret ", ret, " level ", level)
 
 	counter := uint64(0)
 	for _, kv := range ret {

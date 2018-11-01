@@ -712,6 +712,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			hashCurrentBlockString := hex.EncodeToString(h.Sum(nil))
 
 			cs.shardsChain[currentShard].HashBlocks[hashCurrentBlockString] = cs.shardsChain[currentShard].HashBlocks[hashPrevBlockString] + 1
+			cs.shardsChain[currentShard].PriorityBlocks.Insert(hashCurrentBlockString, float64(cs.shardsChain[currentShard].HashBlocks[hashCurrentBlockString])+0.5)
 
 			// Sign the new block
 			r, s, err := cs.identity.Sign(hash)
