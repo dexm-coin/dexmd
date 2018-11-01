@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"reflect"
 	"strconv"
 
 	protobufs "github.com/dexm-coin/protobufs/build/network"
@@ -11,10 +12,21 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard uint32) []byte {
-	dataMessage := pb.GetData()
+func (cs *ConnectionStore) handleMessage(dataEnvelope []byte, c *client, shard uint32, identity *protobufs.Signature) []byte {
+	request := &protobufs.Request{}
+	err := proto.Unmarshal(dataEnvelope, request)
+	if err != nil {
+		log.Error(err)
+		return []byte("Error")
+	}
+	dataMessage := request.GetData()
 
-	switch pb.GetType() {
+	if !reflect.DeepEqual(request.GetAddress(), identity.GetPubkey()) {
+		log.Error("broadcast.GetAddress() != identity.GetPubkey()")
+		return []byte("Error")
+	}
+
+	switch request.GetType() {
 	// GET_BLOCKCHAIN_LEN returns the current block index
 	case protobufs.Request_GET_BLOCKCHAIN_LEN:
 		return []byte(strconv.FormatUint(cs.shardsChain[shard].CurrentBlock, 10))
@@ -108,36 +120,36 @@ func (cs *ConnectionStore) handleMessage(pb *protobufs.Request, c *client, shard
 		d, _ := proto.Marshal(p)
 		return d
 
-	// case protobufs.Request_HASH_EXIST:
-	// 	// rivece un indice di un blocco, e deve ritornare l'hash di quel blocco
-	// 	// TODO ASAP
+		// case protobufs.Request_HASH_EXIST:
+		// 	// rivece un indice di un blocco, e deve ritornare l'hash di quel blocco
+		// 	// TODO ASAP
 
-	// case protobufs.Request_GET_WALLET:
-	// 	// riceve un messaggio casuale, che deve firmare, e deve anche mandare la sua chiave pubblica per poter decifrare
-	// 	// TODO ASAP cambia il messaggio con un ts e controlla che sia valido
-	// 	randomMessage := dataMessage.GetData()
+		// case protobufs.Request_GET_WALLET:
+		// 	// riceve un messaggio casuale, che deve firmare, e deve anche mandare la sua chiave pubblica per poter decifrare
+		// 	// TODO ASAP cambia il messaggio con un ts e controlla che sia valido
+		// 	randomMessage := dataMessage.GetData()
 
-	// 	msg := &protobufs.RandomMessage{
-	// 		Pubkey: cs.identity.GetPubKey(),
-	// 		Data:   randomMessage,
-	// 	}
-	// 	byteMsg, _ := proto.Marshal(msg)
+		// 	msg := &protobufs.RandomMessage{
+		// 		Pubkey: cs.identity.GetPubKey(),
+		// 		Data:   randomMessage,
+		// 	}
+		// 	byteMsg, _ := proto.Marshal(msg)
 
-	// 	r, s, err := cs.identity.Sign(byteMsg)
-	// 	if err != nil {
-	// 		log.Error(err)
-	// 		return []byte{"Error"}
-	// 	}
+		// 	r, s, err := cs.identity.Sign(byteMsg)
+		// 	if err != nil {
+		// 		log.Error(err)
+		// 		return []byte{"Error"}
+		// 	}
 
-	// 	signature := &protobufs.Signature{
-	// 		PubKey: cs.identity.GetPubKey(),
-	// 		R:      r,
-	// 		S:      s,
-	// 		Data:   byteMsg,
-	// 		Shard:  shard,
-	// 	}
-	// 	d, _ := proto.Marshal(signature)
-	// 	return d
+		// 	signature := &protobufs.Signature{
+		// 		PubKey: cs.identity.GetPubKey(),
+		// 		R:      r,
+		// 		S:      s,
+		// 		Data:   byteMsg,
+		// 		Shard:  shard,
+		// 	}
+		// 	d, _ := proto.Marshal(signature)
+		// 	return d
 
 	}
 

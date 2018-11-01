@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -28,13 +27,14 @@ const (
 // UpdateChain asks all connected nodes for their chain lenght, if any of them
 // has a chain longer than the current one it will import
 // TODO Drop client if err != nil
+// TODO Make everything again
 func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 	// No need to sync before genesis
 	for cs.shardsChain[nextShard].GetNetworkIndex() < 0 {
 		return nil
 	}
 
-	for cs.shardsChain[nextShard].CurrentBlock <= uint64(cs.shardsChain[nextShard].GetNetworkIndex()) {
+	/*for cs.shardsChain[nextShard].CurrentBlock <= uint64(cs.shardsChain[nextShard].GetNetworkIndex()) {
 		for k := range cs.clients {
 			// Ask for blockchain len
 			req := &network.Request{
@@ -109,24 +109,47 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 				}
 			}
 		}
-	}
+	}*/
 	return nil
 }
 
-func MakeSpecificRequest(shard uint32, dataEnvelope []byte, t network.Request_MessageTypes, conn *websocket.Conn) error {
-	env := &network.Envelope{
-		Type:  network.Envelope_REQUEST,
-		Data:  dataEnvelope,
-		Shard: shard,
-	}
+func MakeSpecificRequest(w *wallet.Wallet, shard uint32, dataRequest []byte, t network.Request_MessageTypes, conn *websocket.Conn, shardAddress uint32) error {
+	pubKey, _ := w.GetPubKey()
 
 	req := &network.Request{
-		Type: t,
-		Data: env,
+		Type:         t,
+		Data:         dataRequest,
+		Address:      pubKey,
+		ShardAddress: shardAddress,
 	}
-	reqD, _ := proto.Marshal(req)
 
-	err := conn.WriteMessage(websocket.BinaryMessage, reqD)
+	requestBytes, _ := proto.Marshal(req)
+	bhashRequest := sha256.Sum256(requestBytes)
+	hashRequest := bhashRequest[:]
+
+	// Sign the new block
+	r, s, err := w.Sign(hashRequest)
+	if err != nil {
+		log.Error(err)
+	}
+
+	signature := &network.Signature{
+		Pubkey: pubKey,
+		R:      r.Bytes(),
+		S:      s.Bytes(),
+		Data:   hashRequest,
+	}
+
+	env := &network.Envelope{
+		Data:     requestBytes,
+		Type:     network.Envelope_BROADCAST,
+		Shard:    shard,
+		Identity: signature,
+		TTL:      64,
+	}
+	data, _ := proto.Marshal(env)
+
+	err = conn.WriteMessage(websocket.BinaryMessage, data)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -134,7 +157,9 @@ func MakeSpecificRequest(shard uint32, dataEnvelope []byte, t network.Request_Me
 	return nil
 }
 
-func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroadcast network.Broadcast_BroadcastType, pubKey []byte, shardAddress uint32, shardEnvelope uint32) []byte {
+func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroadcast network.Broadcast_BroadcastType, shardAddress uint32, shardEnvelope uint32) []byte {
+	pubKey, _ := cs.identity.GetPubKey()
+
 	// Create a broadcast message and send it to the network
 	broadcast := &network.Broadcast{
 		Data:         dataBroadcast,
@@ -171,67 +196,67 @@ func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroad
 	return data
 }
 
-func (cs *ConnectionStore) RequestHashBlock(shard uint32, indexBlock uint64, hashBlock []byte) (*protobufs.Block, bool) {
+// func (cs *ConnectionStore) RequestHashBlock(shard uint32, indexBlock uint64, hashBlock []byte) (*protobufs.Block, bool) {
 
-	// TODO ASAP non chiedo a tutti i client ma solo ai validator nella mia shard
-	for c := range cs.clients {
-		byteI := make([]byte, 4)
-		binary.LittleEndian.PutUint64(byteI, indexBlock)
+// 	// TODO ASAP non chiedo a tutti i client ma solo ai validator nella mia shard
+// 	for c := range cs.clients {
+// 		byteI := make([]byte, 4)
+// 		binary.LittleEndian.PutUint64(byteI, indexBlock)
 
-		err := MakeSpecificRequest(shard, byteI, network.Request_HASH_EXIST, c.conn)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-		hashBlockReceived, err := c.GetResponse(100 * time.Millisecond)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
+// 		err := MakeSpecificRequest(shard, byteI, network.Request_HASH_EXIST, c.conn)
+// 		if err != nil {
+// 			log.Error(err)
+// 			continue
+// 		}
+// 		hashBlockReceived, err := c.GetResponse(100 * time.Millisecond)
+// 		if err != nil {
+// 			log.Error(err)
+// 			continue
+// 		}
 
-		equal := reflect.DeepEqual(hashBlock, hashBlockReceived)
-		if equal {
-			// TODO ASAP in base allo stake conta quanti ti hanno dato il blocco e quello giusto
-		}
-	}
-	return nil, false
-}
+// 		equal := reflect.DeepEqual(hashBlock, hashBlockReceived)
+// 		if equal {
+// 			// TODO ASAP in base allo stake conta quanti ti hanno dato il blocco e quello giusto
+// 		}
+// 	}
+// 	return nil, false
+// }
 
-func (cs *ConnectionStore) RequestMissingBlock(shard uint32, indexBlock uint64) (*protobufs.Block, bool) {
+// func (cs *ConnectionStore) RequestMissingBlock(shard uint32, indexBlock uint64) (*protobufs.Block, bool) {
 
-	// TODO ASAP non chiedo a tutti i client ma solo ai validator nella mia shard
-	for c := range cs.clients {
-		byteI := make([]byte, 4)
-		binary.LittleEndian.PutUint64(byteI, indexBlock)
+// 	// TODO ASAP non chiedo a tutti i client ma solo ai validator nella mia shard
+// 	for c := range cs.clients {
+// 		byteI := make([]byte, 4)
+// 		binary.LittleEndian.PutUint64(byteI, indexBlock)
 
-		err := MakeSpecificRequest(shard, byteI, network.Request_GET_BLOCK, c.conn)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
+// 		err := MakeSpecificRequest(shard, byteI, network.Request_GET_BLOCK, c.conn)
+// 		if err != nil {
+// 			log.Error(err)
+// 			continue
+// 		}
 
-		// TODO the request of the block can be substitue with zk snark that give you the proof that this block exist
-		// without recive the whole block
-		byteBlock, err := c.GetResponse(200 * time.Millisecond)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-		block := &protobufs.Block{}
-		err = proto.Unmarshal(byteBlock, block)
-		if err != nil {
-			log.Error("error on Unmarshal")
-			continue
-		}
+// 		// TODO the request of the block can be substitue with zk snark that give you the proof that this block exist
+// 		// without recive the whole block
+// 		byteBlock, err := c.GetResponse(200 * time.Millisecond)
+// 		if err != nil {
+// 			log.Error(err)
+// 			continue
+// 		}
+// 		block := &protobufs.Block{}
+// 		err = proto.Unmarshal(byteBlock, block)
+// 		if err != nil {
+// 			log.Error("error on Unmarshal")
+// 			continue
+// 		}
 
-		verify, err := cs.shardsChain[shard].ValidateBlock(block)
-		if verify {
-			// TODO ASAP in base allo stake conta quanti ti hanno dato il blocco e quello giusto
-		}
-	}
+// 		verify, err := cs.shardsChain[shard].ValidateBlock(block)
+// 		if verify {
+// 			// TODO ASAP in base allo stake conta quanti ti hanno dato il blocco e quello giusto
+// 		}
+// 	}
 
-	return nil, false
-}
+// 	return nil, false
+// }
 
 // SaveBlock saves an unvalidated block into the blockchain to be used with Casper
 func (cs *ConnectionStore) SaveBlock(block *protobufs.Block, shard uint32) error {
@@ -380,26 +405,6 @@ func (c *client) GetResponse(timeout time.Duration) ([]byte, error) {
 	case <-time.After(timeout):
 		return nil, errors.New("Response timed out")
 	}
-}
-
-func makeReqEnvelope(req *network.Request, currentShard uint32) ([]byte, error) {
-	d, err := proto.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-
-	env := &network.Envelope{
-		Type:  network.Envelope_REQUEST,
-		Data:  d,
-		Shard: currentShard,
-	}
-
-	d, err = proto.Marshal(env)
-	if err != nil {
-		return nil, err
-	}
-
-	return d, nil
 }
 
 func min(a, b uint64) uint64 {

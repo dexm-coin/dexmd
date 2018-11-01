@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -34,10 +35,15 @@ func (cs *ConnectionStore) CheckShard(shard uint32) bool {
 	return false
 }
 
-func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
+func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, identity *protoNetwork.Signature) error {
 	broadcastEnvelope := &protoNetwork.Broadcast{}
 	err := proto.Unmarshal(data, broadcastEnvelope)
 	if err != nil {
+		return err
+	}
+
+	if !reflect.DeepEqual(broadcastEnvelope.GetAddress(), identity.GetPubkey()) {
+		log.Error("broadcast.GetAddress() != identity.GetPubkey()")
 		return err
 	}
 
@@ -46,20 +52,20 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 	switch broadcastEnvelope.GetType() {
 	// Register a new transaction to the mempool
 	case protoNetwork.Broadcast_TRANSACTION:
-		pb := &protoBlockchain.Transaction{}
-		err := proto.Unmarshal(broadcastEnvelope.GetData(), pb)
+		transaction := &protoBlockchain.Transaction{}
+		err := proto.Unmarshal(broadcastEnvelope.GetData(), transaction)
 		if err != nil {
 			log.Error(err)
 			return err
 		}
 
 		// check the interests with the shard of the sender of the transaction
-		if !cs.CheckShard(pb.GetShard()) {
+		if !cs.CheckShard(transaction.GetShard()) {
 			return nil
 		}
 
 		log.Printf("New Transaction: %x", broadcastEnvelope.GetData())
-		cs.shardsChain[pb.GetShard()].AddMempoolTransaction(pb, broadcastEnvelope.GetData())
+		cs.shardsChain[transaction.GetShard()].AddMempoolTransaction(transaction, broadcastEnvelope.GetData())
 
 	// Save a block proposed by a validator
 	case protoNetwork.Broadcast_BLOCK_PROPOSAL:
@@ -79,9 +85,6 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32) error {
 
 		log.Info("New Block from ", block.GetMiner())
 
-		// TODO check the sitgnature before check everything
-
-		// TODO the message arrive too fast so CurrentValidator didn't get update to check if it is right
 		// check if the miner of the block that should be cs.shardsChain[shard].CurrentValidator[block.GetIndex()]
 		if block.GetMiner() != cs.shardsChain[shard].CurrentValidator[block.GetIndex()] {
 			log.Error("The miner is wrong")

@@ -41,7 +41,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 			log.Error(err)
 		}
 
-		err = MakeSpecificRequest(shard, []byte(senderAddr), network.Request_GET_WALLET_STATUS, conn)
+		err = MakeSpecificRequest(senderWallet, shard, []byte(senderAddr), network.Request_GET_WALLET_STATUS, conn, uint32(senderWallet.GetShardWallet()))
 		if err != nil {
 			log.Error(err)
 			continue
