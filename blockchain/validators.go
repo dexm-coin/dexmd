@@ -3,6 +3,7 @@ package blockchain
 import (
 	"errors"
 	"math/rand"
+	"sort"
 
 	wal "github.com/dexm-coin/dexmd/wallet"
 	protobufs "github.com/dexm-coin/protobufs/build/blockchain"
@@ -239,9 +240,17 @@ type simpleValidator struct {
 func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32, bc *Blockchain) (string, error) {
 	rand.Seed(currentBlock)
 
+	allWallet := []string{}
+	for k, _ := range v.valsArray {
+		allWallet = append(allWallet, k)
+	}
+	sort.Strings(allWallet)
+
 	totalstake := uint64(0)
 	var ss []simpleValidator
-	for k, val := range v.valsArray {
+	// in this way, ss is order baes on sort.Strings(allWallet)
+	for _, wallet := range allWallet {
+		val := v.valsArray[wallet]
 		if !v.CheckDynasty(val.wallet, uint64(currentBlock)) {
 			continue
 		}
@@ -249,7 +258,8 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 		if val.shard != currentShard {
 			continue
 		}
-		ss = append(ss, simpleValidator{k, val.stake})
+
+		ss = append(ss, simpleValidator{wallet, val.stake})
 		totalstake += val.stake
 	}
 	if totalstake < 1 {
@@ -263,7 +273,6 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 	for i, randIndex := range perm {
 		ret[i] = ss[randIndex]
 	}
-	log.Info("CurrentShard ", currentShard, " perm ", perm, " ret ", ret)
 
 	// sort validators
 	// sort.Slice(ret, func(i, j int) bool {
@@ -271,7 +280,7 @@ func (v *ValidatorsBook) ChooseValidator(currentBlock int64, currentShard uint32
 	// })
 
 	level := rand.Float64() * float64(totalstake)
-	log.Info("CurrentShard ", currentShard, " level ", level)
+	log.Info("CurrentShard ", currentShard, " seed ", currentBlock, " perm ", perm, " ret ", ret, " level ", level)
 
 	counter := uint64(0)
 	for _, kv := range ret {
