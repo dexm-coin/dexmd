@@ -313,6 +313,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 		return nil
 	}
 
+	// TODO Use a better seed
 	// generate a seed to generate a shard for the new validators
 	byteBlock, _ := proto.Marshal(block)
 	hash := sha256.Sum256(byteBlock)
@@ -344,6 +345,29 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 		// Ignore error because if the wallet doesn't exist yet we don't care
 		reciverBalance, _ := cs.shardsChain[shard].GetWalletState(t.GetRecipient())
 
+		// If a function identifier is specified then fetch the contract and execute
+		// If the contract reverts take the gas and return the transaction value
+		if t.GetFunction() != "" {
+			c, err := blockchain.GetContract(t.GetRecipient(), cs.shardsChain[shard], t, senderBalance.Balance)
+			if err != nil {
+				return err
+			}
+
+			returnState := c.ExecuteContract(t.GetFunction(), t.GetArgs())
+			if err != nil {
+				return err
+			}
+
+			// Save the new state only if the contract hasn't reverted
+			if !returnState.Reverted {
+				c.SaveState()
+
+				// Save the transactions which the contract outputted
+			} else {
+				continue
+			}
+		}
+
 		// No overflow checks because ValidateBlock already does that
 		senderBalance.Balance -= t.GetAmount() + uint64(t.GetGas())
 		reciverBalance.Balance += t.GetAmount()
@@ -369,21 +393,6 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 			// Save it on a separate db
 			log.Info("New contract at ", contractAddr)
 			cs.shardsChain[shard].ContractDb.Put([]byte(contractAddr), t.GetData(), nil)
-		}
-
-		// If a function identifier is specified then fetch the contract and execute
-		if t.GetFunction() != "" {
-			c, err := blockchain.GetContract(t.GetRecipient(), cs.shardsChain[shard], t)
-			if err != nil {
-				return err
-			}
-
-			c.ExecuteContract(t.GetFunction(), t.GetArgs())
-			if err != nil {
-				return err
-			}
-
-			c.SaveState()
 		}
 
 		res, _ := proto.Marshal(t)
