@@ -23,17 +23,7 @@ func timestamp(proc *exec.Process) int64 {
 
 // balance returns the balance of the contract, not including value()
 func balance(proc *exec.Process) int64 {
-	state, err := currentContract.Chain.GetWalletState(string(currentContract.Address))
-	if err != nil {
-		return 0
-	}
-
-	if !currentContract.IsTempBalanceSet {
-		currentContract.TempBalance = state.Balance
-		currentContract.IsTempBalanceSet = true
-	}
-
-	return int64(state.Balance)
+	return int64(currentContract.TempBalance)
 }
 
 // value returns the value of the transaction that called the current function
@@ -61,11 +51,6 @@ func pay(proc *exec.Process, to int32, amnt, gas int64) {
 	// Don't allow sending money to invalid wallets.
 	if !wallet.IsWalletValid(reciver) {
 		revert(proc)
-	}
-
-	// If the temp balance is not set then save it inside the struct
-	if !currentContract.IsTempBalanceSet {
-		balance(proc)
 	}
 
 	// Avoid overflows while summing balance

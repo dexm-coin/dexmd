@@ -17,7 +17,6 @@ var currentContract *Contract
 
 // ReturnState tells the block generator what the contract outputed
 type ReturnState struct {
-	TxHash   []byte
 	Reverted bool
 	GasLeft  int
 	Outputs  []*bp.Receipt
@@ -36,9 +35,8 @@ type Contract struct {
 	Return      *ReturnState
 	Sender      string
 
-	TempDB           map[string][]byte
-	TempBalance      uint64
-	IsTempBalanceSet bool
+	TempDB      map[string][]byte
+	TempBalance uint64
 
 	Module *wasm.Module
 	VM     *exec.VM
@@ -46,7 +44,7 @@ type Contract struct {
 
 // GetContract loads the code and state from the DB and returns an error if there
 // is no code. In case there is no state an empty one will be generated
-func GetContract(address string, bc *Blockchain, tr *bp.Transaction) (*Contract, error) {
+func GetContract(address string, bc *Blockchain, tr *bp.Transaction, balance uint64) (*Contract, error) {
 	code, err := bc.ContractDb.Get([]byte(address), nil)
 	if err != nil {
 		return nil, err
@@ -86,14 +84,13 @@ func GetContract(address string, bc *Blockchain, tr *bp.Transaction) (*Contract,
 		State:   &state,
 		Return:  &ReturnState{},
 
-		Module:           m,
-		VM:               vm,
-		Chain:            bc,
-		Sender:           senderAddr,
-		Transaction:      tr,
-		TempDB:           make(map[string][]byte),
-		TempBalance:      0,
-		IsTempBalanceSet: false,
+		Module:      m,
+		VM:          vm,
+		Chain:       bc,
+		Sender:      senderAddr,
+		Transaction: tr,
+		TempDB:      make(map[string][]byte),
+		TempBalance: balance,
 	}, nil
 }
 
@@ -138,6 +135,7 @@ func (c *Contract) ExecuteContract(exportName string, arguments []uint64) *Retur
 }
 
 // SaveState saves the contract state to the database
+// TODO Save tempdb
 func (c *Contract) SaveState() error {
 	state, _ := proto.Marshal(c.State)
 
