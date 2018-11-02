@@ -392,7 +392,7 @@ func (c *client) read() {
 		identity := pb.GetIdentity()
 		signatureValid, err := wallet.SignatureValid(identity.GetPubkey(), identity.GetR(), identity.GetS(), hash)
 		if !signatureValid || err != nil {
-			log.Error("Fail signatureValid broadcast ", err)
+			log.Error("Fail signatureValid ", err)
 			continue
 		}
 		if !reflect.DeepEqual(hash, identity.GetData()) {
@@ -407,7 +407,7 @@ func (c *client) read() {
 				continue
 			}
 
-			go c.store.handleBroadcast(pb.GetData(), pb.GetShard(), pb.GetIdentity())
+			go c.store.handleBroadcast(pb.GetData(), pb.GetShard(), identity)
 
 			// check if the interest exist in interestedClients
 			if _, ok := c.store.interestedClients[fmt.Sprint(pb.GetShard())]; ok {
@@ -421,7 +421,7 @@ func (c *client) read() {
 				// Increment the waitgroup to avoid panics
 				c.wg.Add(1)
 				
-				rawMsg := c.store.handleMessage(pb.GetData(), c, pb.GetShard(), pb.GetIdentity())
+				rawMsg := c.store.handleMessage(pb.GetData(), c, pb.GetShard(), identity)
 
 				env := protoNetwork.Envelope{
 					Type:  protoNetwork.Envelope_OTHER,

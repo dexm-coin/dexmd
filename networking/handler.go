@@ -57,7 +57,7 @@ func (cs *ConnectionStore) handleMessage(dataEnvelope []byte, c *client, shard u
 		}
 
 		var index uint64
-		buff := bytes.NewReader(dataMessage.GetData())
+		buff := bytes.NewReader(dataMessage)
 		err := binary.Read(buff, binary.LittleEndian, &index)
 		if err != nil {
 			log.Error("binary.Read failed:", err)
@@ -76,7 +76,7 @@ func (cs *ConnectionStore) handleMessage(dataEnvelope []byte, c *client, shard u
 			return []byte("Error")
 		}
 
-		state, err := cs.shardsChain[shard].GetWalletState(fmt.Sprintf("%s", dataMessage.GetData()))
+		state, err := cs.shardsChain[shard].GetWalletState(fmt.Sprintf("%s", dataMessage))
 		if err != nil {
 			return []byte("Error")
 		}
@@ -97,7 +97,7 @@ func (cs *ConnectionStore) handleMessage(dataEnvelope []byte, c *client, shard u
 			return []byte("Error")
 		}
 
-		code, err := cs.shardsChain[shard].GetContractCode(dataMessage.GetData())
+		code, err := cs.shardsChain[shard].GetContractCode(dataMessage)
 		if err != nil {
 			return []byte("Error")
 		}

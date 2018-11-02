@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"math"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -280,6 +281,15 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 
 		// To save a DB query we don't check the reciver for an overflow. If someone
 		// gets that much cash we are gonna be fucked anyways because of PoS
+	}
+
+	merkleRoot, err := GenerateMerkleTree(block.GetTransactions())
+	if err != nil {
+		log.Error(err)
+		return false, err
+	}
+	if !reflect.DeepEqual(merkleRoot, block.GetMerkleRootReceipt()) {
+		return false, errors.New("merkleRoot != block.GetMerkleRootReceipt())")
 	}
 
 	return true, nil

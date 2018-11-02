@@ -47,6 +47,13 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 			continue
 		}
 
+		// TODO use GetResponse insead of a infinite loop
+		// signatureByte, err := c.GetResponse(100 * time.Millisecond)
+		// if err != nil {
+		// 	log.Error(err)
+		// 	continue
+		// }
+
 		walletEnv := &network.Envelope{}
 		for {
 			// Parse the message and save the new state
