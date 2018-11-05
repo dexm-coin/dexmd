@@ -220,21 +220,45 @@ func (cs *ConnectionStore) Connect(ip string) error {
 
 	cs.register <- &c
 
+	pubKey, _ := cs.identity.GetPubKey()
+
 	keys := []string{}
 	for k := range cs.interests {
 		keys = append(keys, k)
 	}
+
 	p := &network.Interests{
-		Keys: keys,
+		Keys:         keys,
+		Address:      pubKey,
+		ShardAddress: uint32(cs.identity.GetShardWallet()),
 	}
 	d, _ := proto.Marshal(p)
-	e := &network.Envelope{
-		Type: network.Envelope_INTERESTS,
-		Data: d,
+	bhashInterest := sha256.Sum256(d)
+	hashInterest := bhashInterest[:]
+
+	// Sign the new block
+	r, s, err := cs.identity.Sign(hashInterest)
+	if err != nil {
+		log.Error(err)
 	}
-	ed, _ := proto.Marshal(e)
+
+	signature := &network.Signature{
+		Pubkey: pubKey,
+		R:      r.Bytes(),
+		S:      s.Bytes(),
+		Data:   hashInterest,
+	}
+
+	env := &network.Envelope{
+		Data:     d,
+		Type:     network.Envelope_INTERESTS,
+		Shard:    0,
+		Identity: signature,
+	}
+	data, _ := proto.Marshal(env)
+
 	if c.isOpen {
-		c.send <- ed
+		c.send <- data
 	}
 
 	go c.read()
@@ -256,25 +280,45 @@ func (cs *ConnectionStore) run() {
 			// Ask the connected client for the interests he has
 			client.wg.Add(1)
 
-			keys := []string{}
+			pubKey, _ := cs.identity.GetPubKey()
 
+			keys := []string{}
 			for k := range cs.interests {
 				keys = append(keys, k)
 			}
 
 			p := &network.Interests{
-				Keys: keys,
+				Keys:         keys,
+				Address:      pubKey,
+				ShardAddress: uint32(cs.identity.GetShardWallet()),
 			}
 			d, _ := proto.Marshal(p)
+			bhashInterest := sha256.Sum256(d)
+			hashInterest := bhashInterest[:]
 
-			e := &network.Envelope{
-				Type: network.Envelope_INTERESTS,
-				Data: d,
+			// Sign the new block
+			r, s, err := cs.identity.Sign(hashInterest)
+			if err != nil {
+				log.Error(err)
 			}
-			ed, _ := proto.Marshal(e)
+
+			signature := &network.Signature{
+				Pubkey: pubKey,
+				R:      r.Bytes(),
+				S:      s.Bytes(),
+				Data:   hashInterest,
+			}
+
+			env := &network.Envelope{
+				Data:     d,
+				Type:     network.Envelope_INTERESTS,
+				Shard:    0,
+				Identity: signature,
+			}
+			data, _ := proto.Marshal(env)
 
 			if client.isOpen {
-				client.send <- ed
+				client.send <- data
 			}
 
 			// Unlock the send channel so we can kill the goroutine
@@ -420,23 +464,36 @@ func (c *client) read() {
 			go func() {
 				// Increment the waitgroup to avoid panics
 				c.wg.Add(1)
-				
+
 				rawMsg := c.store.handleMessage(pb.GetData(), c, pb.GetShard(), identity)
 
-				env := protoNetwork.Envelope{
-					Type:  protoNetwork.Envelope_OTHER,
-					Data:  rawMsg,
-					Shard: pb.GetShard(),
-				}
+				pubKey, _ := c.store.identity.GetPubKey()
 
-				toSend, err := proto.Marshal(&env)
+				bhashBroadcast := sha256.Sum256(rawMsg)
+				hashBroadcast := bhashBroadcast[:]
+
+				r, s, err := c.store.identity.Sign(hashBroadcast)
 				if err != nil {
 					log.Error(err)
-					return
 				}
 
+				signature := &network.Signature{
+					Pubkey: pubKey,
+					R:      r.Bytes(),
+					S:      s.Bytes(),
+					Data:   hashBroadcast,
+				}
+
+				env := &network.Envelope{
+					Data:     rawMsg,
+					Type:     protoNetwork.Envelope_OTHER,
+					Shard:    pb.GetShard(),
+					Identity: signature,
+				}
+				data, _ := proto.Marshal(env)
+
 				if c.isOpen {
-					c.send <- toSend
+					c.send <- data
 				}
 				// Once we are done using the channel decrement the group
 				c.wg.Done()
@@ -567,21 +624,40 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			for k := range cs.clients {
 				ips = append(ips, k.conn.RemoteAddr().String())
 			}
-
 			keys := []string{}
 			for k := range cs.interests {
 				keys = append(keys, k)
 			}
 
+			pubKey, _ := cs.identity.GetPubKey()
+
 			peers := &network.PeersAndInterests{
-				Keys: keys,
-				Ips:  ips,
+				Keys:         keys,
+				Ips:          ips,
+				Address:      pubKey,
+				ShardAddress: uint32(cs.identity.GetShardWallet()),
 			}
 			peersByte, _ := proto.Marshal(peers)
+			bhashInterest := sha256.Sum256(peersByte)
+			hashInterest := bhashInterest[:]
+
+			r, s, err := cs.identity.Sign(hashInterest)
+			if err != nil {
+				log.Error(err)
+			}
+
+			signature := &network.Signature{
+				Pubkey: pubKey,
+				R:      r.Bytes(),
+				S:      s.Bytes(),
+				Data:   hashInterest,
+			}
+
 			env := &network.Envelope{
-				Type:  network.Envelope_NEIGHBOUR_INTERESTS,
-				Data:  peersByte,
-				Shard: 0,
+				Data:     peersByte,
+				Type:     network.Envelope_NEIGHBOUR_INTERESTS,
+				Shard:    0,
+				Identity: signature,
 			}
 			data, _ := proto.Marshal(env)
 
