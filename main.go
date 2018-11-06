@@ -93,6 +93,7 @@ func main() {
 					MempoolTransactions := blockchain.DashMempoolTransactions()
 					MempoolTransactionsFunc := func(metric *grada.Metric, dataFunc func() float64) {
 						for {
+							time.sleep(5)
 							metric.Add(dataFunc())
 						}
 					}
@@ -100,6 +101,7 @@ func main() {
 					BlockTransactions := blockchain.DashBlockTransactions()
 					BlockTransactionsFunc := func(metric *grada.Metric, dataFunc func() float64) {
 						for {
+							time.sleep(5)
 							metric.Add(dataFunc())
 						}
 					}

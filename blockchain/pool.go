@@ -29,7 +29,6 @@ var countBlockTransactions = 0
 func DashMempoolTransactions() func() float64 {
 	return func() float64 {
 		tmp := float64(countMempoolTransactions)
-		log.Info("DashMempoolTransactions ", tmp)
 		countMempoolTransactions = 0
 		return tmp
 	}
@@ -37,7 +36,6 @@ func DashMempoolTransactions() func() float64 {
 func DashBlockTransactions() func() float64 {
 	return func() float64 {
 		tmp := float64(countBlockTransactions)
-		log.Info("DashBlockTransactions ", tmp)
 		countBlockTransactions = 0
 		return tmp
 	}
