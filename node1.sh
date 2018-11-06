@@ -9,7 +9,7 @@ echo "START HACKNEY | sudo python app.py"
 sleep 60
 
 docker service create --name testnet dexmcoin/worker:latest
-docker service scale testnet=15
+docker service scale testnet=100
 while true
 do
     clear
