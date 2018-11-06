@@ -134,6 +134,7 @@ func NewBlockchain(dbPath string, index uint64) (*Blockchain, error) {
 	mp := newMempool(1000000, 100)
 
 	currentValidators := make(map[uint64]string)
+	currentValidators[0] = "Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2"
 	currentValidators[1] = ""
 
 	return &Blockchain{
