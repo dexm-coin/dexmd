@@ -16,6 +16,7 @@ import (
 	"github.com/dexm-coin/dexmd/wallet"
 	bp "github.com/dexm-coin/protobufs/build/blockchain"
 
+	"github.com/christophberger/grada"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -76,6 +77,33 @@ func main() {
 
 				if c.Args().Get(3) == "true" {
 					PUBLIC_PEERSERVER = true
+				}
+
+				// start GetDashboard to show some stats
+				if PUBLIC_PEERSERVER {
+					dash := grada.GetDashboard()
+					UpdateDash1, err := dash.CreateMetric("CPU1", 10*time.Minute, time.Second)
+					if err != nil {
+						log.Fatal(err)
+					}
+					UpdateDash2, err := dash.CreateMetric("CPU2", 10*time.Minute, time.Second)
+					if err != nil {
+						log.Fatal(err)
+					}
+					MempoolTransactions := blockchain.DashMempoolTransactions()
+					MempoolTransactionsFunc := func(metric *grada.Metric, dataFunc func() float64) {
+						for {
+							metric.Add(dataFunc())
+						}
+					}
+					go MempoolTransactionsFunc(UpdateDash1, MempoolTransactions)
+					BlockTransactions := blockchain.DashBlockTransactions()
+					BlockTransactionsFunc := func(metric *grada.Metric, dataFunc func() float64) {
+						for {
+							metric.Add(dataFunc())
+						}
+					}
+					go BlockTransactionsFunc(UpdateDash2, BlockTransactions)
 				}
 
 				// Import an identity to encrypt data and sign for validator msg

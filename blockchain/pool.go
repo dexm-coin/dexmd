@@ -23,6 +23,24 @@ func newMempool(maxBlockSize int, maxGas float64) *mempool {
 	return &mempool{maxBlockSize, maxGas, pq.New()}
 }
 
+var countMempoolTransactions = 0
+var countBlockTransactions = 0
+
+func DashMempoolTransactions() func() float64 {
+	return func() float64 {
+		tmp := float64(countMempoolTransactions)
+		countMempoolTransactions = 0
+		return tmp
+	}
+}
+func DashBlockTransactions() func() float64 {
+	return func() float64 {
+		tmp := float64(countBlockTransactions)
+		countBlockTransactions = 0
+		return tmp
+	}
+}
+
 // AddMempoolTransaction adds a transaction to the mempool
 // TODO Validate gas
 func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transaction []byte) error {
@@ -39,6 +57,8 @@ func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transacti
 	if err == nil {
 		return errors.New("Already in db")
 	}
+
+	countMempoolTransactions++
 
 	bc.BlockDb.Put(dbKey, transaction, nil)
 
@@ -154,6 +174,7 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 	}
 
 	block.Transactions = transactions
+	countBlockTransactions = len(transactions)
 
 	// create the merkletree with the transactions and get its root
 	merkleRootReceipt := []byte{}
