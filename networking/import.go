@@ -163,7 +163,7 @@ func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroad
 	// Create a broadcast message and send it to the network
 	broadcast := &network.Broadcast{
 		Data:         dataBroadcast,
-		Type:         network.Broadcast_BLOCK_PROPOSAL,
+		Type:         typeBroadcast,
 		Address:      pubKey,
 		ShardAddress: shardAddress,
 	}
