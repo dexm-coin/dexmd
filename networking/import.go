@@ -337,7 +337,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 			randomShard := uint32(rand.Int31n(nShard) + 1)
 			exist := cs.beaconChain.Validators.AddValidator(sender, int64(cs.shardsChain[shard].CurrentBlock), t.GetPubSchnorrKey(), t, randomShard)
 			if exist {
-				log.Info("slash for ", sender)
+				// The sender has already lost his money sent for the second time to DexmPoS
 				continue
 			}
 		}

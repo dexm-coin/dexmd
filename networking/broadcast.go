@@ -177,22 +177,15 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, identity *
 		// 	return err
 		// }
 
-		// TODO check signature
-		// blockBytes, _ := proto.Marshal(block)
-		// bhash := sha256.Sum256(blockBytes)
-		// hash := bhash[:]
-		// r, s, err := cs.identity.Sign(hash)
-		// if err != nil {
-		// 	log.Error(err)
-		// 	return err
-		// }
-
-		// TODO change first parameter
-		// verifyBlock, err := wallet.SignatureValid([]byte(cs.shardsChain[shard].CurrentValidator), r.Bytes(), s.Bytes(), hash)
-		// if !verifyBlock || err != nil {
-		// 	log.Error("SignatureValid ", err)
-		// 	return err
-		// }
+		_, err = bc.GetBlock(block.GetIndex())
+		if err == nil {
+			log.Info("slash for ", block.GetMiner())
+			err = cs.beaconChain.Validators.RemoveValidator(block.GetMiner())
+			if err != nil {
+				log.Error("error on RemoveValidator")
+			}
+			return err
+		}
 
 		err = cs.SaveBlock(block, shard)
 		if err != nil {
@@ -239,7 +232,8 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, identity *
 			return err
 		}
 
-		cs.beaconChain.Validators.WithdrawValidator(withdrawVal.GetPublicKey(), withdrawVal.GetR(), withdrawVal.GetS(), int64(cs.shardsChain[shard].CurrentBlock))
+		sender := wallet.BytesToAddress(withdrawVal.GetPublicKey(), 1)
+		cs.beaconChain.Validators.WithdrawValidator(sender, int64(cs.shardsChain[shard].CurrentBlock))
 
 	case protoNetwork.Broadcast_SCHNORR:
 		if !cs.CheckShard(shard) {

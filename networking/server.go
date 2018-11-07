@@ -268,7 +268,6 @@ func (cs *ConnectionStore) Connect(ip string) error {
 }
 
 // save the 100's hash of newest messages (without the ttl) arrived
-// TODO If 2 blocks are found with the same index and same validator then slash
 var hashMessages = make([][]byte, 0)
 
 // run is the event handler to update the ConnectionStore

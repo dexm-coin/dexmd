@@ -16,7 +16,7 @@ import (
 )
 
 // SendTransaction generates a transaction and broadcasts it
-func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amount, gas uint64, cdata []byte, ccreation bool, shard uint32) error {
+func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amount, gas uint64, cdata []byte, ccreation bool, shardAddress uint32) error {
 	ips, err := GetPeerList("hackney")
 	if err != nil {
 		log.Error("peer ", err)
@@ -41,7 +41,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 			log.Error(err)
 		}
 
-		err = MakeSpecificRequest(senderWallet, shard, []byte(senderAddr), network.Request_GET_WALLET_STATUS, conn, uint32(senderWallet.GetShardWallet()))
+		err = MakeSpecificRequest(senderWallet, 0, []byte(senderAddr), network.Request_GET_WALLET_STATUS, conn, shardAddress)
 		if err != nil {
 			log.Error(err)
 			continue
@@ -82,13 +82,7 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 		log.Info("walletStatus ", walletStatus)
 		senderWallet.Balance = int(walletStatus.Balance)
 
-		trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata, shard)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-
-		shardAddress, err := wallet.GetShardFromAddress(senderAddr)
+		trans, err := senderWallet.NewTransaction(recipient, amount, uint32(gas), cdata, shardAddress)
 		if err != nil {
 			log.Error(err)
 			continue

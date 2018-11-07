@@ -207,7 +207,6 @@ func (bc *Blockchain) GetContractCode(address []byte) ([]byte, error) {
 
 // ValidateBlock checks the validity of a block. It uses the current
 // blockchain state so the passed block might become valid in the future.
-// TODO Check validator
 func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 	isTainted := make(map[string]bool)
 	taintedState := make(map[string]protobufs.AccountState)
@@ -217,22 +216,18 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 		return true, nil
 	}
 
-	// TODO do a check that the signature of the block should match with the validator choosen for that index
-
 	for i, t := range block.GetTransactions() {
 		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
 
-		// result, _ := proto.Marshal(t)
-		// bhash := sha256.Sum256(result)
-		// hash := bhash[:]
+		result, _ := proto.Marshal(t)
+		bhash := sha256.Sum256(result)
+		hash := bhash[:]
+		valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
+		if !valid || err != nil {
+			log.Error("SignatureValid ", err)
+			return false, err
+		}
 
-		// valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
-		// if !valid || err != nil {
-		// 	log.Error("SignatureValid ", err)
-		// 	return false, err
-		// }
-
-		var err error
 		balance := protobufs.AccountState{}
 
 		// Check if the address state changed while processing this block

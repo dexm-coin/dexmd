@@ -67,8 +67,7 @@ func (v *ValidatorsBook) CheckWithdraw(wallet string, bc *Blockchain) bool {
 		}
 		// 2419200/5*6 , 1 month*6 divide by 5 (every 5 sec a block)
 		if uint64(v.valsArray[wallet].endDynasty+(2903040)) > bc.CurrentBlock {
-			// TODO maybe it's a problem do it because maybe the shard of that person is different
-			if wal.BytesToAddress(t.GetSender(), t.GetShard()) != wallet {
+			if wal.BytesToAddress(t.GetSender(), 1) != wallet {
 				return false
 			}
 
@@ -204,8 +203,7 @@ func (v *ValidatorsBook) GetSchnorrPublicKey(wallet string) (kyber.Point, error)
 }
 
 // WithdrawValidator when a withdraw message arrive change the enddynasy of the wallet
-func (v *ValidatorsBook) WithdrawValidator(wallet string, r, s []byte, currentBlock int64) error {
-	// TODO check signature with r and s
+func (v *ValidatorsBook) WithdrawValidator(wallet string, currentBlock int64) error {
 	if _, ok := v.valsArray[wallet]; ok {
 		v.valsArray[wallet].endDynasty = currentBlock
 		return nil
