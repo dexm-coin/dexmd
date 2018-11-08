@@ -42,7 +42,6 @@ func DashBlockTransactions() func() float64 {
 }
 
 // AddMempoolTransaction adds a transaction to the mempool
-// TODO Validate gas
 func (bc *Blockchain) AddMempoolTransaction(pb *protobufs.Transaction, transaction []byte) error {
 	err := bc.ValidateTransaction(pb)
 	if err != nil {

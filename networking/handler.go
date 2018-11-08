@@ -122,11 +122,11 @@ func (cs *ConnectionStore) handleMessage(dataEnvelope []byte, c *client, shard u
 
 		// case protobufs.Request_HASH_EXIST:
 		// 	// rivece un indice di un blocco, e deve ritornare l'hash di quel blocco
-		// 	// TODO ASAP
+		// 	// TODOMaybe
 
 		// case protobufs.Request_GET_WALLET:
 		// 	// riceve un messaggio casuale, che deve firmare, e deve anche mandare la sua chiave pubblica per poter decifrare
-		// 	// TODO ASAP cambia il messaggio con un ts e controlla che sia valido
+		// 	// TODOMaybe cambia il messaggio con un ts e controlla che sia valido
 		// 	randomMessage := dataMessage.GetData()
 
 		// 	msg := &protobufs.RandomMessage{

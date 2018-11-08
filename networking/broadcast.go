@@ -158,7 +158,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, identity *
 		// 	hash := bhash[:]
 		// 	equal := reflect.DeepEqual(hash, block.GetPrevHash())
 		// 	if !equal {
-		// 		// TODO ASAP ask to the network if my prevhash (of currentblock) exist
+		// 		// TODOMaybe ask to the network if my prevhash (of currentblock) exist
 		// 		log.Error("the prev hash doen't match with the block")
 		// 		cs.RequestHashBlock(shard, i, hash)
 		// 		if verify {
@@ -169,7 +169,7 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, identity *
 		// 		}
 		// 	} else {
 		// 		if i != bc.CurrentBlock-1 {
-		// 			// TODO ASAP remove the previous blocks if they exists
+		// 			// TODOMaybe remove the previous blocks if they exists
 		// 		}
 		// 	}
 		// }

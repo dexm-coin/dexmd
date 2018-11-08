@@ -15,7 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// TODO put ReceiptBurned in a file, can't handle this in ram
+// TODO put ReceiptBurned in a file
 var ReceiptBurned = make(map[string]bool)
 
 func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) (bool, error) {
@@ -35,16 +35,6 @@ func (cs *ConnectionStore) CheckMerkleProof(merkleProof *protobufs.MerkleProof) 
 
 		t := merkleProof.GetTransaction()
 		sender := wallet.BytesToAddress(t.GetSender(), t.GetShard())
-
-		// TODO check signature
-		// result, _ := proto.Marshal(t)
-		// bhash := sha256.Sum256(result)
-		// hash := bhash[:]
-		// valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
-		// if !valid || err != nil {
-		// 	log.Error("SignatureValid ", err)
-		// 	return false, err
-		// }
 
 		for interest := range cs.interests {
 			if interest == "0" {

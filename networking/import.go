@@ -34,8 +34,18 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 		return nil
 	}
 
-	/*for cs.shardsChain[nextShard].CurrentBlock <= uint64(cs.shardsChain[nextShard].GetNetworkIndex()) {
+	/*w := cs.identity
+	shardWallet := uint32(w.GetShardWallet())
+
+	for cs.shardsChain[nextShard].CurrentBlock <= uint64(cs.shardsChain[nextShard].GetNetworkIndex()) {
 		for k := range cs.clients {
+
+			err := MakeSpecificRequest(w, nextShard, , network.Request_GET_BLOCKCHAIN_LEN, k, shardWallet)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+
 			// Ask for blockchain len
 			req := &network.Request{
 				Type: network.Request_GET_BLOCKCHAIN_LEN,
@@ -142,7 +152,7 @@ func MakeSpecificRequest(w *wallet.Wallet, shard uint32, dataRequest []byte, t n
 
 	env := &network.Envelope{
 		Data:     requestBytes,
-		Type:     network.Envelope_BROADCAST,
+		Type:     network.Envelope_REQUEST,
 		Shard:    shard,
 		Identity: signature,
 		TTL:      64,
@@ -198,7 +208,7 @@ func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroad
 
 // func (cs *ConnectionStore) RequestHashBlock(shard uint32, indexBlock uint64, hashBlock []byte) (*protobufs.Block, bool) {
 
-// 	// TODO ASAP non chiedo a tutti i client ma solo ai validator nella mia shard
+// 	// TODOMaybe non chiedo a tutti i client ma solo ai validator nella mia shard
 // 	for c := range cs.clients {
 // 		byteI := make([]byte, 4)
 // 		binary.LittleEndian.PutUint64(byteI, indexBlock)
@@ -216,7 +226,7 @@ func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroad
 
 // 		equal := reflect.DeepEqual(hashBlock, hashBlockReceived)
 // 		if equal {
-// 			// TODO ASAP in base allo stake conta quanti ti hanno dato il blocco e quello giusto
+// 			// TODOMaybe in base allo stake conta quanti ti hanno dato il blocco e quello giusto
 // 		}
 // 	}
 // 	return nil, false
@@ -224,7 +234,7 @@ func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroad
 
 // func (cs *ConnectionStore) RequestMissingBlock(shard uint32, indexBlock uint64) (*protobufs.Block, bool) {
 
-// 	// TODO ASAP non chiedo a tutti i client ma solo ai validator nella mia shard
+// 	// TODOMaybe non chiedo a tutti i client ma solo ai validator nella mia shard
 // 	for c := range cs.clients {
 // 		byteI := make([]byte, 4)
 // 		binary.LittleEndian.PutUint64(byteI, indexBlock)
@@ -235,7 +245,7 @@ func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroad
 // 			continue
 // 		}
 
-// 		// TODO the request of the block can be substitue with zk snark that give you the proof that this block exist
+// 		// TODOMaybe the request of the block can be substitue with zk snark that give you the proof that this block exist
 // 		// without recive the whole block
 // 		byteBlock, err := c.GetResponse(200 * time.Millisecond)
 // 		if err != nil {
@@ -251,7 +261,7 @@ func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroad
 
 // 		verify, err := cs.shardsChain[shard].ValidateBlock(block)
 // 		if verify {
-// 			// TODO ASAP in base allo stake conta quanti ti hanno dato il blocco e quello giusto
+// 			// TODOMaybe in base allo stake conta quanti ti hanno dato il blocco e quello giusto
 // 		}
 // 	}
 
@@ -276,7 +286,7 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 	// The genesis block is a title of a The Times article, We still need to
 	// add a validator because otherwise no blocks will be generated
 	if block.GetIndex() == 0 {
-		// TODO cange this import wallet because we don't want that people know the private key of those 2 wallet
+		// TODO remember to remove the private key from the wallet
 		fakeTransaction := &protobufs.Transaction{}
 		fakeTransaction.Amount = 10000
 		state := &protobufs.AccountState{
@@ -285,35 +295,39 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 
 		state.Balance++
 		wallet1, _ := wallet.ImportWallet("wallet1")
-		cs.shardsChain[shard].SetState("Dexm013PiLMNGVKNadoqwtSw7YRtSrz4UTBD913CA2", state)
-		cs.beaconChain.Validators.AddValidator("Dexm013PiLMNGVKNadoqwtSw7YRtSrz4UTBD913CA2", -300, wallet1.GetPublicKeySchnorrByte(), fakeTransaction, 1)
+		address1, _ := wallet1.GetWallet()
+		cs.shardsChain[shard].SetState(address1, state)
+		cs.beaconChain.Validators.AddValidator(address1, -300, wallet1.GetPublicKeySchnorrByte(), fakeTransaction, 1)
 
 		state.Balance++
 		wallet2, _ := wallet.ImportWallet("wallet2")
-		cs.shardsChain[shard].SetState("Dexm013gEt9eb3bGYTgZ2qxDcyutqqN3dbD5A02B8D", state)
-		cs.beaconChain.Validators.AddValidator("Dexm013gEt9eb3bGYTgZ2qxDcyutqqN3dbD5A02B8D", -300, wallet2.GetPublicKeySchnorrByte(), fakeTransaction, 2)
+		address2, _ := wallet2.GetWallet()
+		cs.shardsChain[shard].SetState(address2, state)
+		cs.beaconChain.Validators.AddValidator(address2, -300, wallet2.GetPublicKeySchnorrByte(), fakeTransaction, 2)
 
 		state.Balance++
 		wallet3, _ := wallet.ImportWallet("wallet3")
-		cs.shardsChain[shard].SetState("Dexm014WmVd63Vn7aWYNRqNN4x7bATPTZ533213654", state)
-		cs.beaconChain.Validators.AddValidator("Dexm014WmVd63Vn7aWYNRqNN4x7bATPTZ533213654", -300, wallet3.GetPublicKeySchnorrByte(), fakeTransaction, 3)
+		address3, _ := wallet3.GetWallet()
+		cs.shardsChain[shard].SetState(address3, state)
+		cs.beaconChain.Validators.AddValidator(address3, -300, wallet3.GetPublicKeySchnorrByte(), fakeTransaction, 3)
 
 		state.Balance++
 		wallet4, _ := wallet.ImportWallet("wallet4")
-		cs.shardsChain[shard].SetState("Dexm014JwVstwpuarTFEPJmYjDFeRyphtS96055C71", state)
-		cs.beaconChain.Validators.AddValidator("Dexm014JwVstwpuarTFEPJmYjDFeRyphtS96055C71", -300, wallet4.GetPublicKeySchnorrByte(), fakeTransaction, 4)
+		address4, _ := wallet4.GetWallet()
+		cs.shardsChain[shard].SetState(address4, state)
+		cs.beaconChain.Validators.AddValidator(address4, -300, wallet4.GetPublicKeySchnorrByte(), fakeTransaction, 4)
 
 		state.Balance++
 		wallet5, _ := wallet.ImportWallet("wallet5")
-		cs.shardsChain[shard].SetState("Dexm012o1Rf35adWwZF3FKZyb2R77mpLJH185FEBB6", state)
-		cs.beaconChain.Validators.AddValidator("Dexm012o1Rf35adWwZF3FKZyb2R77mpLJH185FEBB6", -300, wallet5.GetPublicKeySchnorrByte(), fakeTransaction, 5)
+		address5, _ := wallet5.GetWallet()
+		cs.shardsChain[shard].SetState(address5, state)
+		cs.beaconChain.Validators.AddValidator(address5, -300, wallet5.GetPublicKeySchnorrByte(), fakeTransaction, 5)
 
 		cs.shardsChain[shard].GenesisTimestamp = block.GetTimestamp()
 
 		return nil
 	}
 
-	// TODO Use a better seed
 	// generate a seed to generate a shard for the new validators
 	byteBlock, _ := proto.Marshal(block)
 	hash := sha256.Sum256(byteBlock)

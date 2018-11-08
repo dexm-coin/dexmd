@@ -309,21 +309,27 @@ func (bc *Blockchain) ValidateTransaction(t *protobufs.Transaction) error {
 		return errors.New("Invalid recipient")
 	}
 
-	// result, _ := proto.Marshal(t)
-	// bhash := sha256.Sum256(result)
-	// hash := bhash[:]
-	// valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
-	// if !valid {
-	// 	return err
-	// }
+	result, _ := proto.Marshal(t)
+	bhash := sha256.Sum256(result)
+	hash := bhash[:]
+	valid, err := wallet.SignatureValid(t.GetSender(), t.GetR(), t.GetS(), hash)
+	if !valid {
+		return err
+	}
 
 	balance, err := bc.GetWalletState(sender)
 	if err != nil {
 		return err
 	}
 
+	// Check if gas is sufficient, right now is minimal 16000, that are 12 gwei
+	// 1 gwei = 1000000000 iska
+	if t.GetGas() < 16000 {
+		return errors.New("Not enough gas")
+	}
+
 	// Check if balance is sufficient
-	requiredBal, ok := util.AddU64O(t.GetAmount(), uint64(t.GetGas()))
+	requiredBal, ok := util.AddU64O(t.GetAmount(), uint64(t.GetGas()*1000000000))
 	if requiredBal > balance.GetBalance() && ok {
 		return errors.New("Balance is insufficient in transaction")
 	}

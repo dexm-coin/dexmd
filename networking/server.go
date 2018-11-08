@@ -131,7 +131,7 @@ func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockc
 		// byteTs := make([]byte, 4)
 		// binary.LittleEndian.PutUint64(byteTs, ts)
 
-		// // TODO ASAP quando qualcuno si connette gli chiedo subito il suo wallet
+		// // TODOMaybe quando qualcuno si connette gli chiedo subito il suo wallet
 		// err = MakeSpecificRequest(0, byteTs, protoNetwork.Request_GET_WALLET, conn)
 		// if err != nil {
 		// 	log.Error(err)
@@ -347,7 +347,18 @@ func (cs *ConnectionStore) run() {
 			env := &network.Envelope{}
 			proto.Unmarshal(message, env)
 
-			// TODO check signature message
+			bhash := sha256.Sum256(env.GetData())
+			hash := bhash[:]
+			identity := env.GetIdentity()
+			signatureValid, err := wallet.SignatureValid(identity.GetPubkey(), identity.GetR(), identity.GetS(), hash)
+			if !signatureValid || err != nil {
+				log.Error("Fail signatureValid ", err)
+				continue
+			}
+			if !reflect.DeepEqual(hash, identity.GetData()) {
+				log.Error("Hash of the data doesn't match with the hash of data inside the signature")
+				continue
+			}
 
 			shard := env.GetShard()
 
@@ -500,11 +511,9 @@ func (c *client) read() {
 
 		// Other data can be channeled so other parts of code can use it
 		case protoNetwork.Envelope_OTHER:
-			// TODO if !reflect.DeepEqual(broadcast.GetAddress(), identity.GetPubkey()) {
 			c.readOther <- pb.GetData()
 
 		case protoNetwork.Envelope_INTERESTS:
-			// TODO if !reflect.DeepEqual(broadcast.GetAddress(), identity.GetPubkey()) {
 			intr := &protoNetwork.Interests{}
 
 			err := proto.Unmarshal(pb.Data, intr)
@@ -523,7 +532,6 @@ func (c *client) read() {
 			}
 
 		case protoNetwork.Envelope_NEIGHBOUR_INTERESTS:
-			// TODO if !reflect.DeepEqual(broadcast.GetAddress(), identity.GetPubkey()) {
 			peers := &protoNetwork.PeersAndInterests{}
 
 			// create a connection with the peers that my neighbour know
@@ -691,7 +699,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 			// choose the next shard with a seed
 			seed := binary.BigEndian.Uint64(finalHash[:])
-			// TODO _ = newShard
+			// TODO newShard, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardsChain[currentShard])
 			_, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardsChain[currentShard])
 			if err != nil {
 				log.Error(err)
@@ -702,8 +710,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			// remove the older blockchain and create a new one
 			os.RemoveAll(".dexm/shard")
 			os.MkdirAll(".dexm/shard", os.ModePerm)
-			// TODO change 1 with 0
-			cs.shardsChain[currentShard], err = blockchain.NewBlockchain(".dexm/shard/", 1)
+			cs.shardsChain[currentShard], err = blockchain.NewBlockchain(".dexm/shard/", 0)
 			if err != nil {
 				log.Fatal("NewBlockchain ", err)
 			}
@@ -729,7 +736,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			// 	index--
 			// 	byteBlock, err := bc.GetBlock(index)
 			// 	if err != nil {
-			// 		// TODO ASAP fai request a tutti di quell'indice e controlla il match della signature sia del validator scelto
+			// 		// TODOMaybe fai request a tutti di quell'indice e controlla il match della signature sia del validator scelto
 			// 		block, verify := cs.RequestMissingBlock(currentShard, index)
 			// 		if verify && block != nil {
 			// 			bhash := sha256.Sum256(currBlock)
