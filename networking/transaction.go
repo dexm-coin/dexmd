@@ -36,45 +36,39 @@ func SendTransaction(senderWallet *wallet.Wallet, recipient, fname string, amoun
 			continue
 		}
 
+		c := &client{
+			conn:      conn,
+			send:      make(chan []byte, 256),
+			readOther: make(chan []byte, 256),
+			isOpen:    true,
+		}
+
 		senderAddr, err := senderWallet.GetWallet()
 		if err != nil {
 			log.Error(err)
 		}
 
-		err = MakeSpecificRequest(senderWallet, 0, []byte(senderAddr), network.Request_GET_WALLET_STATUS, conn, shardAddress)
+		err = MakeSpecificRequest(senderWallet, 0, []byte(senderAddr), network.Request_GET_WALLET_STATUS, c, shardAddress)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
 
-		// TODO use GetResponse insead of a infinite loop
-		// signatureByte, err := c.GetResponse(100 * time.Millisecond)
-		// if err != nil {
-		// 	log.Error(err)
-		// 	continue
-		// }
-
-		walletEnv := &network.Envelope{}
-		for {
-			// Parse the message and save the new state
-			_, msg, err := conn.ReadMessage()
-			if err != nil {
-				continue
-			}
-
-			err = proto.Unmarshal(msg, walletEnv)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-
-			if walletEnv.Type == network.Envelope_OTHER {
-				break
-			}
-			walletEnv = &network.Envelope{}
+		// use GetResponse insead of a infinite loop
+		msg, err := c.GetResponse(100 * time.Millisecond)
+		if err != nil {
+			log.Error(err)
+			continue
 		}
 
-		var walletStatus bp.AccountState
+		walletEnv := &network.Envelope{}
+		err = proto.Unmarshal(msg, walletEnv)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		walletStatus := bp.AccountState{}
 		err = proto.Unmarshal(walletEnv.Data, &walletStatus)
 		if err != nil {
 			log.Error(err)

@@ -23,12 +23,12 @@ func (cs *ConnectionStore) CheckShard(shard uint32) bool {
 		return false
 	}
 	for interest := range cs.interests {
-		interestInt, err := strconv.Atoi(interest)
+		sInt, err := strconv.ParseUint(interest, 16, 32)
 		if err != nil {
-			log.Error(err)
+			log.Error(interest, " is not a valid shard")
 			continue
 		}
-		if shard == uint32(interestInt) {
+		if shard == uint32(sInt) {
 			return true
 		}
 	}

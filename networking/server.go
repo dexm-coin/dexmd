@@ -699,18 +699,19 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 
 			// choose the next shard with a seed
 			seed := binary.BigEndian.Uint64(finalHash[:])
-			// TODO newShard, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardsChain[currentShard])
-			_, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardsChain[currentShard])
+			newShard, err := cs.beaconChain.Validators.ChooseShard(int64(seed), wal, cs.shardsChain[currentShard])
 			if err != nil {
 				log.Error(err)
 			}
+			newShardStr := fmt.Sprint(n)
 
 			// TODO like this doesn't work, you shouldn't remove the blockchain so early
 
 			// remove the older blockchain and create a new one
-			os.RemoveAll(".dexm/shard")
-			os.MkdirAll(".dexm/shard", os.ModePerm)
-			cs.shardsChain[currentShard], err = blockchain.NewBlockchain(".dexm/shard/", 0)
+			// TODO i should remove only the ones not used
+			// os.RemoveAll(".dexm/shard"+newShardStr+"/")
+			os.MkdirAll(".dexm/shard"+newShardStr+"/", os.ModePerm)
+			cs.shardsChain[newShard], err = blockchain.NewBlockchain(".dexm/shard"+newShardStr+"/", 0)
 			if err != nil {
 				log.Fatal("NewBlockchain ", err)
 			}

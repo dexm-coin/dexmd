@@ -34,13 +34,13 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 		return nil
 	}
 
-	/*w := cs.identity
+	w := cs.identity
 	shardWallet := uint32(w.GetShardWallet())
 
 	for cs.shardsChain[nextShard].CurrentBlock <= uint64(cs.shardsChain[nextShard].GetNetworkIndex()) {
 		for k := range cs.clients {
 
-			err := MakeSpecificRequest(w, nextShard, , network.Request_GET_BLOCKCHAIN_LEN, k, shardWallet)
+			err := MakeSpecificRequest(w, nextShard, []byte{}, network.Request_GET_BLOCKCHAIN_LEN, k, shardWallet)
 			if err != nil {
 				log.Error(err)
 				continue
@@ -119,11 +119,11 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 				}
 			}
 		}
-	}*/
+	}
 	return nil
 }
 
-func MakeSpecificRequest(w *wallet.Wallet, shard uint32, dataRequest []byte, t network.Request_MessageTypes, conn *websocket.Conn, shardAddress uint32) error {
+func MakeSpecificRequest(w *wallet.Wallet, shard uint32, dataRequest []byte, t network.Request_MessageTypes,c *client, shardAddress uint32) error {
 	pubKey, _ := w.GetPubKey()
 
 	req := &network.Request{
@@ -159,7 +159,7 @@ func MakeSpecificRequest(w *wallet.Wallet, shard uint32, dataRequest []byte, t n
 	}
 	data, _ := proto.Marshal(env)
 
-	err = conn.WriteMessage(websocket.BinaryMessage, data)
+	err = c.conn.WriteMessage(websocket.BinaryMessage, data)
 	if err != nil {
 		log.Error(err)
 		return err

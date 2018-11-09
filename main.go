@@ -157,18 +157,18 @@ func main() {
 					if s == "0" {
 						continue
 					}
+					sInt, err := strconv.ParseUint(s, 16, 32)
+					if err != nil {
+						log.Error(s, " is not a valid shard")
+						continue
+					}
 					os.MkdirAll(".dexm.shard"+s, os.ModePerm)
 					// Create the blockchain database
 					b, err := blockchain.NewBlockchain(".dexm.shard"+s+"/", 0)
 					if err != nil {
 						log.Fatal("blockchain", err)
 					}
-					sInt, err := strconv.ParseUint(s, 16, 32)
-					// TODO this interest is not a shard, but we should consider it either
-					if err != nil {
-						log.Error(s, " is not a valid shard")
-						continue
-					}
+					// create a new blockchain for that shard
 					allInterestBlockchain[uint32(sInt)] = b
 				}
 
@@ -200,21 +200,20 @@ func main() {
 					Miner:     "Dexm0135yvZqn8V7S88emfcJFzQMMMn3ARDCA241D2",
 				}
 				for _, shard := range shardInterest {
+					cs.AddInterest(shard)
+					
 					if shard == "0" {
-						cs.AddInterest(shard)
 						continue
 					}
+
 					sInt, err := strconv.ParseUint(shard, 16, 32)
-					// TODO this interest is not a shard, but we should consider it either
 					if err != nil {
 						log.Error(shard, " is not a valid shard")
 						continue
 					}
-
 					cs.AddGenesisToQueue(genesisBlock, uint32(sInt))
 					cs.SaveBlock(genesisBlock, uint32(sInt))
 					cs.ImportBlock(genesisBlock, uint32(sInt))
-					cs.AddInterest(shard)
 				}
 
 				// This is only supposed to be one for nodes that are
