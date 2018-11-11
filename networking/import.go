@@ -3,9 +3,12 @@ package networking
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"os"
 	"strconv"
 	"time"
 
@@ -26,16 +29,16 @@ const (
 
 // UpdateChain asks all connected nodes for their chain lenght, if any of them
 // has a chain longer than the current one it will import
-// TODO Drop client if err != nil
-// TODO Make everything again
-func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
+func (cs *ConnectionStore) UpdateChain(nextShard uint32, oldShard string) error {
 	// No need to sync before genesis
-	for cs.shardsChain[nextShard].GetNetworkIndex() < 0 {
+	for cs.shardsChain[nextShard].GetNetworkIndex() <= 0 {
 		return nil
 	}
 
 	w := cs.identity
 	shardWallet := uint32(w.GetShardWallet())
+
+	clientToDrop := []*client{}
 
 	for cs.shardsChain[nextShard].CurrentBlock <= uint64(cs.shardsChain[nextShard].GetNetworkIndex()) {
 		for k := range cs.clients {
@@ -46,35 +49,15 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 				continue
 			}
 
-			// Ask for blockchain len
-			req := &network.Request{
-				Type: network.Request_GET_BLOCKCHAIN_LEN,
-			}
-
-			wallet, err := cs.identity.GetWallet()
+			blockchainLen, err := k.GetResponse(100 * time.Millisecond)
 			if err != nil {
-				log.Error(err)
+				clientToDrop = append(clientToDrop, k)
 				continue
 			}
-			currentShard, err := cs.beaconChain.Validators.GetShard(wallet)
-
-			d, err := makeReqEnvelope(req, currentShard)
-			if err != nil {
-				continue
-			}
-
-			k.send <- d
-
-			blockchainLen, err := k.GetResponse(300 * time.Millisecond)
-			if err != nil {
-				continue
-			}
-
 			flen, err := strconv.ParseUint(string(blockchainLen), 10, 64)
 			if err != nil {
 				continue
 			}
-
 			cb := cs.shardsChain[nextShard].CurrentBlock
 			if flen < cb {
 				continue
@@ -85,22 +68,15 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 				byteI := make([]byte, 4)
 				binary.LittleEndian.PutUint64(byteI, i)
 
-				env := &network.Envelope{
-					Type:  network.Envelope_REQUEST,
-					Data:  byteI,
-					Shard: nextShard,
+				err := MakeSpecificRequest(w, nextShard, byteI, network.Request_GET_BLOCK, k, shardWallet)
+				if err != nil {
+					log.Error(err)
+					break
 				}
-
-				req := &network.Request{
-					Type: network.Request_GET_BLOCK,
-					Data: env,
-				}
-				reqD, _ := proto.Marshal(req)
-
-				k.send <- reqD
 
 				block, err := k.GetResponse(300 * time.Millisecond)
 				if err != nil {
+					clientToDrop = append(clientToDrop, k)
 					break
 				}
 
@@ -120,10 +96,57 @@ func (cs *ConnectionStore) UpdateChain(nextShard uint32) error {
 			}
 		}
 	}
+
+	// remove the clients that didn't respond
+	for _, k := range clientToDrop {
+		if _, ok := cs.clients[k]; ok {
+			delete(cs.clients, k)
+		}
+	}
+
+	if oldShard == "" {
+		return nil
+	}
+
+	jsonFile, err := os.OpenFile("config.json", os.O_RDONLY|os.O_CREATE, 0666)
+	defer jsonFile.Close()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	data, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	var shardInterest []string
+	err = json.Unmarshal(data, &shardInterest)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	// remove the blockchain in oldShard if isn't in the config.json
+	remove := true
+	for _, shardI := range shardInterest {
+		if shardI == oldShard {
+			remove = false
+			break
+		}
+	}
+	if remove {
+		cs.RemoveInterest(oldShard)
+		err := os.RemoveAll(".dexm/shard" + oldShard + "/")
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+	}
+
 	return nil
 }
 
-func MakeSpecificRequest(w *wallet.Wallet, shard uint32, dataRequest []byte, t network.Request_MessageTypes,c *client, shardAddress uint32) error {
+func MakeSpecificRequest(w *wallet.Wallet, shard uint32, dataRequest []byte, t network.Request_MessageTypes, c *client, shardAddress uint32) error {
 	pubKey, _ := w.GetPubKey()
 
 	req := &network.Request{
@@ -141,6 +164,7 @@ func MakeSpecificRequest(w *wallet.Wallet, shard uint32, dataRequest []byte, t n
 	r, s, err := w.Sign(hashRequest)
 	if err != nil {
 		log.Error(err)
+		return err
 	}
 
 	signature := &network.Signature{
@@ -164,10 +188,12 @@ func MakeSpecificRequest(w *wallet.Wallet, shard uint32, dataRequest []byte, t n
 		log.Error(err)
 		return err
 	}
+
+	c.send <- data
 	return nil
 }
 
-func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroadcast network.Broadcast_BroadcastType, shardAddress uint32, shardEnvelope uint32) []byte {
+func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroadcast network.Broadcast_BroadcastType, shardAddress uint32, shardEnvelope uint32) {
 	pubKey, _ := cs.identity.GetPubKey()
 
 	// Create a broadcast message and send it to the network
@@ -203,7 +229,7 @@ func (cs *ConnectionStore) MakeEnvelopeBroadcast(dataBroadcast []byte, typeBroad
 	}
 
 	data, _ := proto.Marshal(env)
-	return data
+	cs.broadcast <- data
 }
 
 // func (cs *ConnectionStore) RequestHashBlock(shard uint32, indexBlock uint64, hashBlock []byte) (*protobufs.Block, bool) {

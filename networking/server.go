@@ -67,7 +67,7 @@ var upgrader = websocket.Upgrader{
 
 // Loop start ValidatorLoop for every interest
 func (cs *ConnectionStore) Loop() {
-	count := 0
+	var interests []uint32
 	for interest := range cs.interests {
 		interestInt, err := strconv.Atoi(interest)
 		if err != nil {
@@ -77,18 +77,19 @@ func (cs *ConnectionStore) Loop() {
 		if interestInt == 0 {
 			continue
 		}
-		count++
+		interests = append(interests, uint32(interestInt))
+	}
 
-		// TODO UpdateChain
-		// log.Info("Staring chain import")
-		// cs.UpdateChain(uint32(interestInt))
-		// log.Info("Done importing")
+	for i, interest := range interests {
+		log.Info("Staring chain import on shard ", interest)
+		cs.UpdateChain(interest, "")
+		log.Info("Done importing on shard ", interest)
 
-		// -1 because "0" doesn't count
-		if len(cs.interests)-1 == count {
-			cs.ValidatorLoop(uint32(interestInt))
+		// don't "go" the last interest
+		if i == len(interests)-1 {
+			cs.ValidatorLoop(interest)
 		}
-		go cs.ValidatorLoop(uint32(interestInt))
+		go cs.ValidatorLoop(interest)
 	}
 }
 
@@ -183,6 +184,11 @@ func StartServer(port, network string, shardsChain map[uint32]*blockchain.Blockc
 // broadcasts and avoid sending everything to everyone
 func (cs *ConnectionStore) AddInterest(key string) {
 	cs.interests[key] = true
+}
+func (cs *ConnectionStore) RemoveInterest(key string) {
+	if _, ok := cs.interests[key]; ok {
+		delete(cs.interests, key)
+	}
 }
 
 func (cs *ConnectionStore) AddGenesisToQueue(block *protoBlockchain.Block, shard uint32) {
@@ -703,21 +709,32 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			if err != nil {
 				log.Error(err)
 			}
-			newShardStr := fmt.Sprint(n)
+			newShardStr := fmt.Sprint(newShard)
 
-			// TODO like this doesn't work, you shouldn't remove the blockchain so early
-
-			// remove the older blockchain and create a new one
-			// TODO i should remove only the ones not used
-			// os.RemoveAll(".dexm/shard"+newShardStr+"/")
-			os.MkdirAll(".dexm/shard"+newShardStr+"/", os.ModePerm)
-			cs.shardsChain[newShard], err = blockchain.NewBlockchain(".dexm/shard"+newShardStr+"/", 0)
-			if err != nil {
-				log.Fatal("NewBlockchain ", err)
+			// check if create or not the new blockchain in shard newShard
+			if _, ok := cs.shardsChain[newShard]; ok {
+				// check if the blockchain in shard newShard that i have, is full update
+				if !(cs.shardsChain[newShard].CurrentBlock == cs.shardsChain[currentShard].CurrentBlock) {
+					err := cs.UpdateChain(newShard, fmt.Sprint(currentShard))
+					if err != nil {
+						log.Fatal("UpdateChain ", err)
+						continue
+					}
+				}
+			} else {
+				os.MkdirAll(".dexm/shard"+newShardStr+"/", os.ModePerm)
+				cs.shardsChain[newShard], err = blockchain.NewBlockchain(".dexm/shard"+newShardStr+"/", 0)
+				if err != nil {
+					log.Fatal("NewBlockchain ", err)
+					continue
+				}
+				// ask for the chain that corrispond to newShard shard
+				err := cs.UpdateChain(newShard, fmt.Sprint(currentShard))
+				if err != nil {
+					log.Fatal("UpdateChain ", err)
+					continue
+				}
 			}
-			// ask for the chain that corrispond to newShard shard
-			// TODO uncomment
-			// cs.UpdateChain(newShard)
 		}
 
 		// check if you are a validator or not, if not don't continue with the other messages
@@ -768,8 +785,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			cs.shardsChain[currentShard].HashBlocks[hashCurrentBlockString] = cs.shardsChain[currentShard].HashBlocks[hashPrevBlockString] + 1
 			cs.shardsChain[currentShard].PriorityBlocks.Insert(hashCurrentBlockString, float64(cs.shardsChain[currentShard].HashBlocks[hashCurrentBlockString])+0.5)
 
-			data := cs.MakeEnvelopeBroadcast(blockBytes, network.Broadcast_BLOCK_PROPOSAL, 1, currentShard)
-			cs.broadcast <- data
+			cs.MakeEnvelopeBroadcast(blockBytes, network.Broadcast_BLOCK_PROPOSAL, 1, currentShard)
 			log.Info("Block generated")
 		}
 
@@ -788,8 +804,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			}
 			schnorrPByte, _ := proto.Marshal(schnorrP)
 
-			data := cs.MakeEnvelopeBroadcast(schnorrPByte, protoNetwork.Broadcast_SCHNORR, 1, currentShard)
-			cs.broadcast <- data
+			cs.MakeEnvelopeBroadcast(schnorrPByte, protoNetwork.Broadcast_SCHNORR, 1, currentShard)
 		}
 
 		// after 3 turn, make the sign and broadcast it
@@ -867,8 +882,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 			}
 			signSchorrByte, _ := proto.Marshal(signSchorrP)
 
-			data := cs.MakeEnvelopeBroadcast(signSchorrByte, protoNetwork.Broadcast_SIGN_SCHNORR, 1, currentShard)
-			cs.broadcast <- data
+			cs.MakeEnvelopeBroadcast(signSchorrByte, protoNetwork.Broadcast_SIGN_SCHNORR, 1, currentShard)
 		}
 
 		// after another 3 turn make the final signature, from sign of the chosen validator, and verify it
@@ -921,8 +935,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 				}
 				mrByte, _ := proto.Marshal(mr)
 
-				data := cs.MakeEnvelopeBroadcast(mrByte, protoNetwork.Broadcast_MERKLE_ROOTS_SIGNED, 1, 0)
-				cs.broadcast <- data
+				cs.MakeEnvelopeBroadcast(mrByte, protoNetwork.Broadcast_MERKLE_ROOTS_SIGNED, 1, 0)
 
 				// wait 10 second and send the merkle proof
 				go func() {
@@ -963,8 +976,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 								continue
 							}
 
-							dataMerkleProof := cs.MakeEnvelopeBroadcast(merkleProofByte, protoNetwork.Broadcast_MERKLE_PROOF, 1, 0)
-							cs.broadcast <- dataMerkleProof
+							cs.MakeEnvelopeBroadcast(merkleProofByte, protoNetwork.Broadcast_MERKLE_PROOF, 1, 0)
 						}
 					}
 				}()
@@ -1049,7 +1061,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 		// 			Shard: currentShard,
 		// 		}
 
-		// 		data := cs.MakeEnvelopeBroadcast(merkleProofByte, protoNetwork.Broadcast_MERKLE_PROOF, 1, 0)
+		// 		cs.MakeEnvelopeBroadcast(merkleProofByte, protoNetwork.Broadcast_MERKLE_PROOF, 1, 0)
 		// 		cs.broadcast <- data
 		// 	}
 		// }

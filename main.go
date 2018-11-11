@@ -121,7 +121,7 @@ func main() {
 					}
 				}
 
-				// create and read config.json
+				// create or read config.json
 				jsonFile, err := os.OpenFile("config.json", os.O_RDONLY|os.O_CREATE, 0666)
 				defer jsonFile.Close()
 				if err != nil {
@@ -148,8 +148,6 @@ func main() {
 						log.Fatal(err)
 					}
 				}
-
-				log.Info(time.Now().Unix())
 
 				allInterestBlockchain := make(map[uint32]*blockchain.Blockchain)
 				// Create the dexm folder in case it's not there
@@ -201,7 +199,7 @@ func main() {
 				}
 				for _, shard := range shardInterest {
 					cs.AddInterest(shard)
-					
+
 					if shard == "0" {
 						continue
 					}
