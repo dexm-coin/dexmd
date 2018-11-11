@@ -29,6 +29,9 @@ func (cs *ConnectionStore) handleMessage(dataEnvelope []byte, c *client, shard u
 	switch request.GetType() {
 	// GET_BLOCKCHAIN_LEN returns the current block index
 	case protobufs.Request_GET_BLOCKCHAIN_LEN:
+		if !cs.CheckShard(shard) {
+			return []byte("Error")
+		}
 		return []byte(strconv.FormatUint(cs.shardsChain[shard].CurrentBlock, 10))
 
 	// GET_PEERS returns the peers the node is currently connected to
