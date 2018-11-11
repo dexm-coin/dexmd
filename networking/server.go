@@ -423,7 +423,7 @@ func (c *client) read() {
 
 	// Unregister if the node dies
 	defer func() {
-		log.Info("Client died")
+		// log.Info("Client died")
 		c.store.unregister <- c
 		c.isOpen = false
 		c.conn.Close()

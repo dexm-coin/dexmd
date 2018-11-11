@@ -83,11 +83,11 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, identity *
 			return err
 		}
 
-		log.Info("New Block from ", block.GetMiner())
+		log.Info("New Block from ", block.GetMiner(), " index ", block.GetIndex())
 
 		// check if the miner of the block that should be cs.shardsChain[shard].CurrentValidator[block.GetIndex()]
 		if block.GetMiner() != cs.shardsChain[shard].CurrentValidator[block.GetIndex()] {
-			log.Error("The miner is wrong")
+			log.Error("The miner ", block.GetMiner(), " is wrong")
 			log.Error("Should be ", cs.shardsChain[shard].CurrentValidator[block.GetIndex()])
 			return err
 		}
@@ -177,15 +177,16 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, identity *
 		// 	return err
 		// }
 
-		_, err = bc.GetBlock(block.GetIndex())
-		if err == nil {
-			log.Info("slash for ", block.GetMiner())
-			err = cs.beaconChain.Validators.RemoveValidator(block.GetMiner())
-			if err != nil {
-				log.Error("error on RemoveValidator")
-			}
-			return err
-		}
+		// TODO
+		// _, err = bc.GetBlock(block.GetIndex())
+		// if err == nil {
+		// 	log.Info("Slash for ", block.GetMiner())
+		// 	err = cs.beaconChain.Validators.RemoveValidator(block.GetMiner())
+		// 	if err != nil {
+		// 		log.Error("error on RemoveValidator")
+		// 	}
+		// 	return err
+		// }
 
 		err = cs.SaveBlock(block, shard)
 		if err != nil {
