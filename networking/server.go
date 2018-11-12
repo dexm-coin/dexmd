@@ -970,7 +970,7 @@ func (cs *ConnectionStore) ValidatorLoop(currentShard uint32) {
 						}
 
 						for i, _ := range receipts {
-							merkleProofByte := GenerateMerkleProof(receipts, i, transactions[i], currentShard)
+							merkleProofByte := GenerateMerkleProof(receipts, i, transactions[i])
 							if len(merkleProofByte) == 0 {
 								log.Error("proof failed")
 								continue

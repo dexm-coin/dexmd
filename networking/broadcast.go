@@ -353,7 +353,6 @@ func (cs *ConnectionStore) handleBroadcast(data []byte, shard uint32, identity *
 			return err
 		}
 
-		// TODO this is wrong maybe, i have to check the shard
 		if !cs.CheckShard(merkleProof.GetShard()) {
 			log.Error("Not your shard")
 			return err

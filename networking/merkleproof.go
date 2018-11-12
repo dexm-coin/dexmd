@@ -160,7 +160,7 @@ func verifyMerkleProof(proof []map[string][]byte, root, value []byte) bool {
 	return bytes.Equal(root, proofHash)
 }
 
-func GenerateMerkleProof(receipts []*protobufs.Receipt, indexProof int, transaction *protobufs.Transaction, shard uint32) []byte {
+func GenerateMerkleProof(receipts []*protobufs.Receipt, indexProof int, transaction *protobufs.Transaction) []byte {
 	var data [][]byte
 	for _, t := range receipts {
 		tByte, _ := proto.Marshal(t)
@@ -187,6 +187,12 @@ func GenerateMerkleProof(receipts []*protobufs.Receipt, indexProof int, transact
 			listLeaf = append(listLeaf, key)
 			listHash = append(listHash, value)
 		}
+	}
+
+	shard, err := wallet.GetShardFromAddress(transaction.GetRecipient())
+	if err != nil {
+		log.Error(err)
+		return []byte{}
 	}
 
 	merkleProof := &protobufs.MerkleProof{
