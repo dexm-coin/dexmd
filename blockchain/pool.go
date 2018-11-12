@@ -89,6 +89,7 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 	}
 
 	var transactions []*protobufs.Transaction
+	receiptsContracts := []*protobufs.Receipt{}
 
 	currentLen := len(blockHeader)
 	isTainted := make(map[string]bool)
@@ -148,6 +149,22 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 			balance = taintedState[senderWallet]
 		}
 
+		// If a function identifier is specified then fetch the contract and execute
+		// If the contract reverts take the gas and return the transaction value
+		if rtx.GetFunction() != "" {
+			c, err := GetContract(rtx.GetRecipient(), bc, rtx, balance.Balance)
+			if err != nil {
+				continue
+			}
+
+			returnState := c.ExecuteContract(rtx.GetFunction(), rtx.GetArgs())
+			if err != nil {
+				continue
+			}
+
+			receiptsContracts = append(receiptsContracts, returnState.Outputs...)
+		}
+
 		// Check if balance is sufficient
 		requiredBal, ok := util.AddU64O(rtx.GetAmount(), uint64(rtx.GetGas()))
 		if requiredBal > balance.GetBalance() && ok {
@@ -165,20 +182,26 @@ func (bc *Blockchain) GenerateBlock(miner string, shard uint32, validators *Vali
 
 		rawTx, err := proto.Marshal(rtx)
 		if err != nil {
-			break
+			continue
 		}
 
 		transactions = append(transactions, rtx)
 		currentLen += len(rawTx)
+		for _, r := range receiptsContracts {
+			rByte, _ := proto.Marshal(r)
+			currentLen += len(rByte)
+		}
 	}
 
 	block.Transactions = transactions
+	block.ReceiptsContracts = receiptsContracts
+
 	countBlockTransactions = len(transactions)
 
 	// create the merkletree with the transactions and get its root
 	merkleRootReceipt := []byte{}
 	if len(transactions) != 0 {
-		merkleRootReceipt, err = GenerateMerkleTree(transactions)
+		merkleRootReceipt, err = GenerateMerkleTree(transactions, receiptsContracts)
 		if err != nil {
 			return nil, err
 		}

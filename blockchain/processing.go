@@ -279,7 +279,7 @@ func (bc *Blockchain) ValidateBlock(block *protobufs.Block) (bool, error) {
 		// gets that much cash we are gonna be fucked anyways because of PoS
 	}
 
-	merkleRoot, err := GenerateMerkleTree(block.GetTransactions())
+	merkleRoot, err := GenerateMerkleTree(block.GetTransactions(), block.GetReceiptsContracts())
 	if err != nil {
 		log.Error(err)
 		return false, err

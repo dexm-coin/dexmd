@@ -10,7 +10,7 @@ import (
 )
 
 // GenerateMerkleTree generate a merkletree and return its root
-func GenerateMerkleTree(transactions []*protobufs.Transaction) ([]byte, error) {
+func GenerateMerkleTree(transactions []*protobufs.Transaction, receiptsContract []*protobufs.Receipt) ([]byte, error) {
 	var dataReceipt [][]byte
 	// For every transaction create its receipt and use it to create the tree
 	for _, t := range transactions {
@@ -20,6 +20,11 @@ func GenerateMerkleTree(transactions []*protobufs.Transaction) ([]byte, error) {
 			Amount:    t.GetAmount(),
 			Nonce:     t.GetNonce(),
 		}
+		rByte, _ := proto.Marshal(r)
+		dataReceipt = append(dataReceipt, rByte)
+	}
+
+	for _, r := range receiptsContract {
 		rByte, _ := proto.Marshal(r)
 		dataReceipt = append(dataReceipt, rByte)
 	}
