@@ -403,6 +403,15 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 				c.SaveState()
 
 				// Save the transactions which the contract outputted
+				for _, v := range returnState.Outputs {
+					recBal, _ := cs.shardsChain[shard].GetWalletState(v.Recipient)
+
+					// TODO Overflow check
+					recBal.Balance += v.Amount
+					err = cs.shardsChain[shard].SetState(v.Recipient, &recBal)
+
+				}
+
 			} else {
 				continue
 			}
