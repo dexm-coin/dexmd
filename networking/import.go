@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/dexm-coin/dexmd/blockchain"
+	"github.com/dexm-coin/dexmd/util"
 	"github.com/dexm-coin/dexmd/wallet"
 	"github.com/dexm-coin/protobufs/build/network"
 	"github.com/golang/protobuf/proto"
@@ -406,12 +407,18 @@ func (cs *ConnectionStore) ImportBlock(block *protobufs.Block, shard uint32) err
 				for _, v := range returnState.Outputs {
 					recBal, _ := cs.shardsChain[shard].GetWalletState(v.Recipient)
 
-					// TODO Overflow check
+					// Check if balance is sufficient
+					requiredBal, ok := util.AddU64O(recBal.Balance, v.Amount)
+					if requiredBal > recBal.Balance && ok {
+						continue
+					}
 					recBal.Balance += v.Amount
 					err = cs.shardsChain[shard].SetState(v.Recipient, &recBal)
-
+					if err != nil {
+						log.Error(err)
+						continue
+					}
 				}
-
 			} else {
 				continue
 			}
